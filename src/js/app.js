@@ -6,7 +6,21 @@ import { print, renderTable, formatProject } from './ui.js';
 let displayMap = [];
 const displayMapRef = { value: displayMap }; // reference wrapper for ui module
 let knownProjects = new Set();
+
 let knownTags = new Set();
+let knownIcons = new Set();
+
+const fetchIcons = async () => {
+    try {
+        const response = await fetch('fonts/iconoir/iconoir.css');
+        const text = await response.text();
+        const regex = /\.iconoir-([a-zA-Z0-9-]+)::before/g;
+        let match;
+        while ((match = regex.exec(text)) !== null) {
+            knownIcons.add('iconoir-' + match[1]);
+        }
+    } catch (e) { console.error("Failed to load icons", e); }
+};
 
 const updateCache = (tasks) => {
     knownProjects.clear(); knownTags.clear();
@@ -18,6 +32,7 @@ const updateCache = (tasks) => {
 
 const runList = async (args, limit = Infinity) => {
     const all = await dbOps.getAll();
+    const projects = await dbOps.getAllProjects();
     let pending = all.filter(t => t.status === 'pending');
     let search = [], fProj = null, fTags = [];
     let showWaiting = false;
@@ -50,7 +65,7 @@ const runList = async (args, limit = Infinity) => {
         pending = pending.slice(0, limit);
     }
     
-    renderTable(pending, all, displayMapRef);
+    renderTable(pending, all, displayMapRef, projects);
 };
 
 const execute = async (str) => {
@@ -79,7 +94,10 @@ const execute = async (str) => {
             print(`<span class="msg-success">Exported ${all.length} tasks.</span>`);
         }
         else if (cmd === 'import') document.getElementById('import-picker').click();
-        else if (cmd === 'clear') document.getElementById('terminal-output').innerHTML = '';
+        else if (cmd === 'clear') {
+            document.getElementById('terminal-output').innerHTML = '<div style="color: var(--base01); margin-bottom: 10px;">Tasca v0.0.17 [PWA]</div>';
+            execute('next');
+        }
 
         else if (['add', 'log'].includes(cmd)) {
             let desc = [], proj = "", priority = "", tags = [], depends = [], due = null, wait = null, recur = null;
@@ -176,6 +194,38 @@ const execute = async (str) => {
         }
 
         else if (cmd === 'annotate') {
+            // Check for project annotation: annotate pro:Name icon:foo
+            if (args[0] && (args[0].startsWith('pro:') || args[0].startsWith('project:'))) {
+                const projName = args[0].includes(':') ? args[0].split(':')[1] : null;
+                if(!projName) return print('<span class="msg-error">No project name specified.</span>');
+                
+                let icon = null;
+                args.slice(1).forEach(arg => {
+                     if(arg.startsWith('icon:')) {
+                         let val = arg.split(':')[1];
+                         if (val && !val.startsWith('iconoir-')) val = 'iconoir-' + val;
+                         icon = val;
+                     }
+                });
+                
+                if (icon) {
+                     const projects = await dbOps.getAllProjects();
+                     let proj = projects.find(p => p.name === projName);
+                     if (!proj) proj = { name: projName };
+                     proj.icon = icon;
+                     await dbOps.updateProject(proj);
+                     print(`<span class="msg-success">Project ${projName} updated.</span>`);
+                     execute('list'); // Show all to see changes (or should we run next? Next is default now, let's run next)
+                     // Actually execute('list') runs runList(args) which might be just 'list'. 
+                     // We want to refresh view. execute('next') logic:
+                     // uses stored limit. execute('list') uses Infinity.
+                     // The user wants to see the change.
+                } else {
+                    print('<span class="msg-info">No changes (icon not specified).</span>');
+                }
+                return;
+            }
+
             const id = parseInt(args[0]);
             if (!id || !displayMapRef.value[id-1]) return print('<span class="msg-error">Invalid ID.</span>');
             const task = await dbOps.get(displayMapRef.value[id-1]);
@@ -184,7 +234,7 @@ const execute = async (str) => {
             if(!task.annotations) task.annotations = [];
             task.annotations.push({ entry: Date.now(), description: note });
             await dbOps.update(task);
-            execute('list');
+            execute('next');
         }
 
         else if (cmd === 'info') {
@@ -195,7 +245,13 @@ const execute = async (str) => {
             html += `<div style="color:var(--yellow)">Task ${id} - ${t.uuid}</div>`;
             html += `<div><b>Desc:</b> ${t.description}</div>`;
             html += `<div><b>Status:</b> ${t.status}</div>`;
-            if(t.project) html += `<div><b>Project:</b> ${t.project}</div>`;
+            if(t.project) {
+                const projects = await dbOps.getAllProjects();
+                const pMeta = projects.find(p => p.name === t.project);
+                let pIcon = '';
+                if(pMeta && pMeta.icon) pIcon = `<i class="${pMeta.icon}" style="margin-right:5px"></i>`;
+                html += `<div><b>Project:</b> ${pIcon}${t.project}</div>`;
+            }
             if(t.due) html += `<div><b>Due:</b> ${formatDate(t.due)}</div>`;
             if(t.wait) html += `<div><b>Wait:</b> ${formatDate(t.wait)}</div>`;
             if(t.recur) html += `<div><b>Recur:</b> ${t.recur}</div>`;
@@ -315,6 +371,32 @@ const setupInput = () => {
                 }
             }
         }
+        else if (last.startsWith('icon:')) {
+            const prefix = last.substring(5); // remove 'icon:'
+            if (prefix) {
+                // Try matching full iconoir- name first (user explicitly typed iconoir-)
+                for (let i of knownIcons) {
+                    if (i.startsWith(prefix) && i !== prefix) { 
+                        suggestion = i.substring(prefix.length); 
+                        break; 
+                    }
+                }
+                // If no match, try matching as short name (user typed 'home', matches 'iconoir-home')
+                if (!suggestion) {
+                    const search = 'iconoir-' + prefix;
+                    for (let i of knownIcons) {
+                        if (i.startsWith(search)) {
+                            // suggestion is the remainder of the short name
+                            // e.g. prefix="hom", match="iconoir-home". 
+                            // We want to complete to "home", so suggestion is "e".
+                            // i.substring(search.length) -> "e"
+                            suggestion = i.substring(search.length);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
 
         if (suggestion) {
             const prefixText = val; 
@@ -355,6 +437,9 @@ initDB().then(async () => {
     });
     
     setupInput();
+    
+    // Fire and forget icon fetch
+    fetchIcons();
     
     try { 
         const tasks = await dbOps.getAll(); 
