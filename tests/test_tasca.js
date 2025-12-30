@@ -3,7 +3,7 @@ const { expect } = chai;
 
 // We need to import modules to test them.
 // Since test_tasca.js is loaded as module, we can import from src relative paths.
-import { calculateUrgency, hasVirtualTag, matchesProject } from '../src/js/logic.js';
+import { calculateUrgency, hasVirtualTag, matchesProject, getDaysRemaining } from '../src/js/logic.js';
 import { generateUUID } from '../src/js/utils.js';
 
 describe("Tasca Logic Tests", function () {
@@ -83,6 +83,28 @@ describe("Tasca Logic Tests", function () {
             const depTask = { uuid: 'u1', status: 'pending' };
             const t = { entry: now, depends: ['u1'], status: 'pending', tags: [] };
             expect(hasVirtualTag(t, '+BLOCKED', [depTask])).to.be.true;
+        });
+    });
+
+    describe("Days Remaining", function () {
+        it("should return 1 for due tomorrow", function () {
+            const n = Date.now();
+            expect(getDaysRemaining(n + 86400000, n)).to.equal(1);
+        });
+
+        it("should return 0 for due today (later)", function () {
+            const n = Date.now();
+            expect(getDaysRemaining(n + 10000, n)).to.equal(0);
+        });
+
+        it("should return -1 for yesterday", function () {
+            const n = Date.now();
+            expect(getDaysRemaining(n - 86400000, n)).to.equal(-1);
+        });
+
+        it("should return correct days for future", function () {
+            const n = Date.now();
+            expect(getDaysRemaining(n + 86400000 * 5, n)).to.equal(5);
         });
     });
 });

@@ -1,6 +1,6 @@
 import { generateUUID, parseDate, formatDate, addDays, addMonths } from './utils.js';
 import { initDB, dbOps } from './db.js';
-import { C, calculateUrgency, hasVirtualTag, resolveCommand, matchesProject } from './logic.js';
+import { C, calculateUrgency, hasVirtualTag, resolveCommand, matchesProject, getDaysRemaining } from './logic.js';
 import { print, renderTable, formatProject } from './ui.js';
 
 let displayMap = [];

@@ -26,6 +26,10 @@ export const calculateUrgency = (t, allTasks) => {
     return u.toFixed(1);
 };
 
+export const getDaysRemaining = (due, now = Date.now()) => {
+    return Math.floor((due - now) / (1000 * 60 * 60 * 24));
+};
+
 export const matchesProject = (taskProj, filterProj) => {
     if (!filterProj) return true;
     if (!taskProj) return false;

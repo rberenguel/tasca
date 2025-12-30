@@ -1,4 +1,4 @@
-
+import { getDaysRemaining } from './logic.js';
 let projectMetadata = {};
 
 export const setProjectMetadata = (meta) => {
@@ -83,11 +83,11 @@ export const renderTable = (tasks, allTasks, displayMapRef, projects = []) => {
         if (t.priority) metaHtml += ` <span style="color:${t.priority==='H'?'var(--red)':(t.priority==='M'?'var(--yellow)':'var(--base01)')}; font-weight:bold">pri:${t.priority}</span>`;
         
         if (t.due) {
-            const daysCheck = (t.due - Date.now()) / (1000 * 60 * 60 * 24);
+            const daysCheck = getDaysRemaining(t.due);
             let cls = 'date-far';
             if (daysCheck < 2) cls = 'date-urgent';
             else if (daysCheck < 7) cls = 'date-soon';
-            metaHtml += ` <span class="date-pill ${cls}">due:${new Date(t.due).toISOString().slice(0,10).replace(/-/g,'')}</span>`;
+            metaHtml += ` <span class="date-pill ${cls}">(${daysCheck}d)</span>`;
         }
         if (t.wait && t.wait > Date.now()) {
              metaHtml += ` <span class="date-pill date-wait">wait:${new Date(t.wait).toISOString().slice(0,10).replace(/-/g,'')}</span>`;
