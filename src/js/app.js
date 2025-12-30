@@ -1,11 +1,12 @@
 import { generateUUID, parseDate, formatDate, addDays, addMonths } from './utils.js';
 import { initDB, dbOps } from './db.js';
 import { C, calculateUrgency, hasVirtualTag, resolveCommand, matchesProject, getDaysRemaining } from './logic.js';
-import { print, renderTable, formatProject } from './ui.js';
+import { print, renderTable, formatProject, renderProjectsTable } from './ui.js';
 
 let displayMap = [];
 const displayMapRef = { value: displayMap }; // reference wrapper for ui module
 let knownProjects = new Set();
+let lastFilterArgs = []; // persist filter across operations
 
 let knownTags = new Set();
 let knownIcons = new Set();
@@ -31,6 +32,7 @@ const updateCache = (tasks) => {
 };
 
 const runList = async (args, limit = Infinity) => {
+    lastFilterArgs = args; // persist for reuse after operations
     const all = await dbOps.getAll();
     const projects = await dbOps.getAllProjects();
     let pending = all.filter(t => t.status === 'pending');
@@ -38,7 +40,7 @@ const runList = async (args, limit = Infinity) => {
     let showWaiting = false;
 
     for (let token of args) {
-        if (token.startsWith('pro:') || token.startsWith('project:')) fProj = token.split(':')[1];
+        if (token.startsWith('pro:') || token.startsWith('proj:') || token.startsWith('project:')) fProj = token.split(':')[1];
         else if (token.startsWith('+')) {
             const tag = token.substring(1);
             if (tag.toUpperCase() === 'WAITING' || tag.toUpperCase() === 'ALL') showWaiting = true;
@@ -102,7 +104,7 @@ const execute = async (str) => {
         else if (['add', 'log'].includes(cmd)) {
             let desc = [], proj = "", priority = "", tags = [], depends = [], due = null, wait = null, recur = null;
             for (let token of args) {
-                if (token.startsWith('pro:') || token.startsWith('project:')) proj = token.split(':')[1];
+                if (token.startsWith('pro:') || token.startsWith('proj:') || token.startsWith('project:')) proj = token.split(':')[1];
                 else if (token.startsWith('pri:') || token.startsWith('priority:')) priority = token.split(':')[1].toUpperCase();
                 else if (token.startsWith('dep:')) token.split(':')[1].split(',').forEach(id => { if(displayMapRef.value[id-1]) depends.push(displayMapRef.value[id-1]); });
                 else if (token.startsWith('due:')) due = parseDate(token.split(':')[1]);
@@ -113,7 +115,7 @@ const execute = async (str) => {
             }
             if (desc.length === 0) return print('<span class="msg-error">No description.</span>');
             await dbOps.add({ uuid: generateUUID(), description: desc.join(' '), project: proj, priority, tags, depends, due, wait, recur, annotations:[], status: 'pending', entry: Date.now() });
-            execute('list');
+            runList(lastFilterArgs);
         }
 
         else if (cmd === 'list' || cmd === 'ls') {
@@ -195,7 +197,7 @@ const execute = async (str) => {
 
         else if (cmd === 'annotate') {
             // Check for project annotation: annotate pro:Name icon:foo
-            if (args[0] && (args[0].startsWith('pro:') || args[0].startsWith('project:'))) {
+            if (args[0] && (args[0].startsWith('pro:') || args[0].startsWith('proj:') || args[0].startsWith('project:'))) {
                 const projName = args[0].includes(':') ? args[0].split(':')[1] : null;
                 if(!projName) return print('<span class="msg-error">No project name specified.</span>');
                 
@@ -215,11 +217,7 @@ const execute = async (str) => {
                      proj.icon = icon;
                      await dbOps.updateProject(proj);
                      print(`<span class="msg-success">Project ${projName} updated.</span>`);
-                     execute('list'); // Show all to see changes (or should we run next? Next is default now, let's run next)
-                     // Actually execute('list') runs runList(args) which might be just 'list'. 
-                     // We want to refresh view. execute('next') logic:
-                     // uses stored limit. execute('list') uses Infinity.
-                     // The user wants to see the change.
+                     runList(lastFilterArgs);
                 } else {
                     print('<span class="msg-info">No changes (icon not specified).</span>');
                 }
@@ -231,10 +229,29 @@ const execute = async (str) => {
             const task = await dbOps.get(displayMapRef.value[id-1]);
             const note = args.slice(1).join(' ');
             if(!note) return print('<span class="msg-error">No annotation text.</span>');
+
+            // Check for removal: annotate ID -N (N matches index shown in info)
+            const removeMatch = note.match(/^-(\d+)$/);
+            if (removeMatch) {
+                const n = parseInt(removeMatch[1]);
+                if (!task.annotations || task.annotations.length === 0) {
+                    return print('<span class="msg-error">No annotations to remove.</span>');
+                }
+                if (n < 1 || n > task.annotations.length) {
+                    return print(`<span class="msg-error">Invalid index. Task has ${task.annotations.length} annotation(s).</span>`);
+                }
+                // Remove by displayed index (1-based)
+                task.annotations.splice(n - 1, 1);
+                await dbOps.update(task);
+                print(`<span class="msg-success">Annotation ${n} removed.</span>`);
+                runList(lastFilterArgs);
+                return;
+            }
+
             if(!task.annotations) task.annotations = [];
             task.annotations.push({ entry: Date.now(), description: note });
             await dbOps.update(task);
-            execute('next');
+            runList(lastFilterArgs);
         }
 
         else if (cmd === 'info') {
@@ -257,21 +274,52 @@ const execute = async (str) => {
             if(t.recur) html += `<div><b>Recur:</b> ${t.recur}</div>`;
             if(t.annotations && t.annotations.length > 0) {
                  html += `<div style="margin-top:5px; border-top:1px dashed var(--base01); padding-top:5px"><b>Annotations:</b></div>`;
-                 t.annotations.forEach(a => { html += `<div style="margin-left:10px; font-size:0.9em; color:var(--base1)">${formatDate(a.entry)}: ${a.description}</div>`; });
+                 t.annotations.forEach((a, i) => { html += `<div style="margin-left:10px; font-size:0.9em; color:var(--base1)"><span style="color:var(--base01)">${i+1}.</span> ${formatDate(a.entry)}: ${a.description}</div>`; });
             }
             html += `</div>`;
             html += `</div>`;
             print(html, true);
         }
 
-        else if (targetId && (args[0] === 'mod' || args[0] === 'modify') || (['modify','mod'].includes(cmd) && args[0].match(/^\d+$/))) {
+        else if (['modify','mod'].includes(cmd) && args[0] && (args[0].startsWith('pro:') || args[0].startsWith('proj:') || args[0].startsWith('project:'))) {
+            // Project modification: mod pro:NAME icon:VALUE
+            const projName = args[0].split(':')[1];
+            if (!projName) return print('<span class="msg-error">No project name specified.</span>');
+
+            let icon = undefined; // undefined = not specified, null = explicitly cleared
+            args.slice(1).forEach(arg => {
+                if (arg.startsWith('icon:')) {
+                    let val = arg.split(':')[1];
+                    if (!val || val === '') {
+                        icon = null; // explicitly clear
+                    } else {
+                        if (!val.startsWith('iconoir-')) val = 'iconoir-' + val;
+                        icon = val;
+                    }
+                }
+            });
+
+            if (icon === undefined) {
+                return print('<span class="msg-info">No changes (specify icon:VALUE or icon: to clear).</span>');
+            }
+
+            const projects = await dbOps.getAllProjects();
+            let proj = projects.find(p => p.name === projName);
+            if (!proj) proj = { name: projName };
+            proj.icon = icon;
+            await dbOps.updateProject(proj);
+            print(`<span class="msg-success">Project ${projName} updated.</span>`);
+            runList(lastFilterArgs);
+        }
+
+        else if (targetId && (args[0] === 'mod' || args[0] === 'modify') || (['modify','mod'].includes(cmd) && args[0] && args[0].match(/^\d+$/))) {
             const id = targetId || parseInt(args[0]);
             const tokens = targetId ? args : args.slice(1);
             if (!id || !displayMapRef.value[id-1]) return print('<span class="msg-error">Invalid ID.</span>');
             const task = await dbOps.get(displayMapRef.value[id-1]);
             tokens.forEach(token => {
                 if (token.startsWith('pri:')) task.priority = token.split(':')[1].toUpperCase();
-                if (token.startsWith('pro:')) task.project = token.split(':')[1];
+                if (token.startsWith('pro:') || token.startsWith('proj:') || token.startsWith('project:')) task.project = token.split(':')[1];
                 if (token.startsWith('due:')) task.due = parseDate(token.split(':')[1]);
                 if (token.startsWith('wait:')) task.wait = parseDate(token.split(':')[1]);
                 if (token.startsWith('recur:')) task.recur = token.split(':')[1];
@@ -282,7 +330,7 @@ const execute = async (str) => {
                 }
             });
             await dbOps.update(task);
-            execute('list');
+            runList(lastFilterArgs);
         }
 
         else if (cmd === 'done' || (targetId && args[0] === 'done')) {
@@ -306,7 +354,7 @@ const execute = async (str) => {
                         print(`<span class="msg-success">Recurring task created.</span>`);
                     }
                 }
-                execute('list'); 
+                runList(lastFilterArgs);
             }
         }
 
@@ -314,25 +362,46 @@ const execute = async (str) => {
             const id = parseInt(args[0]);
             if (!id || !displayMapRef.value[id-1]) return print('<span class="msg-error">Invalid ID.</span>');
             await dbOps.delete(displayMapRef.value[id-1]);
-            execute('list');
+            runList(lastFilterArgs);
         }
         
         else if (cmd === 'help') {
             const sub = args[0];
             if (!sub) {
-                print(`<span style="color:var(--yellow)">Commands:</span> add, list, done, delete, modify, annotate, info, chain, export, import. Type <span class="msg-hl">help [cmd]</span> for details.`);
+                print(`<span style="color:var(--yellow)">Commands:</span> add, list, done, delete, modify, annotate, info, chain, projects, export, import. Type <span class="msg-hl">help [cmd]</span> for details.`);
             } else {
                 const c = resolveCommand(sub);
                 if (c === 'add') print(`<div class="msg-help"><span class="msg-hl">add</span> description <span class="msg-arg">pro:Project</span> <span class="msg-arg">pri:H/M/L</span> <span class="msg-arg">due:YYYYMMDD</span> <span class="msg-arg">wait:YYYYMMDD</span> <span class="msg-arg">recur:period</span> <span class="msg-arg">+tag</span></div>`);
-                else if (c === 'modify') print(`<div class="msg-help"><span class="msg-hl">mod</span> ID [desc] <span class="msg-arg">pro:P</span> <span class="msg-arg">pri:H</span> <span class="msg-arg">due:Y</span> <span class="msg-arg">wait:Y</span> <span class="msg-arg">recur:P</span> <span class="msg-arg">+tag</span> <span class="msg-arg">dep:ID</span></div>`);
+                else if (c === 'modify') print(`<div class="msg-help"><span class="msg-hl">mod</span> ID <span class="msg-arg">pro:P</span> <span class="msg-arg">pri:H</span> <span class="msg-arg">due:Y</span> <span class="msg-arg">wait:Y</span> <span class="msg-arg">recur:P</span> <span class="msg-arg">+tag</span> <span class="msg-arg">dep:ID</span><br><span class="msg-hl">mod</span> <span class="msg-arg">pro:Name</span> <span class="msg-arg">icon:value</span> (set/clear project icon)</div>`);
                 else if (c === 'list') print(`<div class="msg-help"><span class="msg-hl">list</span> [search] <span class="msg-arg">pro:Project</span> <span class="msg-arg">+tag</span><br>Virtual: <span class="msg-arg">+OVERDUE</span> <span class="msg-arg">+TODAY</span> <span class="msg-arg">+WAITING</span> <span class="msg-arg">+BLOCKED</span> <span class="msg-arg">+ALL</span></div>`);
                 else if (c === 'done') print(`<div class="msg-help"><span class="msg-hl">done</span> ID<br>Completes a task. If recurring, creates the next instance.</div>`);
                 else if (c === 'delete') print(`<div class="msg-help"><span class="msg-hl">delete</span> ID<br>Permanently removes a task.</div>`);
-                else if (c === 'annotate') print(`<div class="msg-help"><span class="msg-hl">annotate</span> ID <span class="msg-arg">note text...</span><br>Adds a timestamped note to a task.</div>`);
+                else if (c === 'annotate') print(`<div class="msg-help"><span class="msg-hl">annotate</span> ID <span class="msg-arg">note text...</span><br>Adds a timestamped note. Use <span class="msg-arg">-N</span> to remove by index (see info).</div>`);
                 else if (c === 'info') print(`<div class="msg-help"><span class="msg-hl">info</span> ID<br>Shows full details including annotations and full UUID.</div>`);
                 else if (c === 'chain') print(`<div class="msg-help"><span class="msg-hl">chain</span> ID<br>Visualizes dependency tree for the specified task.</div>`);
+                else if (c === 'projects' || c === 'proj') print(`<div class="msg-help"><span class="msg-hl">projects</span><br>Lists all projects with task counts.</div>`);
                 else print(`<span class="msg-error">No specific help for: ${sub}</span>`);
             }
+        }
+
+        else if (['projects', 'proj'].includes(cmd)) {
+            const all = await dbOps.getAll();
+            const projectsMeta = await dbOps.getAllProjects();
+
+            // Collect all project names from tasks (pending only)
+            const projectSet = new Set();
+            const taskCounts = {};
+            all.filter(t => t.status === 'pending').forEach(t => {
+                if (t.project) {
+                    projectSet.add(t.project);
+                    taskCounts[t.project] = (taskCounts[t.project] || 0) + 1;
+                }
+            });
+
+            // Also include projects from metadata that might have no tasks
+            projectsMeta.forEach(p => projectSet.add(p.name));
+
+            renderProjectsTable(Array.from(projectSet), projectsMeta, taskCounts);
         }
 
         else print(`<span class="msg-error">Unknown: ${cmd}</span>`);
@@ -355,7 +424,7 @@ const setupInput = () => {
             const match = resolveCommand(val);
             if (match && match !== val) suggestion = match.substring(val.length);
         }
-        else if (last.startsWith('pro:') || last.startsWith('project:')) {
+        else if (last.startsWith('pro:') || last.startsWith('proj:') || last.startsWith('project:')) {
             const prefix = last.includes(':') ? last.split(':')[1] : "";
             if (prefix) {
                 for (let p of knownProjects) {
@@ -429,7 +498,7 @@ initDB().then(async () => {
                 const data = JSON.parse(ev.target.result);
                 for (const t of data) if (t.uuid) await dbOps.update(t);
                 print(`<span class="msg-success">Imported tasks.</span>`);
-                execute('list');
+                runList(lastFilterArgs);
             } catch (err) { print(`<span class="msg-error">Error: ${err.message}</span>`); }
             e.target.value = '';
         };

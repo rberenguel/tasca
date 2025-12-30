@@ -1,5 +1,6 @@
 import { getDaysRemaining } from './logic.js';
 let projectMetadata = {};
+let cachedProjectCounts = {}; // for projects table
 
 export const setProjectMetadata = (meta) => {
     projectMetadata = {};
@@ -116,8 +117,35 @@ export const renderTable = (tasks, allTasks, displayMapRef, projects = []) => {
     html += `</tbody></table></div>`;
     html += `<div style="font-size:0.8em; color:var(--base01)">${tasks.length} tasks shown.</div>`;
     
-    // renderChain is effectively dead code in this modular version unless imported/refactored, 
+    // renderChain is effectively dead code in this modular version unless imported/refactored,
     // keeping ui.js consistent with previous file but updated.
-    
+
+    print(html, false);
+};
+
+export const renderProjectsTable = (projectNames, projectsMeta, taskCounts) => {
+    setProjectMetadata(projectsMeta);
+    if (!projectNames || projectNames.length === 0) return print('<span class="msg-info">No projects found.</span>', false);
+
+    let html = `
+    <div class="table-wrapper">
+    <table>
+        <thead><tr>
+            <th>Project</th>
+            <th style="width:60px; text-align:right">Tasks</th>
+        </tr></thead>
+        <tbody>`;
+
+    projectNames.sort().forEach(name => {
+        const count = taskCounts[name] || 0;
+        html += `<tr>
+            <td>${formatProject(name)}</td>
+            <td style="text-align:right">${count}</td>
+        </tr>`;
+    });
+
+    html += `</tbody></table></div>`;
+    html += `<div style="font-size:0.8em; color:var(--base01)">${projectNames.length} projects.</div>`;
+
     print(html, false);
 };
