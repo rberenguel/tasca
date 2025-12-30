@@ -123,6 +123,12 @@ export const renderTable = (tasks, allTasks, displayMapRef, projects = []) => {
     if (t.annotations && t.annotations.length > 0) {
       metaHtml += ` <span class="anno-count">msg:${t.annotations.length}</span>`;
     }
+    if (t.end) {
+      const d = new Date(t.end);
+      const dateStr = d.toISOString().slice(0, 10);
+      const timeStr = d.toTimeString().slice(0, 5);
+      metaHtml += ` <span style="color:var(--green)">done:${dateStr} ${timeStr}</span>`;
+    }
 
     html += `<tr>
             <td class="row-id">${index + 1}</td>

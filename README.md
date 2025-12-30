@@ -44,8 +44,11 @@ Use with `list` or `export`:
 - `pro:Name` — filter by project (includes subprojects)
 - `!tag` — filter by tag
 - `text` — search in description
+- `end:1w` — completed in last week (use with `!done`). Supports `d`ays, `w`eeks, `m`onths.
 
 Virtual tags: `!overdue`, `!today`, `!waiting`, `!blocked`, `!done`, `!all`
+
+Example: `list !done end:1w` — review tasks completed in the last week.
 
 ### Project Icons
 
@@ -68,6 +71,11 @@ import                      # on device B
 ```
 
 Tasks are matched by UUID. Re-importing updates existing tasks.
+
+### Keyboard Shortcuts
+
+- **Up/Down arrows**: Navigate command history
+- **Tab**: Autocomplete commands, projects, and tags
 
 ## Installation
 

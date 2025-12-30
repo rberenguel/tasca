@@ -4,6 +4,7 @@ import {
   formatDate,
   addDays,
   addMonths,
+  parseRelativeTime,
 } from "./utils.js";
 import { initDB, dbOps } from "./db.js";
 import {
@@ -28,6 +29,11 @@ let lastFilterArgs = []; // persist filter across operations
 
 let knownTags = new Set();
 let knownIcons = new Set();
+
+// Command history
+let cmdHistory = JSON.parse(localStorage.getItem("tasca_history") || "[]");
+let historyIndex = -1;
+let historyTemp = ""; // stores current input when navigating history
 
 const fetchIcons = async () => {
   try {
@@ -58,7 +64,8 @@ const runList = async (args, limit = Infinity) => {
   const projects = await dbOps.getAllProjects();
   let search = [],
     fProj = null,
-    fTags = [];
+    fTags = [],
+    endAfter = null;
   let showWaiting = false,
     showDone = false;
 
@@ -69,7 +76,11 @@ const runList = async (args, limit = Infinity) => {
       token.startsWith("project:")
     )
       fProj = token.split(":")[1];
-    else if (token.startsWith("!")) {
+    else if (token.startsWith("end:")) {
+      // end:7d, end:1w, end:2m - show tasks completed after this relative time
+      const val = token.split(":")[1];
+      endAfter = parseRelativeTime(val);
+    } else if (token.startsWith("!")) {
       const tag = token.substring(1).toUpperCase();
       if (tag === "WAITING" || tag === "ALL") showWaiting = true;
       if (tag === "DONE" || tag === "COMPLETED") showDone = true;
@@ -84,6 +95,7 @@ const runList = async (args, limit = Infinity) => {
   if (!showWaiting && !showDone)
     tasks = tasks.filter((t) => !t.wait || t.wait <= Date.now());
   if (fProj) tasks = tasks.filter((t) => matchesProject(t.project, fProj));
+  if (endAfter) tasks = tasks.filter((t) => t.end && t.end >= endAfter);
   if (fTags.length) {
     tasks = tasks.filter((t) =>
       fTags.every((ft) => {
@@ -595,7 +607,7 @@ const execute = async (str) => {
           );
         else if (c === "list")
           print(
-            `<div class="msg-help"><span class="msg-hl">list</span> [search] <span class="msg-arg">pro:Project</span> <span class="msg-arg">!tag</span><br>Virtual: <span class="msg-arg">!overdue</span> <span class="msg-arg">!today</span> <span class="msg-arg">!waiting</span> <span class="msg-arg">!blocked</span> <span class="msg-arg">!done</span> <span class="msg-arg">!all</span></div>`,
+            `<div class="msg-help"><span class="msg-hl">list</span> [search] <span class="msg-arg">pro:Project</span> <span class="msg-arg">!tag</span> <span class="msg-arg">end:1w</span><br>Virtual: <span class="msg-arg">!overdue</span> <span class="msg-arg">!today</span> <span class="msg-arg">!waiting</span> <span class="msg-arg">!blocked</span> <span class="msg-arg">!done</span> <span class="msg-arg">!all</span></div>`,
           );
         else if (c === "done")
           print(
@@ -747,11 +759,49 @@ const setupInput = () => {
         ghost.innerHTML = "";
       }
     }
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (cmdHistory.length === 0) return;
+      if (historyIndex === -1) {
+        historyTemp = input.value;
+        historyIndex = cmdHistory.length - 1;
+      } else if (historyIndex > 0) {
+        historyIndex--;
+      }
+      input.value = cmdHistory[historyIndex];
+      ghost.innerHTML = "";
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (historyIndex === -1) return;
+      if (historyIndex < cmdHistory.length - 1) {
+        historyIndex++;
+        input.value = cmdHistory[historyIndex];
+      } else {
+        historyIndex = -1;
+        input.value = historyTemp;
+      }
+      ghost.innerHTML = "";
+    }
     if (e.key === "Enter") {
-      const val = input.value;
+      const val = input.value.trim();
       input.value = "";
       ghost.innerHTML = "";
-      await execute(val);
+      if (val) {
+        // Add to history if different from last entry
+        if (
+          cmdHistory.length === 0 ||
+          cmdHistory[cmdHistory.length - 1] !== val
+        ) {
+          cmdHistory.push(val);
+          // Limit history size
+          if (cmdHistory.length > 100) cmdHistory.shift();
+          localStorage.setItem("tasca_history", JSON.stringify(cmdHistory));
+        }
+      }
+      historyIndex = -1;
+      historyTemp = "";
+      if (val) await execute(val);
     }
   });
 };
