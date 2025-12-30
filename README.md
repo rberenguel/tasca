@@ -75,16 +75,31 @@ import                      # on device B
 
 Tasks are matched by UUID. Re-importing updates existing tasks.
 
-### Quick Sync (Desktop Chrome)
+### Cross-Device Sync
 
-On desktop Chrome, use the File System Access API for persistent file access:
+**Export** uses the best available method:
+- **Desktop Chrome**: File picker — select existing file to overwrite
+- **iOS Safari**: Share sheet — tap "Save to Files" to save/overwrite in iCloud
+- **Other browsers**: Standard download
+
+**Workflow for syncing between desktop and mobile:**
+
+1. Create a sync file in a shared folder (iCloud, Dropbox, etc.)
+2. On desktop Chrome, run `link` once to select the file
+3. Use `sync` to pull changes and push your state back
 
 ```
-link                        # pick/create sync file (once)
-sync                        # export all tasks to linked file
+link                        # pick sync file in iCloud (once)
+sync                        # read → merge → write
 ```
 
-The file handle persists across sessions. Use `unlink` to disconnect.
+On mobile, use `export` → "Save to Files" → overwrite the same file.
+
+The `sync` command is bidirectional:
+1. Reads from the linked file (imports any changes from other devices)
+2. Writes all tasks back (so other devices can import)
+
+Use `unlink` to disconnect the linked file.
 
 ### Keyboard Shortcuts
 

@@ -179,17 +179,60 @@ const execute = async (str) => {
 
       const dataStr = JSON.stringify(filtered, null, 2);
       const blob = new Blob([dataStr], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
       const filename =
         args.length > 0
           ? `tasca_${args.join("_").replace(/[^a-zA-Z0-9]/g, "")}_${new Date().toISOString().slice(0, 10).replace(/-/g, "")}.json`
           : `tasca_${new Date().toISOString().slice(0, 10).replace(/-/g, "")}.json`;
+
+      // Try File System Access API (desktop Chrome - allows overwrite)
+      if (window.showSaveFilePicker) {
+        try {
+          const handle = await window.showSaveFilePicker({
+            suggestedName: filename,
+            types: [
+              {
+                description: "JSON files",
+                accept: { "application/json": [".json"] },
+              },
+            ],
+          });
+          const writable = await handle.createWritable();
+          await writable.write(dataStr);
+          await writable.close();
+          print(
+            `<span class="msg-success">Exported ${filtered.length} tasks to ${handle.name}.</span>`,
+          );
+          return;
+        } catch (e) {
+          if (e.name === "AbortError") return; // User cancelled
+          // Fall through to other methods
+        }
+      }
+
+      // Try Web Share API (iOS - triggers share sheet with "Save to Files")
+      const file = new File([blob], filename, { type: "application/json" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file] });
+          print(
+            `<span class="msg-success">Exported ${filtered.length} tasks.</span>`,
+          );
+          return;
+        } catch (e) {
+          if (e.name === "AbortError") return; // User cancelled
+          // Fall through to download
+        }
+      }
+
+      // Fallback: download link
+      const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
+      URL.revokeObjectURL(url);
       print(
         `<span class="msg-success">Exported ${filtered.length} tasks.</span>`,
       );
@@ -723,14 +766,35 @@ const execute = async (str) => {
             );
           }
         }
-        // Export all tasks
+        // Read first: import from linked file
+        let imported = 0;
+        try {
+          const file = await handle.getFile();
+          const text = await file.text();
+          if (text.trim()) {
+            const data = JSON.parse(text);
+            for (const t of data) {
+              if (t.uuid) {
+                await dbOps.update(t);
+                imported++;
+              }
+            }
+          }
+        } catch (e) {
+          // File might be empty or invalid - that's ok for first sync
+        }
+        // Then write: export all tasks back
         const all = await dbOps.getAll();
         const writable = await handle.createWritable();
         await writable.write(JSON.stringify(all, null, 2));
         await writable.close();
         print(
-          `<span class="msg-success">Synced ${all.length} tasks to ${handle.name}.</span>`,
+          `<span class="msg-success">Synced with ${handle.name}: ${imported} imported, ${all.length} saved.</span>`,
         );
+        if (imported > 0) {
+          updateCache(all);
+          runList(lastFilterArgs);
+        }
       } catch (e) {
         print(`<span class="msg-error">Sync failed: ${e.message}</span>`);
       }
