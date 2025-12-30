@@ -1,0 +1,42 @@
+const CACHE_NAME = "tasca-cache-v1";
+const CACHE_FILES = [
+  './index.html',
+  './src/css/style.css',
+  './src/js/app.js',
+  './src/js/db.js',
+  './src/js/logic.js',
+  './src/js/ui.js',
+  './src/js/utils.js',
+  './fonts/monoid-regular.woff2',
+  './fonts/monoid-bold.woff2',
+  './manifest.json',
+  './icon.png'
+];
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(CACHE_FILES);
+    })
+  );
+});
+
+self.addEventListener("fetch", (event) => {
+  event.respondWith(
+    caches.match(event.request).then((response) => {
+      return response || fetch(event.request);
+    })
+  );
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((name) => {
+          if (name !== CACHE_NAME) return caches.delete(name);
+        })
+      );
+    })
+  );
+});

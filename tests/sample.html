@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HED: (Highlighter & Ed) Test Page</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      line-height: 1.6;
+      color: #333;
+      padding: 2em;
+    }
+    .container {
+      display: flex;
+      gap: 2em;
+      margin-bottom: 2em;
+    }
+    .box {
+      flex: 1;
+      padding: 1.5em;
+      border-radius: 8px;
+    }
+    .dark {
+      background-color: #2b2b2b;
+      color: #e0e0e0;
+    }
+    .dark a { color: #87c3ff; }
+    .light {
+      background-color: #f0f0f0;
+      color: #333;
+    }
+    .editable-block, textarea {
+      width: 90%;
+      min-height: 120px;
+      padding: 1em;
+      border: 2px solid #ccc;
+      border-radius: 8px;
+      margin-top: 1em;
+      font-size: 16px;
+      line-height: 1.6;
+      resize: vertical;
+    }
+    .editable-block:focus {
+      outline: 2px solid #007bff;
+    }
+    h2 {
+      margin-top: 2em;
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 0.2em;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>HED: (Highlighter & Ed) Test Page</h1>
+
+  <div class="container">
+    <div class="box dark">
+      <h2>Dark Background Test</h2>
+      <p>
+        This test includes various nodes. For example, <strong>Lorem</strong> ipsum <a href="#">dolor</a> sit amet, consectetur adipiscing elit. Here is an <em>important variation</em> of the text. The goal is to highlight across these different <b>HTML node</b> boundaries. You can contact us for more variations.
+      </p>
+    </div>
+    <div class="box light">
+      <h2>Light Background Test</h2>
+      <p>
+        This test includes various nodes. For example, <strong>Lorem</strong> ipsum <a href="#">dolor</a> sit amet, consectetur adipiscing elit. Here is an <em>important variation</em> of the text. The goal is to highlight across these different <b>HTML node</b> boundaries. You can contact us for more variations.
+      </p>
+    </div>
+  </div>
+
+ <h2>Content-Editable Test Block</h2>
+  <p>
+    Highlighting should work here. Your `ed` editor should also be able to grab this content.
+    <br>
+    <strong>Note:</strong> The `ed` editor is a <strong>plain-text</strong> tool. When you activate it on this styled block, the formatting (bold, links, etc.) will be stripped. This is the <em>expected behavior</em> and demonstrates how the editor correctly extracts text from complex HTML.
+  </p>
+  <div class="editable-block" contenteditable="true">
+    This is an <strong>editable</strong> block. You can type in here. It also has different <a href="#">nodes like this link</a> and some <em>emphasized text</em>. This test includes various nodes. For example, <strong>Lorem</strong> ipsum <a href="#"></a>dolor</a> sit amet, consectetur adipiscing elit.
+  </div>
+
+  <h2>Textarea Test Block</h2>
+  <p>Highlighting is <em>not</em> expected to work inside a standard textarea, as its content is not part of the traversable DOM.</p>
+  <textarea class="textarea-block">This is a standard textarea.
+The highlighter will not be able to wrap this text in <span> tags.
+
+It's a good place to test the 'textfield-edit' mode of your `ed` palette. Try highlighting 'lorem' or other words here using the ed commands.
+  </textarea>
+
+</body>
+</html>

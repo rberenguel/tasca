@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#001015">
+    <title>Tasca</title>
+    <link rel="stylesheet" href="src/css/style.css">
+    <link rel="manifest" href="manifest.json">
+</head>
+<body>
+
+    <input type="file" id="import-picker" style="display:none" accept=".json">
+
+    <div class="input-line">
+        <span class="prompt">❯</span>
+        <div class="input-stack">
+            <div id="ghost-input" class="ghost"></div>
+            <input type="text" id="cmd-input" autofocus autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="add Buy Milk pro:Home...">
+        </div>
+    </div>
+
+    <div id="terminal-output">
+        <div style="color: var(--base01); margin-bottom: 10px;">Tasca v0.0.17 [PWA]</div>
+    </div>
+
+    <!-- Main Entry Point -->
+    <script type="module" src="src/js/app.js"></script>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('SW registered:', reg))
+                    .catch(err => console.error('SW failed:', err));
+            });
+        }
+    </script>
+</body>
+</html>

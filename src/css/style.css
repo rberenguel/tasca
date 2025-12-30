@@ -1,0 +1,147 @@
+@font-face {
+    font-family: 'Monoid';
+    src: url('../../fonts/monoid-regular.woff2') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Monoid';
+    src: url('../../fonts/monoid-bold.woff2') format('woff2');
+    font-weight: bold;
+    font-style: normal;
+}
+
+:root {
+    /* Solarized Dark Palette */
+    --base03:  #001015;
+    --base02:  #073642;
+    --base01:  #586e75;
+    --base00:  #657b83;
+    --base0:   #839496;
+    --base1:   #93a1a1;
+    --yellow:  #b58900;
+    --orange:  #cb4b16;
+    --red:     #dc322f;
+    --magenta: #d33682;
+    --violet:  #6c71c4;
+    --blue:    #268bd2;
+    --cyan:    #2aa198;
+    --green:   #859900;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    background-color: var(--base03);
+    color: var(--base0);
+    font-family: 'Monoid', 'Menlo', 'Monaco', 'Courier New', monospace;
+    font-size: 14px;
+    margin: 0;
+    padding: 0;
+    height: 100dvh; 
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.input-line {
+    /* position: fixed; removed to fix spacing issue */
+    /* top: 0; left: 0; right: 0; */
+    height: 50px;
+    display: flex;
+    align-items: center;
+    background-color: var(--base03);
+    border-bottom: 1px solid var(--base02);
+    padding: 0 10px;
+    z-index: 1000;
+}
+
+.prompt { 
+    color: var(--base01); 
+    margin-right: 12px; 
+    font-weight: bold; 
+    font-size: 16px;
+    user-select: none;
+    flex-shrink: 0;
+}
+
+.input-stack {
+    position: relative;
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    height: 24px;
+}
+
+input, .ghost {
+    font-family: 'Monoid', 'Menlo', 'Monaco', 'Courier New', monospace;
+    font-size: 16px; 
+    border: none;
+    outline: none;
+    background: transparent;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 24px;
+    line-height: 24px;
+    letter-spacing: normal;
+}
+
+input {
+    color: var(--base1);
+    z-index: 2;
+}
+
+input::placeholder {
+    color: var(--base01);
+    opacity: 0.5;
+}
+
+.ghost {
+    color: var(--base01);
+    z-index: 1;
+    pointer-events: none;
+    white-space: pre;
+    opacity: 0.6;
+}
+
+#terminal-output {
+    flex-grow: 1;
+    overflow-y: auto;
+    overflow-y: auto;
+    padding: 0 10px 50px 10px;
+    -webkit-overflow-scrolling: touch;
+}
+
+.table-wrapper { overflow-x: auto; margin-bottom: 15px; }
+table { border-collapse: collapse; width: 100%; text-align: left; min-width: 320px; }
+th { border-bottom: 1px solid var(--base01); color: var(--base1); padding: 8px 4px; font-size: 12px;}
+td { padding: 8px 4px; vertical-align: top; border-bottom: 1px solid #07364240; }
+
+.row-id { color: var(--base01); font-weight: bold; width: 25px; }
+.row-proj-parent { color: var(--base01); }
+.row-proj-leaf { color: var(--yellow); font-weight: bold; }
+.row-desc { word-break: break-word; }
+.row-urgency { color: var(--base01); text-align: right; font-size: 0.9em; width: 40px;}
+
+.msg-success { color: var(--base1); }
+.msg-error { color: var(--red); }
+.msg-info { color: var(--base01); font-style: italic; }
+.msg-help { color: var(--base01); font-size: 0.9em; margin-bottom: 15px; border-bottom: 1px dashed var(--base02); padding-bottom: 10px; }
+.msg-hl { color: var(--base1); font-weight: bold; }
+.msg-arg { color: var(--blue); }
+
+.tag-pill { background: var(--base02); color: var(--blue); padding: 1px 4px; border-radius: 3px; font-size: 0.85em; display: inline-block; margin-top: 2px;}
+.dep-pill { color: var(--orange); font-weight: bold; margin-right: 4px; font-size: 0.9em; }
+.blocked-pill { color: var(--base01); font-weight: bold; margin-right: 4px; font-size: 0.9em; }
+.date-pill { font-size: 0.85em; margin-right: 6px; }
+.date-far { color: var(--base01); }
+.date-soon { color: var(--yellow); font-weight: bold; }
+.date-urgent { color: var(--red); font-weight: bold; }
+.date-wait { color: var(--base01); opacity: 0.7; }
+.recur-icon { color: var(--violet); font-size: 0.9em; margin-right: 4px; }
+.anno-count { color: var(--green); font-size: 0.9em; margin-left: 4px; }
