@@ -1,16 +1,16 @@
 {
-    "name": "Tasca",
-    "short_name": "Tasca",
-    "start_url": ".",
-    "display": "standalone",
-    "background_color": "#001015",
-    "theme_color": "#001015",
-    "description": "A minimal text-based task manager.",
-    "icons": [
-        {
-            "src": "icon.png",
-            "sizes": "192x192",
-            "type": "image/png"
-        }
-    ]
+  "name": "Tasca",
+  "short_name": "Tasca",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#001015",
+  "theme_color": "#001015",
+  "description": "A minimal text-based task manager.",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
 }

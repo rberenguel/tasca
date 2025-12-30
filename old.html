@@ -1,820 +1,1170 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#001015">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <meta name="theme-color" content="#001015" />
     <title>Tasca</title>
     <style>
-        :root {
-            /* Solarized Dark Palette */
-            --base03:  #001015;
-            --base02:  #073642;
-            --base01:  #586e75;
-            --base00:  #657b83;
-            --base0:   #839496;
-            --base1:   #93a1a1;
-            --yellow:  #b58900;
-            --orange:  #cb4b16;
-            --red:     #dc322f;
-            --magenta: #d33682;
-            --violet:  #6c71c4;
-            --blue:    #268bd2;
-            --cyan:    #2aa198;
-            --green:   #859900;
-        }
-        
-        * { box-sizing: border-box; }
+      :root {
+        /* Solarized Dark Palette */
+        --base03: #001015;
+        --base02: #073642;
+        --base01: #586e75;
+        --base00: #657b83;
+        --base0: #839496;
+        --base1: #93a1a1;
+        --yellow: #b58900;
+        --orange: #cb4b16;
+        --red: #dc322f;
+        --magenta: #d33682;
+        --violet: #6c71c4;
+        --blue: #268bd2;
+        --cyan: #2aa198;
+        --green: #859900;
+      }
 
-        body {
-            background-color: var(--base03);
-            color: var(--base0);
-            font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
-            font-size: 14px;
-            margin: 0;
-            padding: 0;
-            height: 100dvh; 
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-        
-        .input-line {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 50px;
-            display: flex;
-            align-items: center;
-            background-color: var(--base03);
-            border-bottom: 1px solid var(--base02);
-            padding: 0 10px;
-            z-index: 1000;
-        }
-        
-        .prompt { 
-            color: var(--base01); 
-            margin-right: 12px; 
-            font-weight: bold; 
-            font-size: 16px;
-            user-select: none;
-            flex-shrink: 0;
-        }
-        
-        .input-stack {
-            position: relative;
-            flex-grow: 1;
-            display: flex;
-            align-items: center;
-            height: 24px;
-        }
-        
-        input, .ghost {
-            font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
-            font-size: 16px; 
-            border: none;
-            outline: none;
-            background: transparent;
-            padding: 0;
-            margin: 0;
-            width: 100%;
-            position: absolute;
-            top: 0;
-            left: 0;
-            height: 24px;
-            line-height: 24px;
-            letter-spacing: normal;
-        }
+      * {
+        box-sizing: border-box;
+      }
 
-        input {
-            color: var(--base1);
-            z-index: 2;
-        }
-        
-        input::placeholder {
-            color: var(--base01);
-            opacity: 0.5;
-        }
+      body {
+        background-color: var(--base03);
+        color: var(--base0);
+        font-family: "Menlo", "Monaco", "Courier New", monospace;
+        font-size: 14px;
+        margin: 0;
+        padding: 0;
+        height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
 
-        .ghost {
-            color: var(--base01);
-            z-index: 1;
-            pointer-events: none;
-            white-space: pre;
-            opacity: 0.6;
-        }
+      .input-line {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        background-color: var(--base03);
+        border-bottom: 1px solid var(--base02);
+        padding: 0 10px;
+        z-index: 1000;
+      }
 
-        #terminal-output {
-            flex-grow: 1;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            padding: 10px;
-            padding-top: 60px;
-            padding-bottom: 50px;
-            -webkit-overflow-scrolling: touch;
-        }
+      .prompt {
+        color: var(--base01);
+        margin-right: 12px;
+        font-weight: bold;
+        font-size: 16px;
+        user-select: none;
+        flex-shrink: 0;
+      }
 
-        .table-wrapper { overflow-x: auto; margin-bottom: 15px; }
-        table { border-collapse: collapse; width: 100%; text-align: left; min-width: 320px; }
-        th { border-bottom: 1px solid var(--base01); color: var(--base1); padding: 8px 4px; font-size: 12px;}
-        td { padding: 8px 4px; vertical-align: top; border-bottom: 1px solid #07364240; }
-        
-        .row-id { color: var(--base01); font-weight: bold; width: 25px; }
-        .row-proj-parent { color: var(--base01); }
-        .row-proj-leaf { color: var(--yellow); font-weight: bold; }
-        .row-desc { word-break: break-word; }
-        .row-urgency { color: var(--base01); text-align: right; font-size: 0.9em; width: 40px;}
-        
-        .msg-success { color: var(--base1); }
-        .msg-error { color: var(--red); }
-        .msg-info { color: var(--base01); font-style: italic; }
-        .msg-help { color: var(--base01); font-size: 0.9em; margin-bottom: 15px; border-bottom: 1px dashed var(--base02); padding-bottom: 10px; }
-        .msg-hl { color: var(--base1); font-weight: bold; }
-        .msg-arg { color: var(--blue); }
-        
-        .tag-pill { background: var(--base02); color: var(--blue); padding: 1px 4px; border-radius: 3px; font-size: 0.85em; display: inline-block; margin-top: 2px;}
-        .dep-pill { color: var(--orange); font-weight: bold; margin-right: 4px; font-size: 0.9em; }
-        .blocked-pill { color: var(--base01); font-weight: bold; margin-right: 4px; font-size: 0.9em; }
-        .date-pill { font-size: 0.85em; margin-right: 6px; }
-        .date-far { color: var(--base01); }
-        .date-soon { color: var(--yellow); font-weight: bold; }
-        .date-urgent { color: var(--red); font-weight: bold; }
-        .date-wait { color: var(--base01); opacity: 0.7; }
-        .recur-icon { color: var(--violet); font-size: 0.9em; margin-right: 4px; }
-        .anno-count { color: var(--green); font-size: 0.9em; margin-left: 4px; }
+      .input-stack {
+        position: relative;
+        flex-grow: 1;
+        display: flex;
+        align-items: center;
+        height: 24px;
+      }
+
+      input,
+      .ghost {
+        font-family: "Menlo", "Monaco", "Courier New", monospace;
+        font-size: 16px;
+        border: none;
+        outline: none;
+        background: transparent;
+        padding: 0;
+        margin: 0;
+        width: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 24px;
+        line-height: 24px;
+        letter-spacing: normal;
+      }
+
+      input {
+        color: var(--base1);
+        z-index: 2;
+      }
+
+      input::placeholder {
+        color: var(--base01);
+        opacity: 0.5;
+      }
+
+      .ghost {
+        color: var(--base01);
+        z-index: 1;
+        pointer-events: none;
+        white-space: pre;
+        opacity: 0.6;
+      }
+
+      #terminal-output {
+        flex-grow: 1;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        padding: 10px;
+        padding-top: 60px;
+        padding-bottom: 50px;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .table-wrapper {
+        overflow-x: auto;
+        margin-bottom: 15px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        text-align: left;
+        min-width: 320px;
+      }
+      th {
+        border-bottom: 1px solid var(--base01);
+        color: var(--base1);
+        padding: 8px 4px;
+        font-size: 12px;
+      }
+      td {
+        padding: 8px 4px;
+        vertical-align: top;
+        border-bottom: 1px solid #07364240;
+      }
+
+      .row-id {
+        color: var(--base01);
+        font-weight: bold;
+        width: 25px;
+      }
+      .row-proj-parent {
+        color: var(--base01);
+      }
+      .row-proj-leaf {
+        color: var(--yellow);
+        font-weight: bold;
+      }
+      .row-desc {
+        word-break: break-word;
+      }
+      .row-urgency {
+        color: var(--base01);
+        text-align: right;
+        font-size: 0.9em;
+        width: 40px;
+      }
+
+      .msg-success {
+        color: var(--base1);
+      }
+      .msg-error {
+        color: var(--red);
+      }
+      .msg-info {
+        color: var(--base01);
+        font-style: italic;
+      }
+      .msg-help {
+        color: var(--base01);
+        font-size: 0.9em;
+        margin-bottom: 15px;
+        border-bottom: 1px dashed var(--base02);
+        padding-bottom: 10px;
+      }
+      .msg-hl {
+        color: var(--base1);
+        font-weight: bold;
+      }
+      .msg-arg {
+        color: var(--blue);
+      }
+
+      .tag-pill {
+        background: var(--base02);
+        color: var(--blue);
+        padding: 1px 4px;
+        border-radius: 3px;
+        font-size: 0.85em;
+        display: inline-block;
+        margin-top: 2px;
+      }
+      .dep-pill {
+        color: var(--orange);
+        font-weight: bold;
+        margin-right: 4px;
+        font-size: 0.9em;
+      }
+      .blocked-pill {
+        color: var(--base01);
+        font-weight: bold;
+        margin-right: 4px;
+        font-size: 0.9em;
+      }
+      .date-pill {
+        font-size: 0.85em;
+        margin-right: 6px;
+      }
+      .date-far {
+        color: var(--base01);
+      }
+      .date-soon {
+        color: var(--yellow);
+        font-weight: bold;
+      }
+      .date-urgent {
+        color: var(--red);
+        font-weight: bold;
+      }
+      .date-wait {
+        color: var(--base01);
+        opacity: 0.7;
+      }
+      .recur-icon {
+        color: var(--violet);
+        font-size: 0.9em;
+        margin-right: 4px;
+      }
+      .anno-count {
+        color: var(--green);
+        font-size: 0.9em;
+        margin-left: 4px;
+      }
     </style>
-</head>
-<body>
-
-    <input type="file" id="import-picker" style="display:none" accept=".json">
+  </head>
+  <body>
+    <input
+      type="file"
+      id="import-picker"
+      style="display: none"
+      accept=".json"
+    />
 
     <div class="input-line">
-        <span class="prompt">❯</span>
-        <div class="input-stack">
-            <div id="ghost-input" class="ghost"></div>
-            <input type="text" id="cmd-input" autofocus autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="add Buy Milk pro:Home...">
-        </div>
+      <span class="prompt">❯</span>
+      <div class="input-stack">
+        <div id="ghost-input" class="ghost"></div>
+        <input
+          type="text"
+          id="cmd-input"
+          autofocus
+          autocomplete="off"
+          autocapitalize="off"
+          autocorrect="off"
+          spellcheck="false"
+          placeholder="add Buy Milk pro:Home..."
+        />
+      </div>
     </div>
 
     <div id="terminal-output">
-        <div style="color: var(--base01); margin-bottom: 10px;">Tasca v0.0.16 [Chain Command]</div>
+      <div style="color: var(--base01); margin-bottom: 10px">
+        Tasca v0.0.16 [Chain Command]
+      </div>
     </div>
 
-<script>
-    // --- UTILS ---
-    const generateUUID = () => {
-        if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-            var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    <script>
+      // --- UTILS ---
+      const generateUUID = () => {
+        if (typeof crypto !== "undefined" && crypto.randomUUID)
+          return crypto.randomUUID();
+        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
+          /[xy]/g,
+          function (c) {
+            var r = (Math.random() * 16) | 0,
+              v = c == "x" ? r : (r & 0x3) | 0x8;
             return v.toString(16);
-        });
-    };
+          },
+        );
+      };
 
-    const parseDate = (str) => {
+      const parseDate = (str) => {
         if (!/^\d{8}$/.test(str)) return null;
-        const y = parseInt(str.substring(0,4));
-        const m = parseInt(str.substring(4,6)) - 1;
-        const d = parseInt(str.substring(6,8));
+        const y = parseInt(str.substring(0, 4));
+        const m = parseInt(str.substring(4, 6)) - 1;
+        const d = parseInt(str.substring(6, 8));
         const date = new Date(y, m, d);
         date.setHours(23, 59, 59, 999);
         return date.getTime();
-    };
-    
-    const formatDate = (ts) => {
-        if(!ts) return "";
+      };
+
+      const formatDate = (ts) => {
+        if (!ts) return "";
         const d = new Date(ts);
         const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
         return `${y}${m}${day}`;
-    };
+      };
 
-    const addDays = (ts, days) => { const d = new Date(ts); d.setDate(d.getDate() + days); return d.getTime(); };
-    const addMonths = (ts, months) => { const d = new Date(ts); d.setMonth(d.getMonth() + months); return d.getTime(); };
+      const addDays = (ts, days) => {
+        const d = new Date(ts);
+        d.setDate(d.getDate() + days);
+        return d.getTime();
+      };
+      const addMonths = (ts, months) => {
+        const d = new Date(ts);
+        d.setMonth(d.getMonth() + months);
+        return d.getTime();
+      };
 
-    const print = (html, clear = false) => {
-        const output = document.getElementById('terminal-output');
-        if(clear) output.innerHTML = '';
-        
-        const div = document.createElement('div');
+      const print = (html, clear = false) => {
+        const output = document.getElementById("terminal-output");
+        if (clear) output.innerHTML = "";
+
+        const div = document.createElement("div");
         div.style.marginBottom = "8px";
         div.innerHTML = html;
         output.appendChild(div);
-        if (clear) output.scrollTop = 0; else output.scrollTop = output.scrollHeight;
-    };
+        if (clear) output.scrollTop = 0;
+        else output.scrollTop = output.scrollHeight;
+      };
 
-    // --- DB ---
-    const DB_NAME = 'tasca_db';
-    const STORE_NAME = 'tasks';
-    let db = null; 
+      // --- DB ---
+      const DB_NAME = "tasca_db";
+      const STORE_NAME = "tasks";
+      let db = null;
 
-    const initDB = () => new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, 4);
-        request.onupgradeneeded = (event) => {
+      const initDB = () =>
+        new Promise((resolve, reject) => {
+          const request = indexedDB.open(DB_NAME, 4);
+          request.onupgradeneeded = (event) => {
             const db = event.target.result;
-            if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME, { keyPath: 'uuid' });
-        };
-        request.onsuccess = (e) => { 
-            db = e.target.result; 
-            resolve(db); 
-        };
-        request.onerror = (e) => reject(e.target.errorCode);
-    });
-
-    const dbOps = {
-        check: () => { if (!db) throw new Error("Database loading..."); },
-        getAll: () => new Promise((resolve, reject) => {
-            if(!db) return reject("DB not ready");
-            const tx = db.transaction(STORE_NAME, 'readonly');
-            tx.objectStore(STORE_NAME).getAll().onsuccess = e => resolve(e.target.result);
-        }),
-        add: (task) => new Promise((resolve, reject) => {
-            if(!db) return reject("DB not ready");
-            const tx = db.transaction(STORE_NAME, 'readwrite');
-            tx.objectStore(STORE_NAME).add(task).onsuccess = () => resolve();
-        }),
-        update: (task) => new Promise((resolve, reject) => {
-            if(!db) return reject("DB not ready");
-            const tx = db.transaction(STORE_NAME, 'readwrite');
-            tx.objectStore(STORE_NAME).put(task).onsuccess = () => resolve();
-        }),
-        delete: (uuid) => new Promise((resolve, reject) => {
-            if(!db) return reject("DB not ready");
-            const tx = db.transaction(STORE_NAME, 'readwrite');
-            tx.objectStore(STORE_NAME).delete(uuid).onsuccess = () => resolve();
-        }),
-        get: (uuid) => new Promise((resolve, reject) => {
-            if(!db) return reject("DB not ready");
-            const tx = db.transaction(STORE_NAME, 'readonly');
-            tx.objectStore(STORE_NAME).get(uuid).onsuccess = e => resolve(e.target.result);
-        })
-    };
-
-    // --- Logic ---
-    let displayMap = []; 
-    let knownProjects = new Set();
-    let knownTags = new Set();
-
-    const C = { next: 15.0, due: 12.0, blocking: 8.0, blocked: -5.0, priority: { H: 6.0, M: 3.9, L: 1.8 }, age: 2.0, project: 1.0 };
-
-    const updateCache = (tasks) => {
-        knownProjects.clear(); knownTags.clear();
-        tasks.forEach(t => {
-            if(t.project) knownProjects.add(t.project);
-            if(t.tags) t.tags.forEach(tag => knownTags.add(tag));
+            if (!db.objectStoreNames.contains(STORE_NAME))
+              db.createObjectStore(STORE_NAME, { keyPath: "uuid" });
+          };
+          request.onsuccess = (e) => {
+            db = e.target.result;
+            resolve(db);
+          };
+          request.onerror = (e) => reject(e.target.errorCode);
         });
-    };
 
-    const calculateUrgency = (t, allTasks) => {
+      const dbOps = {
+        check: () => {
+          if (!db) throw new Error("Database loading...");
+        },
+        getAll: () =>
+          new Promise((resolve, reject) => {
+            if (!db) return reject("DB not ready");
+            const tx = db.transaction(STORE_NAME, "readonly");
+            tx.objectStore(STORE_NAME).getAll().onsuccess = (e) =>
+              resolve(e.target.result);
+          }),
+        add: (task) =>
+          new Promise((resolve, reject) => {
+            if (!db) return reject("DB not ready");
+            const tx = db.transaction(STORE_NAME, "readwrite");
+            tx.objectStore(STORE_NAME).add(task).onsuccess = () => resolve();
+          }),
+        update: (task) =>
+          new Promise((resolve, reject) => {
+            if (!db) return reject("DB not ready");
+            const tx = db.transaction(STORE_NAME, "readwrite");
+            tx.objectStore(STORE_NAME).put(task).onsuccess = () => resolve();
+          }),
+        delete: (uuid) =>
+          new Promise((resolve, reject) => {
+            if (!db) return reject("DB not ready");
+            const tx = db.transaction(STORE_NAME, "readwrite");
+            tx.objectStore(STORE_NAME).delete(uuid).onsuccess = () => resolve();
+          }),
+        get: (uuid) =>
+          new Promise((resolve, reject) => {
+            if (!db) return reject("DB not ready");
+            const tx = db.transaction(STORE_NAME, "readonly");
+            tx.objectStore(STORE_NAME).get(uuid).onsuccess = (e) =>
+              resolve(e.target.result);
+          }),
+      };
+
+      // --- Logic ---
+      let displayMap = [];
+      let knownProjects = new Set();
+      let knownTags = new Set();
+
+      const C = {
+        next: 15.0,
+        due: 12.0,
+        blocking: 8.0,
+        blocked: -5.0,
+        priority: { H: 6.0, M: 3.9, L: 1.8 },
+        age: 2.0,
+        project: 1.0,
+      };
+
+      const updateCache = (tasks) => {
+        knownProjects.clear();
+        knownTags.clear();
+        tasks.forEach((t) => {
+          if (t.project) knownProjects.add(t.project);
+          if (t.tags) t.tags.forEach((tag) => knownTags.add(tag));
+        });
+      };
+
+      const calculateUrgency = (t, allTasks) => {
         if (t.wait && t.wait > Date.now()) return -10.0;
         let u = 0.0;
-        if (t.tags.includes('next')) u += C.next;
+        if (t.tags.includes("next")) u += C.next;
         if (t.priority && C.priority[t.priority]) u += C.priority[t.priority];
         if (t.project) u += C.project;
         const ageDays = (Date.now() - t.entry) / (1000 * 60 * 60 * 24);
-        u += (ageDays > 100 ? C.age : (ageDays / 100) * C.age);
+        u += ageDays > 100 ? C.age : (ageDays / 100) * C.age;
         if (t.due) {
-            const daysLeft = (t.due - Date.now()) / (1000 * 60 * 60 * 24);
-            if (daysLeft <= 2) u += C.due; 
-            else if (daysLeft <= 14) u += C.due * (1 - (daysLeft - 2) / 12);
+          const daysLeft = (t.due - Date.now()) / (1000 * 60 * 60 * 24);
+          if (daysLeft <= 2) u += C.due;
+          else if (daysLeft <= 14) u += C.due * (1 - (daysLeft - 2) / 12);
         }
-        const isBlocking = allTasks.some(o => o.status === 'pending' && o.depends?.includes(t.uuid));
+        const isBlocking = allTasks.some(
+          (o) => o.status === "pending" && o.depends?.includes(t.uuid),
+        );
         if (isBlocking) u += C.blocking;
         if (t.depends?.length > 0) {
-            if (allTasks.filter(d => t.depends.includes(d.uuid)).some(d => d.status === 'pending')) u += C.blocked;
+          if (
+            allTasks
+              .filter((d) => t.depends.includes(d.uuid))
+              .some((d) => d.status === "pending")
+          )
+            u += C.blocked;
         }
         return u.toFixed(1);
-    };
+      };
 
-    const hasVirtualTag = (t, tag, allTasks) => {
+      const hasVirtualTag = (t, tag, allTasks) => {
         const now = Date.now();
-        const tagClean = tag.replace(/^\+/, '').toUpperCase();
-        if (tagClean === 'OVERDUE') return t.due && t.due < now && t.status === 'pending';
-        if (tagClean === 'TODAY') return t.due && formatDate(t.due) === formatDate(now);
-        if (tagClean === 'WAITING') return t.wait && t.wait > now && t.status === 'pending';
-        if (tagClean === 'BLOCKED') return t.depends?.length > 0 && allTasks.filter(d => t.depends.includes(d.uuid)).some(d => d.status === 'pending');
+        const tagClean = tag.replace(/^\+/, "").toUpperCase();
+        if (tagClean === "OVERDUE")
+          return t.due && t.due < now && t.status === "pending";
+        if (tagClean === "TODAY")
+          return t.due && formatDate(t.due) === formatDate(now);
+        if (tagClean === "WAITING")
+          return t.wait && t.wait > now && t.status === "pending";
+        if (tagClean === "BLOCKED")
+          return (
+            t.depends?.length > 0 &&
+            allTasks
+              .filter((d) => t.depends.includes(d.uuid))
+              .some((d) => d.status === "pending")
+          );
         return false;
-    };
+      };
 
-    const formatProject = (proj) => {
+      const formatProject = (proj) => {
         if (!proj) return "";
-        const parts = proj.split('.');
-        if (parts.length === 1) return `<span class="row-proj-leaf">${proj}</span>`;
+        const parts = proj.split(".");
+        if (parts.length === 1)
+          return `<span class="row-proj-leaf">${proj}</span>`;
         const leaf = parts.pop();
-        return `<span class="row-proj-parent">${parts.join('.')}.</span><span class="row-proj-leaf">${leaf}</span>`;
-    };
+        return `<span class="row-proj-parent">${parts.join(".")}.</span><span class="row-proj-leaf">${leaf}</span>`;
+      };
 
-    const renderTable = (tasks, allTasks) => {
-        if (tasks.length === 0) return print('<span class="msg-info">No tasks found.</span>', true);
-        displayMap = tasks.map(t => t.uuid);
+      const renderTable = (tasks, allTasks) => {
+        if (tasks.length === 0)
+          return print('<span class="msg-info">No tasks found.</span>', true);
+        displayMap = tasks.map((t) => t.uuid);
         updateCache(allTasks);
 
         let html = `<div class="table-wrapper"><table><thead><tr><th style="width:20px">ID</th><th>Desc</th><th style="text-align:right">Urg</th></tr></thead><tbody>`;
         tasks.forEach((t, index) => {
-            let desc = t.description;
-            if(t.project) desc = `${formatProject(t.project)} ${desc}`;
-            if(t.priority) desc = `<span style="color:var(--red); font-weight:bold">!${t.priority}</span> ${desc}`;
-            if(t.recur) desc = `<span class="recur-icon">↻</span>` + desc;
-            if (t.due) {
-                const daysLeft = (t.due - Date.now()) / (1000 * 60 * 60 * 24);
-                let cls = "date-far";
-                if (daysLeft < 1) cls = "date-urgent"; else if (daysLeft < 7) cls = "date-soon";
-                desc = `<span class="date-pill ${cls}">due:${formatDate(t.due)}</span>` + desc;
-            }
-            if (t.wait && t.wait > Date.now()) desc = `<span class="date-pill date-wait">wait:${formatDate(t.wait)}</span>` + desc;
-            const tags = t.tags.length ? t.tags.map(tag => `<span class="tag-pill">+${tag}</span>`).join('') : '';
-            if(t.annotations && t.annotations.length > 0) desc += `<span class="anno-count">[${t.annotations.length}]</span>`;
-            
-            let depStr = "";
-            const isBlocking = allTasks.some(o => o.status === 'pending' && o.depends?.includes(t.uuid));
-            if (isBlocking) depStr += `<span class="dep-pill">[Blocking]</span>`;
-            if (t.depends?.length > 0 && allTasks.filter(d => t.depends.includes(d.uuid)).some(d => d.status === 'pending')) depStr += `<span class="blocked-pill">[Blocked]</span>`;
-            
-            html += `<tr><td class="row-id">${index + 1}</td><td class="row-desc">${depStr}${desc} ${tags} <span style="color:var(--base01); font-size:0.8em">(${Math.floor((Date.now() - t.entry) / 864e5)}d)</span></td><td class="row-urgency">${t.urgency}</td></tr>`;
+          let desc = t.description;
+          if (t.project) desc = `${formatProject(t.project)} ${desc}`;
+          if (t.priority)
+            desc = `<span style="color:var(--red); font-weight:bold">!${t.priority}</span> ${desc}`;
+          if (t.recur) desc = `<span class="recur-icon">↻</span>` + desc;
+          if (t.due) {
+            const daysLeft = (t.due - Date.now()) / (1000 * 60 * 60 * 24);
+            let cls = "date-far";
+            if (daysLeft < 1) cls = "date-urgent";
+            else if (daysLeft < 7) cls = "date-soon";
+            desc =
+              `<span class="date-pill ${cls}">due:${formatDate(t.due)}</span>` +
+              desc;
+          }
+          if (t.wait && t.wait > Date.now())
+            desc =
+              `<span class="date-pill date-wait">wait:${formatDate(t.wait)}</span>` +
+              desc;
+          const tags = t.tags.length
+            ? t.tags
+                .map((tag) => `<span class="tag-pill">+${tag}</span>`)
+                .join("")
+            : "";
+          if (t.annotations && t.annotations.length > 0)
+            desc += `<span class="anno-count">[${t.annotations.length}]</span>`;
+
+          let depStr = "";
+          const isBlocking = allTasks.some(
+            (o) => o.status === "pending" && o.depends?.includes(t.uuid),
+          );
+          if (isBlocking) depStr += `<span class="dep-pill">[Blocking]</span>`;
+          if (
+            t.depends?.length > 0 &&
+            allTasks
+              .filter((d) => t.depends.includes(d.uuid))
+              .some((d) => d.status === "pending")
+          )
+            depStr += `<span class="blocked-pill">[Blocked]</span>`;
+
+          html += `<tr><td class="row-id">${index + 1}</td><td class="row-desc">${depStr}${desc} ${tags} <span style="color:var(--base01); font-size:0.8em">(${Math.floor((Date.now() - t.entry) / 864e5)}d)</span></td><td class="row-urgency">${t.urgency}</td></tr>`;
         });
         html += `</tbody></table></div>`;
-        print(html, true); 
-    };
+        print(html, true);
+      };
 
-    const VALID_COMMANDS = ['add', 'log', 'list', 'ls', 'next', 'done', 'delete', 'rm', 'modify', 'mod', 'export', 'import', 'help', 'clear', 'annotate', 'info', 'chain'];
-    
-    const resolveCommand = (str) => {
-        const matches = VALID_COMMANDS.filter(c => c.startsWith(str));
+      const VALID_COMMANDS = [
+        "add",
+        "log",
+        "list",
+        "ls",
+        "next",
+        "done",
+        "delete",
+        "rm",
+        "modify",
+        "mod",
+        "export",
+        "import",
+        "help",
+        "clear",
+        "annotate",
+        "info",
+        "chain",
+      ];
+
+      const resolveCommand = (str) => {
+        const matches = VALID_COMMANDS.filter((c) => c.startsWith(str));
         return matches.length === 1 ? matches[0] : null;
-    };
+      };
 
-    const execute = async (str) => {
-        if (db === null) { print('<span class="msg-error">Database loading... please wait.</span>'); return; }
+      const execute = async (str) => {
+        if (db === null) {
+          print(
+            '<span class="msg-error">Database loading... please wait.</span>',
+          );
+          return;
+        }
 
         try {
-            const parts = str.trim().split(/\s+/);
-            if(!parts.length || parts[0] === '') return;
-            if(parts[0] === 'task') parts.shift();
+          const parts = str.trim().split(/\s+/);
+          if (!parts.length || parts[0] === "") return;
+          if (parts[0] === "task") parts.shift();
 
-            let rawCmd = parts[0];
-            let cmd = resolveCommand(rawCmd);
-            if (!cmd && rawCmd.match(/^\d+$/)) cmd = 'info'; 
-            if (!cmd) cmd = rawCmd; 
+          let rawCmd = parts[0];
+          let cmd = resolveCommand(rawCmd);
+          if (!cmd && rawCmd.match(/^\d+$/)) cmd = "info";
+          if (!cmd) cmd = rawCmd;
 
-            let args = parts.slice(1);
-            let targetId = rawCmd.match(/^\d+$/) ? parseInt(rawCmd) : null;
+          let args = parts.slice(1);
+          let targetId = rawCmd.match(/^\d+$/) ? parseInt(rawCmd) : null;
 
-            if (cmd === 'export') {
-                const all = await dbOps.getAll();
-                const dataStr = JSON.stringify(all, null, 2);
-                const blob = new Blob([dataStr], {type: "application/json"});
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a'); a.href = url; a.download = `tasca_${new Date().toISOString().slice(0,10).replace(/-/g,'')}.json`;
-                document.body.appendChild(a); a.click(); document.body.removeChild(a);
-                print(`<span class="msg-success">Exported ${all.length} tasks.</span>`);
+          if (cmd === "export") {
+            const all = await dbOps.getAll();
+            const dataStr = JSON.stringify(all, null, 2);
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `tasca_${new Date().toISOString().slice(0, 10).replace(/-/g, "")}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            print(
+              `<span class="msg-success">Exported ${all.length} tasks.</span>`,
+            );
+          } else if (cmd === "import")
+            document.getElementById("import-picker").click();
+          else if (cmd === "clear")
+            document.getElementById("terminal-output").innerHTML = "";
+          else if (["add", "log"].includes(cmd)) {
+            let desc = [],
+              proj = "",
+              priority = "",
+              tags = [],
+              depends = [],
+              due = null,
+              wait = null,
+              recur = null;
+            for (let token of args) {
+              if (token.startsWith("pro:") || token.startsWith("project:"))
+                proj = token.split(":")[1];
+              else if (
+                token.startsWith("pri:") ||
+                token.startsWith("priority:")
+              )
+                priority = token.split(":")[1].toUpperCase();
+              else if (token.startsWith("dep:"))
+                token
+                  .split(":")[1]
+                  .split(",")
+                  .forEach((id) => {
+                    if (displayMap[id - 1]) depends.push(displayMap[id - 1]);
+                  });
+              else if (token.startsWith("due:"))
+                due = parseDate(token.split(":")[1]);
+              else if (token.startsWith("wait:"))
+                wait = parseDate(token.split(":")[1]);
+              else if (token.startsWith("recur:")) recur = token.split(":")[1];
+              else if (token.startsWith("+")) tags.push(token.substring(1));
+              else desc.push(token);
             }
-            else if (cmd === 'import') document.getElementById('import-picker').click();
-            else if (cmd === 'clear') document.getElementById('terminal-output').innerHTML = '';
+            if (desc.length === 0)
+              return print('<span class="msg-error">No description.</span>');
+            await dbOps.add({
+              uuid: generateUUID(),
+              description: desc.join(" "),
+              project: proj,
+              priority,
+              tags,
+              depends,
+              due,
+              wait,
+              recur,
+              annotations: [],
+              status: "pending",
+              entry: Date.now(),
+            });
+            execute("list");
+          } else if (["list", "ls", "next"].includes(cmd)) {
+            const all = await dbOps.getAll();
+            let pending = all.filter((t) => t.status === "pending");
+            let search = [],
+              fProj = null,
+              fTags = [];
+            let showWaiting = false;
 
-            else if (['add', 'log'].includes(cmd)) {
-                let desc = [], proj = "", priority = "", tags = [], depends = [], due = null, wait = null, recur = null;
-                for (let token of args) {
-                    if (token.startsWith('pro:') || token.startsWith('project:')) proj = token.split(':')[1];
-                    else if (token.startsWith('pri:') || token.startsWith('priority:')) priority = token.split(':')[1].toUpperCase();
-                    else if (token.startsWith('dep:')) token.split(':')[1].split(',').forEach(id => { if(displayMap[id-1]) depends.push(displayMap[id-1]); });
-                    else if (token.startsWith('due:')) due = parseDate(token.split(':')[1]);
-                    else if (token.startsWith('wait:')) wait = parseDate(token.split(':')[1]);
-                    else if (token.startsWith('recur:')) recur = token.split(':')[1];
-                    else if (token.startsWith('+')) tags.push(token.substring(1));
-                    else desc.push(token);
-                }
-                if (desc.length === 0) return print('<span class="msg-error">No description.</span>');
-                await dbOps.add({ uuid: generateUUID(), description: desc.join(' '), project: proj, priority, tags, depends, due, wait, recur, annotations:[], status: 'pending', entry: Date.now() });
-                execute('list');
+            for (let token of args) {
+              if (token.startsWith("pro:") || token.startsWith("project:"))
+                fProj = token.split(":")[1];
+              else if (token.startsWith("+")) {
+                const tag = token.substring(1);
+                if (
+                  tag.toUpperCase() === "WAITING" ||
+                  tag.toUpperCase() === "ALL"
+                )
+                  showWaiting = true;
+                fTags.push(token);
+              } else search.push(token.toLowerCase());
             }
 
-            else if (['list', 'ls', 'next'].includes(cmd)) {
-                const all = await dbOps.getAll();
-                let pending = all.filter(t => t.status === 'pending');
-                let search = [], fProj = null, fTags = [];
-                let showWaiting = false;
-
-                for (let token of args) {
-                    if (token.startsWith('pro:') || token.startsWith('project:')) fProj = token.split(':')[1];
-                    else if (token.startsWith('+')) {
-                        const tag = token.substring(1);
-                        if (tag.toUpperCase() === 'WAITING' || tag.toUpperCase() === 'ALL') showWaiting = true;
-                        fTags.push(token);
-                    }
-                    else search.push(token.toLowerCase());
-                }
-
-                if (!showWaiting) pending = pending.filter(t => !t.wait || t.wait <= Date.now());
-                if (fProj) pending = pending.filter(t => t.project === fProj);
-                if (fTags.length) {
-                    pending = pending.filter(t => fTags.every(ft => {
-                        const tag = ft.substring(1);
-                        if (t.tags.includes(tag)) return true;
-                        if (hasVirtualTag(t, ft, all)) return true;
-                        return false;
-                    }));
-                }
-                if (search.length) pending = pending.filter(t => search.every(s => t.description.toLowerCase().includes(s)));
-                pending.forEach(t => t.urgency = calculateUrgency(t, all));
-                pending.sort((a,b) => parseFloat(b.urgency) - parseFloat(a.urgency));
-                renderTable(pending, all);
+            if (!showWaiting)
+              pending = pending.filter((t) => !t.wait || t.wait <= Date.now());
+            if (fProj) pending = pending.filter((t) => t.project === fProj);
+            if (fTags.length) {
+              pending = pending.filter((t) =>
+                fTags.every((ft) => {
+                  const tag = ft.substring(1);
+                  if (t.tags.includes(tag)) return true;
+                  if (hasVirtualTag(t, ft, all)) return true;
+                  return false;
+                }),
+              );
             }
+            if (search.length)
+              pending = pending.filter((t) =>
+                search.every((s) => t.description.toLowerCase().includes(s)),
+              );
+            pending.forEach((t) => (t.urgency = calculateUrgency(t, all)));
+            pending.sort(
+              (a, b) => parseFloat(b.urgency) - parseFloat(a.urgency),
+            );
+            renderTable(pending, all);
+          } else if (cmd === "chain") {
+            const id = parseInt(args[0]);
+            if (!id || !displayMap[id - 1])
+              return print('<span class="msg-error">Invalid ID.</span>');
+            const rootUuid = displayMap[id - 1];
+            const all = await dbOps.getAll();
+            const pending = all.filter((t) => t.status === "pending");
 
-            else if (cmd === 'chain') {
-                const id = parseInt(args[0]);
-                if (!id || !displayMap[id-1]) return print('<span class="msg-error">Invalid ID.</span>');
-                const rootUuid = displayMap[id-1];
-                const all = await dbOps.getAll();
-                const pending = all.filter(t => t.status === 'pending');
-
-                const blocking = {}; 
-                const uuidMap = {};
-                pending.forEach(t => {
-                    uuidMap[t.uuid] = t;
-                    if (t.depends) {
-                        t.depends.forEach(dep => {
-                            if (!blocking[dep]) blocking[dep] = [];
-                            blocking[dep].push(t.uuid);
-                        });
-                    }
+            const blocking = {};
+            const uuidMap = {};
+            pending.forEach((t) => {
+              uuidMap[t.uuid] = t;
+              if (t.depends) {
+                t.depends.forEach((dep) => {
+                  if (!blocking[dep]) blocking[dep] = [];
+                  blocking[dep].push(t.uuid);
                 });
+              }
+            });
 
-                const ancestors = new Set();
-                const getAncestors = (curr) => {
-                    const t = uuidMap[curr];
-                    if(!t || !t.depends) return;
-                    t.depends.forEach(d => {
-                        if(uuidMap[d] && !ancestors.has(d)) {
-                            ancestors.add(d);
-                            getAncestors(d);
-                        }
-                    });
-                };
-                getAncestors(rootUuid);
-
-                const descendants = new Set();
-                const getDescendants = (curr) => {
-                    if(blocking[curr]) {
-                        blocking[curr].forEach(b => {
-                            if(uuidMap[b] && !descendants.has(b)) {
-                                descendants.add(b);
-                                getDescendants(b);
-                            }
-                        });
-                    }
-                };
-                getDescendants(rootUuid);
-                
-                const relevantUUIDs = new Set([...ancestors, rootUuid, ...descendants]);
-                const roots = [];
-                relevantUUIDs.forEach(u => {
-                    const t = uuidMap[u];
-                    const hasParentInSet = t.depends && t.depends.some(d => relevantUUIDs.has(d));
-                    if (!hasParentInSet) roots.push(u);
-                });
-
-                let html = '<div style="line-height: 1.5; font-family: monospace;">';
-                const renderTree = (u, prefix, isLast) => {
-                    const t = uuidMap[u];
-                    const isTarget = u === rootUuid;
-                    
-                    // Render the line connecting this node
-                    let line = "";
-                    if (prefix !== "") {
-                        line += `<span style="color:var(--base01)">${prefix}</span>`;
-                        line += `<span style="color:var(--base01)">${isLast ? '└── ' : '├── '}</span>`;
-                    }
-                    
-                    let content = `<span style="${isTarget ? 'color:var(--yellow); font-weight:bold' : ''}">ID:${displayMap.indexOf(u)+1} ${t.description}</span>`;
-                    if (t.tags && t.tags.length) content += ` <span style="color:var(--blue)">${t.tags.map(tag=>'+'+tag).join(' ')}</span>`;
-                    if(t.project) content += ` <span style="color:var(--yellow)">${t.project}</span>`;
-                    
-                    html += `<div>${line}${content}</div>`;
-                    
-                    const children = blocking[u] ? blocking[u].filter(c => relevantUUIDs.has(c)) : [];
-                    
-                    // Logic for next level prefix:
-                    // If we are currently at root (prefix empty), next prefix is just spaces.
-                    // If we are deep, we add either spaces (if last) or pipe (if not last).
-                    let childPrefix = prefix;
-                    if (prefix !== "" || children.length > 0) {
-                         // Only add to prefix if we are not at the very top level root essentially, 
-                         // BUT we need to establish the first indentation level.
-                         if (prefix === "") {
-                             childPrefix = ""; 
-                         } else {
-                             childPrefix += (isLast ? '    ' : '│   ');
-                         }
-                    }
-                    
-                    // Actually, simpler logic for prefix passing:
-                    // If I am root, my children get "    " or "│   " depending on if I have more siblings? 
-                    // No, trees inside chain are isolated roots.
-                    // The standard algorithm:
-                    
-                    children.forEach((child, i) => {
-                        const isLastChild = i === children.length - 1;
-                        // Calculate the prefix that THIS child will print before itself
-                        // It is the parent's incoming prefix + the parent's connector extension
-                        // For the *next* recursion, we pass the accumulated prefix.
-                        
-                        let nextPrefix = prefix;
-                        if (prefix !== "" || roots.length > 0) { // If we are in the tree
-                             // Actually, if we are root, we pass empty string to self.
-                             // Children need to know if they are under a last-child or not.
-                             // Let's stick to the previous simple logic that I broke:
-                             if (prefix === "") nextPrefix = ""; 
-                             else nextPrefix += (isLast ? '    ' : '│   ');
-                        }
-                        
-                        // FIX: Ensure children of root get indentation
-                        let p = prefix;
-                        if (p === "") p = ""; // Root has no prefix
-                        else p += (isLast ? '    ' : '│   ');
-                        
-                        // Wait, the previous logic was simpler:
-                        // renderTree(child, prefix + (isLast ? '    ' : '│   '), ...)
-                        // BUT, for the ROOT's children, prefix is "", so they get "    " or "│   ".
-                        // My previous bug was `prefix ? ... : ''`. 
-                        
-                        renderTree(child, prefix + (isLast ? '    ' : '│   '), isLastChild);
-                    });
-                };
-                
-                // Redefine renderTree to be simpler and correct
-                const renderTreeSimple = (u, indent, isLastChild) => {
-                     const t = uuidMap[u];
-                     const isTarget = u === rootUuid;
-                     
-                     // Draw current row
-                     let connector = "";
-                     if (indent.length > 0) {
-                         connector = isLastChild ? '└── ' : '├── ';
-                     }
-                     
-                     let content = `<span style="${isTarget ? 'color:var(--yellow); font-weight:bold' : ''}">ID:${displayMap.indexOf(u)+1} ${t.description}</span>`;
-                     if (t.tags && t.tags.length) content += ` <span style="color:var(--blue)">${t.tags.map(tag=>'+'+tag).join(' ')}</span>`;
-                     if(t.project) content += ` <span style="color:var(--yellow)">${t.project}</span>`;
-
-                     html += `<div><span style="color:var(--base01)">${indent}${connector}</span>${content}</div>`;
-                     
-                     const children = blocking[u] ? blocking[u].filter(c => relevantUUIDs.has(c)) : [];
-                     children.forEach((child, i) => {
-                         const nextIndent = indent + (isLastChild ? '    ' : '│   ');
-                         // Special case: if indent is empty (root), we don't add pipe/space yet, 
-                         // but the *connector* logic above handles the first branch.
-                         // Wait, if indent is "", connector is "". Correct.
-                         // But for children of root, indent should be "" ? No.
-                         // For children of root, we want them to show └── .
-                         // So we just pass "" as indent? No.
-                         
-                         // Standard recursion:
-                         // Root: indent=""
-                         // Child: indent="" (but renders with connector) -> No, connector needs to separate from parent.
-                         
-                         // Let's use the standard prefix logic:
-                         // prefix is the string of │ and spaces drawn BEFORE the ├── 
-                         
-                         // Root call: prefix = ""
-                         
-                         // Child call: prefix = "" (because root has no lines to extend)
-                         // Wait, if root has no lines, its children just get └── ? 
-                         // Yes.
-                     });
-                };
-                
-                // Third try, standard recursive approach
-                const render = (u, prefix) => {
-                    const t = uuidMap[u];
-                    const isTarget = u === rootUuid;
-                    let content = `<span style="${isTarget ? 'color:var(--yellow); font-weight:bold' : ''}">ID:${displayMap.indexOf(u)+1} ${t.description}</span>`;
-                    // ... tags/project ... 
-                    if(t.project) content += ` <span style="color:var(--yellow)">${t.project}</span>`;
-                    
-                    // We don't print the node here in the loop logic, we print it based on traversal
-                };
-                
-                // Let's stick to the one I fixed in analysis, it was closest
-                const renderFinal = (u, prefix, isTail) => {
-                    const t = uuidMap[u];
-                    const isTarget = u === rootUuid;
-                    
-                    let treeMarker = "";
-                    if (prefix.length > 0 || isTail !== undefined) { // Not root
-                         treeMarker = `<span style="color:var(--base01)">${prefix}${isTail ? '└── ' : '├── '}</span>`;
-                    }
-                    
-                    let content = `<span style="${isTarget ? 'color:var(--yellow); font-weight:bold' : ''}">ID:${displayMap.indexOf(u)+1} ${t.description}</span>`;
-                    if (t.tags && t.tags.length) content += ` <span style="color:var(--blue)">${t.tags.map(tag=>'+'+tag).join(' ')}</span>`;
-                    if(t.project) content += ` <span style="color:var(--yellow)">${t.project}</span>`;
-                    
-                    html += `<div>${treeMarker}${content}</div>`;
-                    
-                    const children = blocking[u] ? blocking[u].filter(c => relevantUUIDs.has(c)) : [];
-                    children.forEach((child, i) => {
-                        const childIsTail = i === children.length - 1;
-                        // For the children, the prefix depends on whether WE (the parent) were a tail or not.
-                        // If we are root (isTail undefined), prefix is "".
-                        // If we were tail, our extension is "    ". If not, "│   ".
-                        let nextPrefix = prefix;
-                        if (isTail !== undefined) {
-                            nextPrefix += isTail ? '    ' : '│   ';
-                        }
-                        renderFinal(child, nextPrefix, childIsTail);
-                    });
-                };
-
-                if (roots.length === 0 && relevantUUIDs.size > 0) renderFinal(rootUuid, '', undefined);
-                else roots.forEach(r => renderFinal(r, '', undefined));
-
-                html += '</div>';
-                print(html, false);
-            }
-
-            else if (cmd === 'annotate') {
-                const id = parseInt(args[0]);
-                if (!id || !displayMap[id-1]) return print('<span class="msg-error">Invalid ID.</span>');
-                const task = await dbOps.get(displayMap[id-1]);
-                const note = args.slice(1).join(' ');
-                if(!note) return print('<span class="msg-error">No annotation text.</span>');
-                if(!task.annotations) task.annotations = [];
-                task.annotations.push({ entry: Date.now(), description: note });
-                await dbOps.update(task);
-                execute('list');
-            }
-
-            else if (cmd === 'info') {
-                const id = parseInt(args[0] || rawCmd);
-                if (!id || !displayMap[id-1]) return print('<span class="msg-error">Invalid ID.</span>');
-                const t = await dbOps.get(displayMap[id-1]);
-                let html = `<div style="border:1px solid var(--base01); padding:10px; margin-bottom:10px">`;
-                html += `<div style="color:var(--yellow)">Task ${id} - ${t.uuid}</div>`;
-                html += `<div><b>Desc:</b> ${t.description}</div>`;
-                html += `<div><b>Status:</b> ${t.status}</div>`;
-                if(t.project) html += `<div><b>Project:</b> ${t.project}</div>`;
-                if(t.due) html += `<div><b>Due:</b> ${formatDate(t.due)}</div>`;
-                if(t.wait) html += `<div><b>Wait:</b> ${formatDate(t.wait)}</div>`;
-                if(t.recur) html += `<div><b>Recur:</b> ${t.recur}</div>`;
-                if(t.annotations && t.annotations.length > 0) {
-                     html += `<div style="margin-top:5px; border-top:1px dashed var(--base01); padding-top:5px"><b>Annotations:</b></div>`;
-                     t.annotations.forEach(a => { html += `<div style="margin-left:10px; font-size:0.9em; color:var(--base1)">${formatDate(a.entry)}: ${a.description}</div>`; });
+            const ancestors = new Set();
+            const getAncestors = (curr) => {
+              const t = uuidMap[curr];
+              if (!t || !t.depends) return;
+              t.depends.forEach((d) => {
+                if (uuidMap[d] && !ancestors.has(d)) {
+                  ancestors.add(d);
+                  getAncestors(d);
                 }
-                html += `</div>`;
-                print(html, false);
-            }
+              });
+            };
+            getAncestors(rootUuid);
 
-            else if (targetId && (args[0] === 'mod' || args[0] === 'modify') || (['modify','mod'].includes(cmd) && args[0].match(/^\d+$/))) {
-                const id = targetId || parseInt(args[0]);
-                const tokens = targetId ? args : args.slice(1);
-                if (!id || !displayMap[id-1]) return print('<span class="msg-error">Invalid ID.</span>');
-                const task = await dbOps.get(displayMap[id-1]);
-                tokens.forEach(token => {
-                    if (token.startsWith('pri:')) task.priority = token.split(':')[1].toUpperCase();
-                    if (token.startsWith('pro:')) task.project = token.split(':')[1];
-                    if (token.startsWith('due:')) task.due = parseDate(token.split(':')[1]);
-                    if (token.startsWith('wait:')) task.wait = parseDate(token.split(':')[1]);
-                    if (token.startsWith('recur:')) task.recur = token.split(':')[1];
-                    if (token.startsWith('+')) task.tags.push(token.substring(1));
-                    if (token.startsWith('dep:')) {
-                         if(!task.depends) task.depends = [];
-                         token.split(':')[1].split(',').forEach(i => { if(displayMap[i-1]) task.depends.push(displayMap[i-1]); });
-                    }
+            const descendants = new Set();
+            const getDescendants = (curr) => {
+              if (blocking[curr]) {
+                blocking[curr].forEach((b) => {
+                  if (uuidMap[b] && !descendants.has(b)) {
+                    descendants.add(b);
+                    getDescendants(b);
+                  }
                 });
-                await dbOps.update(task);
-                execute('list');
-            }
+              }
+            };
+            getDescendants(rootUuid);
 
-            else if (cmd === 'done' || (targetId && args[0] === 'done')) {
-                const id = targetId || parseInt(args.find(a => a.match(/^\d+$/)));
-                if (!id || !displayMap[id-1]) return print('<span class="msg-error">Invalid ID.</span>');
-                const task = await dbOps.get(displayMap[id-1]);
-                if(task) { 
-                    task.status = 'completed'; 
-                    await dbOps.update(task);
-                    if(task.recur && task.due) {
-                        let nextDue = null, nextWait = null;
-                        if(task.recur.startsWith('dai')) nextDue = addDays(task.due, 1);
-                        else if(task.recur.startsWith('wee')) nextDue = addDays(task.due, 7);
-                        else if(task.recur.startsWith('mon')) nextDue = addMonths(task.due, 1);
-                        else if(task.recur.startsWith('yea')) nextDue = addMonths(task.due, 12);
-                        if (nextDue) {
-                            if (task.wait) nextWait = nextDue - (task.due - task.wait);
-                            const newTask = { ...task, uuid: generateUUID(), status: 'pending', due: nextDue, wait: nextWait, entry: Date.now(), annotations: [] };
-                            delete newTask.depends; 
-                            await dbOps.add(newTask);
-                            print(`<span class="msg-success">Recurring task created.</span>`);
-                        }
-                    }
-                    execute('list'); 
-                }
-            }
+            const relevantUUIDs = new Set([
+              ...ancestors,
+              rootUuid,
+              ...descendants,
+            ]);
+            const roots = [];
+            relevantUUIDs.forEach((u) => {
+              const t = uuidMap[u];
+              const hasParentInSet =
+                t.depends && t.depends.some((d) => relevantUUIDs.has(d));
+              if (!hasParentInSet) roots.push(u);
+            });
 
-            else if (['delete', 'rm'].includes(cmd)) {
-                const id = parseInt(args[0]);
-                if (!id || !displayMap[id-1]) return print('<span class="msg-error">Invalid ID.</span>');
-                await dbOps.delete(displayMap[id-1]);
-                execute('list');
-            }
-            
-            else if (cmd === 'help') {
-                const sub = args[0];
-                if (!sub) {
-                    print(`<span style="color:var(--yellow)">Commands:</span> add, list, done, delete, modify, annotate, info, chain, export, import. Type <span class="msg-hl">help [cmd]</span> for details.`);
+            let html =
+              '<div style="line-height: 1.5; font-family: monospace;">';
+            const renderTree = (u, prefix, isLast) => {
+              const t = uuidMap[u];
+              const isTarget = u === rootUuid;
+
+              // Render the line connecting this node
+              let line = "";
+              if (prefix !== "") {
+                line += `<span style="color:var(--base01)">${prefix}</span>`;
+                line += `<span style="color:var(--base01)">${isLast ? "└── " : "├── "}</span>`;
+              }
+
+              let content = `<span style="${isTarget ? "color:var(--yellow); font-weight:bold" : ""}">ID:${displayMap.indexOf(u) + 1} ${t.description}</span>`;
+              if (t.tags && t.tags.length)
+                content += ` <span style="color:var(--blue)">${t.tags.map((tag) => "+" + tag).join(" ")}</span>`;
+              if (t.project)
+                content += ` <span style="color:var(--yellow)">${t.project}</span>`;
+
+              html += `<div>${line}${content}</div>`;
+
+              const children = blocking[u]
+                ? blocking[u].filter((c) => relevantUUIDs.has(c))
+                : [];
+
+              // Logic for next level prefix:
+              // If we are currently at root (prefix empty), next prefix is just spaces.
+              // If we are deep, we add either spaces (if last) or pipe (if not last).
+              let childPrefix = prefix;
+              if (prefix !== "" || children.length > 0) {
+                // Only add to prefix if we are not at the very top level root essentially,
+                // BUT we need to establish the first indentation level.
+                if (prefix === "") {
+                  childPrefix = "";
                 } else {
-                    const c = resolveCommand(sub);
-                    if (c === 'add') print(`<div class="msg-help"><span class="msg-hl">add</span> description <span class="msg-arg">pro:Project</span> <span class="msg-arg">pri:H/M/L</span> <span class="msg-arg">due:YYYYMMDD</span> <span class="msg-arg">wait:YYYYMMDD</span> <span class="msg-arg">recur:period</span> <span class="msg-arg">+tag</span></div>`);
-                    else if (c === 'modify') print(`<div class="msg-help"><span class="msg-hl">mod</span> ID [desc] <span class="msg-arg">pro:P</span> <span class="msg-arg">pri:H</span> <span class="msg-arg">due:Y</span> <span class="msg-arg">wait:Y</span> <span class="msg-arg">recur:P</span> <span class="msg-arg">+tag</span> <span class="msg-arg">dep:ID</span></div>`);
-                    else if (c === 'list') print(`<div class="msg-help"><span class="msg-hl">list</span> [search] <span class="msg-arg">pro:Project</span> <span class="msg-arg">+tag</span><br>Virtual: <span class="msg-arg">+OVERDUE</span> <span class="msg-arg">+TODAY</span> <span class="msg-arg">+WAITING</span> <span class="msg-arg">+BLOCKED</span> <span class="msg-arg">+ALL</span></div>`);
-                    else if (c === 'done') print(`<div class="msg-help"><span class="msg-hl">done</span> ID<br>Completes a task. If recurring, creates the next instance.</div>`);
-                    else if (c === 'delete') print(`<div class="msg-help"><span class="msg-hl">delete</span> ID<br>Permanently removes a task.</div>`);
-                    else if (c === 'annotate') print(`<div class="msg-help"><span class="msg-hl">annotate</span> ID <span class="msg-arg">note text...</span><br>Adds a timestamped note to a task.</div>`);
-                    else if (c === 'info') print(`<div class="msg-help"><span class="msg-hl">info</span> ID<br>Shows full details including annotations and full UUID.</div>`);
-                    else if (c === 'chain') print(`<div class="msg-help"><span class="msg-hl">chain</span> ID<br>Visualizes dependency tree for the specified task.</div>`);
-                    else print(`<span class="msg-error">No specific help for: ${sub}</span>`);
+                  childPrefix += isLast ? "    " : "│   ";
                 }
+              }
+
+              // Actually, simpler logic for prefix passing:
+              // If I am root, my children get "    " or "│   " depending on if I have more siblings?
+              // No, trees inside chain are isolated roots.
+              // The standard algorithm:
+
+              children.forEach((child, i) => {
+                const isLastChild = i === children.length - 1;
+                // Calculate the prefix that THIS child will print before itself
+                // It is the parent's incoming prefix + the parent's connector extension
+                // For the *next* recursion, we pass the accumulated prefix.
+
+                let nextPrefix = prefix;
+                if (prefix !== "" || roots.length > 0) {
+                  // If we are in the tree
+                  // Actually, if we are root, we pass empty string to self.
+                  // Children need to know if they are under a last-child or not.
+                  // Let's stick to the previous simple logic that I broke:
+                  if (prefix === "") nextPrefix = "";
+                  else nextPrefix += isLast ? "    " : "│   ";
+                }
+
+                // FIX: Ensure children of root get indentation
+                let p = prefix;
+                if (p === "")
+                  p = ""; // Root has no prefix
+                else p += isLast ? "    " : "│   ";
+
+                // Wait, the previous logic was simpler:
+                // renderTree(child, prefix + (isLast ? '    ' : '│   '), ...)
+                // BUT, for the ROOT's children, prefix is "", so they get "    " or "│   ".
+                // My previous bug was `prefix ? ... : ''`.
+
+                renderTree(
+                  child,
+                  prefix + (isLast ? "    " : "│   "),
+                  isLastChild,
+                );
+              });
+            };
+
+            // Redefine renderTree to be simpler and correct
+            const renderTreeSimple = (u, indent, isLastChild) => {
+              const t = uuidMap[u];
+              const isTarget = u === rootUuid;
+
+              // Draw current row
+              let connector = "";
+              if (indent.length > 0) {
+                connector = isLastChild ? "└── " : "├── ";
+              }
+
+              let content = `<span style="${isTarget ? "color:var(--yellow); font-weight:bold" : ""}">ID:${displayMap.indexOf(u) + 1} ${t.description}</span>`;
+              if (t.tags && t.tags.length)
+                content += ` <span style="color:var(--blue)">${t.tags.map((tag) => "+" + tag).join(" ")}</span>`;
+              if (t.project)
+                content += ` <span style="color:var(--yellow)">${t.project}</span>`;
+
+              html += `<div><span style="color:var(--base01)">${indent}${connector}</span>${content}</div>`;
+
+              const children = blocking[u]
+                ? blocking[u].filter((c) => relevantUUIDs.has(c))
+                : [];
+              children.forEach((child, i) => {
+                const nextIndent = indent + (isLastChild ? "    " : "│   ");
+                // Special case: if indent is empty (root), we don't add pipe/space yet,
+                // but the *connector* logic above handles the first branch.
+                // Wait, if indent is "", connector is "". Correct.
+                // But for children of root, indent should be "" ? No.
+                // For children of root, we want them to show └── .
+                // So we just pass "" as indent? No.
+
+                // Standard recursion:
+                // Root: indent=""
+                // Child: indent="" (but renders with connector) -> No, connector needs to separate from parent.
+
+                // Let's use the standard prefix logic:
+                // prefix is the string of │ and spaces drawn BEFORE the ├──
+
+                // Root call: prefix = ""
+
+                // Child call: prefix = "" (because root has no lines to extend)
+                // Wait, if root has no lines, its children just get └── ?
+                // Yes.
+              });
+            };
+
+            // Third try, standard recursive approach
+            const render = (u, prefix) => {
+              const t = uuidMap[u];
+              const isTarget = u === rootUuid;
+              let content = `<span style="${isTarget ? "color:var(--yellow); font-weight:bold" : ""}">ID:${displayMap.indexOf(u) + 1} ${t.description}</span>`;
+              // ... tags/project ...
+              if (t.project)
+                content += ` <span style="color:var(--yellow)">${t.project}</span>`;
+
+              // We don't print the node here in the loop logic, we print it based on traversal
+            };
+
+            // Let's stick to the one I fixed in analysis, it was closest
+            const renderFinal = (u, prefix, isTail) => {
+              const t = uuidMap[u];
+              const isTarget = u === rootUuid;
+
+              let treeMarker = "";
+              if (prefix.length > 0 || isTail !== undefined) {
+                // Not root
+                treeMarker = `<span style="color:var(--base01)">${prefix}${isTail ? "└── " : "├── "}</span>`;
+              }
+
+              let content = `<span style="${isTarget ? "color:var(--yellow); font-weight:bold" : ""}">ID:${displayMap.indexOf(u) + 1} ${t.description}</span>`;
+              if (t.tags && t.tags.length)
+                content += ` <span style="color:var(--blue)">${t.tags.map((tag) => "+" + tag).join(" ")}</span>`;
+              if (t.project)
+                content += ` <span style="color:var(--yellow)">${t.project}</span>`;
+
+              html += `<div>${treeMarker}${content}</div>`;
+
+              const children = blocking[u]
+                ? blocking[u].filter((c) => relevantUUIDs.has(c))
+                : [];
+              children.forEach((child, i) => {
+                const childIsTail = i === children.length - 1;
+                // For the children, the prefix depends on whether WE (the parent) were a tail or not.
+                // If we are root (isTail undefined), prefix is "".
+                // If we were tail, our extension is "    ". If not, "│   ".
+                let nextPrefix = prefix;
+                if (isTail !== undefined) {
+                  nextPrefix += isTail ? "    " : "│   ";
+                }
+                renderFinal(child, nextPrefix, childIsTail);
+              });
+            };
+
+            if (roots.length === 0 && relevantUUIDs.size > 0)
+              renderFinal(rootUuid, "", undefined);
+            else roots.forEach((r) => renderFinal(r, "", undefined));
+
+            html += "</div>";
+            print(html, false);
+          } else if (cmd === "annotate") {
+            const id = parseInt(args[0]);
+            if (!id || !displayMap[id - 1])
+              return print('<span class="msg-error">Invalid ID.</span>');
+            const task = await dbOps.get(displayMap[id - 1]);
+            const note = args.slice(1).join(" ");
+            if (!note)
+              return print(
+                '<span class="msg-error">No annotation text.</span>',
+              );
+            if (!task.annotations) task.annotations = [];
+            task.annotations.push({ entry: Date.now(), description: note });
+            await dbOps.update(task);
+            execute("list");
+          } else if (cmd === "info") {
+            const id = parseInt(args[0] || rawCmd);
+            if (!id || !displayMap[id - 1])
+              return print('<span class="msg-error">Invalid ID.</span>');
+            const t = await dbOps.get(displayMap[id - 1]);
+            let html = `<div style="border:1px solid var(--base01); padding:10px; margin-bottom:10px">`;
+            html += `<div style="color:var(--yellow)">Task ${id} - ${t.uuid}</div>`;
+            html += `<div><b>Desc:</b> ${t.description}</div>`;
+            html += `<div><b>Status:</b> ${t.status}</div>`;
+            if (t.project) html += `<div><b>Project:</b> ${t.project}</div>`;
+            if (t.due) html += `<div><b>Due:</b> ${formatDate(t.due)}</div>`;
+            if (t.wait) html += `<div><b>Wait:</b> ${formatDate(t.wait)}</div>`;
+            if (t.recur) html += `<div><b>Recur:</b> ${t.recur}</div>`;
+            if (t.annotations && t.annotations.length > 0) {
+              html += `<div style="margin-top:5px; border-top:1px dashed var(--base01); padding-top:5px"><b>Annotations:</b></div>`;
+              t.annotations.forEach((a) => {
+                html += `<div style="margin-left:10px; font-size:0.9em; color:var(--base1)">${formatDate(a.entry)}: ${a.description}</div>`;
+              });
             }
+            html += `</div>`;
+            print(html, false);
+          } else if (
+            (targetId && (args[0] === "mod" || args[0] === "modify")) ||
+            (["modify", "mod"].includes(cmd) && args[0].match(/^\d+$/))
+          ) {
+            const id = targetId || parseInt(args[0]);
+            const tokens = targetId ? args : args.slice(1);
+            if (!id || !displayMap[id - 1])
+              return print('<span class="msg-error">Invalid ID.</span>');
+            const task = await dbOps.get(displayMap[id - 1]);
+            tokens.forEach((token) => {
+              if (token.startsWith("pri:"))
+                task.priority = token.split(":")[1].toUpperCase();
+              if (token.startsWith("pro:")) task.project = token.split(":")[1];
+              if (token.startsWith("due:"))
+                task.due = parseDate(token.split(":")[1]);
+              if (token.startsWith("wait:"))
+                task.wait = parseDate(token.split(":")[1]);
+              if (token.startsWith("recur:")) task.recur = token.split(":")[1];
+              if (token.startsWith("+")) task.tags.push(token.substring(1));
+              if (token.startsWith("dep:")) {
+                if (!task.depends) task.depends = [];
+                token
+                  .split(":")[1]
+                  .split(",")
+                  .forEach((i) => {
+                    if (displayMap[i - 1]) task.depends.push(displayMap[i - 1]);
+                  });
+              }
+            });
+            await dbOps.update(task);
+            execute("list");
+          } else if (cmd === "done" || (targetId && args[0] === "done")) {
+            const id = targetId || parseInt(args.find((a) => a.match(/^\d+$/)));
+            if (!id || !displayMap[id - 1])
+              return print('<span class="msg-error">Invalid ID.</span>');
+            const task = await dbOps.get(displayMap[id - 1]);
+            if (task) {
+              task.status = "completed";
+              await dbOps.update(task);
+              if (task.recur && task.due) {
+                let nextDue = null,
+                  nextWait = null;
+                if (task.recur.startsWith("dai"))
+                  nextDue = addDays(task.due, 1);
+                else if (task.recur.startsWith("wee"))
+                  nextDue = addDays(task.due, 7);
+                else if (task.recur.startsWith("mon"))
+                  nextDue = addMonths(task.due, 1);
+                else if (task.recur.startsWith("yea"))
+                  nextDue = addMonths(task.due, 12);
+                if (nextDue) {
+                  if (task.wait) nextWait = nextDue - (task.due - task.wait);
+                  const newTask = {
+                    ...task,
+                    uuid: generateUUID(),
+                    status: "pending",
+                    due: nextDue,
+                    wait: nextWait,
+                    entry: Date.now(),
+                    annotations: [],
+                  };
+                  delete newTask.depends;
+                  await dbOps.add(newTask);
+                  print(
+                    `<span class="msg-success">Recurring task created.</span>`,
+                  );
+                }
+              }
+              execute("list");
+            }
+          } else if (["delete", "rm"].includes(cmd)) {
+            const id = parseInt(args[0]);
+            if (!id || !displayMap[id - 1])
+              return print('<span class="msg-error">Invalid ID.</span>');
+            await dbOps.delete(displayMap[id - 1]);
+            execute("list");
+          } else if (cmd === "help") {
+            const sub = args[0];
+            if (!sub) {
+              print(
+                `<span style="color:var(--yellow)">Commands:</span> add, list, done, delete, modify, annotate, info, chain, export, import. Type <span class="msg-hl">help [cmd]</span> for details.`,
+              );
+            } else {
+              const c = resolveCommand(sub);
+              if (c === "add")
+                print(
+                  `<div class="msg-help"><span class="msg-hl">add</span> description <span class="msg-arg">pro:Project</span> <span class="msg-arg">pri:H/M/L</span> <span class="msg-arg">due:YYYYMMDD</span> <span class="msg-arg">wait:YYYYMMDD</span> <span class="msg-arg">recur:period</span> <span class="msg-arg">+tag</span></div>`,
+                );
+              else if (c === "modify")
+                print(
+                  `<div class="msg-help"><span class="msg-hl">mod</span> ID [desc] <span class="msg-arg">pro:P</span> <span class="msg-arg">pri:H</span> <span class="msg-arg">due:Y</span> <span class="msg-arg">wait:Y</span> <span class="msg-arg">recur:P</span> <span class="msg-arg">+tag</span> <span class="msg-arg">dep:ID</span></div>`,
+                );
+              else if (c === "list")
+                print(
+                  `<div class="msg-help"><span class="msg-hl">list</span> [search] <span class="msg-arg">pro:Project</span> <span class="msg-arg">+tag</span><br>Virtual: <span class="msg-arg">+OVERDUE</span> <span class="msg-arg">+TODAY</span> <span class="msg-arg">+WAITING</span> <span class="msg-arg">+BLOCKED</span> <span class="msg-arg">+ALL</span></div>`,
+                );
+              else if (c === "done")
+                print(
+                  `<div class="msg-help"><span class="msg-hl">done</span> ID<br>Completes a task. If recurring, creates the next instance.</div>`,
+                );
+              else if (c === "delete")
+                print(
+                  `<div class="msg-help"><span class="msg-hl">delete</span> ID<br>Permanently removes a task.</div>`,
+                );
+              else if (c === "annotate")
+                print(
+                  `<div class="msg-help"><span class="msg-hl">annotate</span> ID <span class="msg-arg">note text...</span><br>Adds a timestamped note to a task.</div>`,
+                );
+              else if (c === "info")
+                print(
+                  `<div class="msg-help"><span class="msg-hl">info</span> ID<br>Shows full details including annotations and full UUID.</div>`,
+                );
+              else if (c === "chain")
+                print(
+                  `<div class="msg-help"><span class="msg-hl">chain</span> ID<br>Visualizes dependency tree for the specified task.</div>`,
+                );
+              else
+                print(
+                  `<span class="msg-error">No specific help for: ${sub}</span>`,
+                );
+            }
+          } else print(`<span class="msg-error">Unknown: ${cmd}</span>`);
+        } catch (err) {
+          console.error(err);
+          print(`<span class="msg-error">Error: ${err.message}</span>`);
+        }
+      };
 
-            else print(`<span class="msg-error">Unknown: ${cmd}</span>`);
+      // --- GHOST & AUTOCOMPLETE ---
+      const input = document.getElementById("cmd-input");
+      const ghost = document.getElementById("ghost-input");
 
-        } catch (err) { console.error(err); print(`<span class="msg-error">Error: ${err.message}</span>`); }
-    };
-
-    // --- GHOST & AUTOCOMPLETE ---
-    const input = document.getElementById('cmd-input');
-    const ghost = document.getElementById('ghost-input');
-
-    input.addEventListener('input', () => {
+      input.addEventListener("input", () => {
         const val = input.value;
-        const parts = val.split(' ');
+        const parts = val.split(" ");
         const last = parts[parts.length - 1];
         let suggestion = "";
-        
+
         if (parts.length === 1 && val.length > 0) {
-            const match = resolveCommand(val);
-            if (match && match !== val) suggestion = match.substring(val.length);
-        }
-        else if (last.startsWith('pro:') || last.startsWith('project:')) {
-            const prefix = last.includes(':') ? last.split(':')[1] : "";
-            if (prefix) {
-                for (let p of knownProjects) {
-                    if (p.startsWith(prefix) && p !== prefix) { suggestion = p.substring(prefix.length); break; }
-                }
+          const match = resolveCommand(val);
+          if (match && match !== val) suggestion = match.substring(val.length);
+        } else if (last.startsWith("pro:") || last.startsWith("project:")) {
+          const prefix = last.includes(":") ? last.split(":")[1] : "";
+          if (prefix) {
+            for (let p of knownProjects) {
+              if (p.startsWith(prefix) && p !== prefix) {
+                suggestion = p.substring(prefix.length);
+                break;
+              }
             }
-        }
-        else if (last.startsWith('+')) {
-            const prefix = last.substring(1);
-            if (prefix) {
-                for (let t of knownTags) {
-                    if (t.startsWith(prefix) && t !== prefix) { suggestion = t.substring(prefix.length); break; }
-                }
+          }
+        } else if (last.startsWith("+")) {
+          const prefix = last.substring(1);
+          if (prefix) {
+            for (let t of knownTags) {
+              if (t.startsWith(prefix) && t !== prefix) {
+                suggestion = t.substring(prefix.length);
+                break;
+              }
             }
+          }
         }
 
         if (suggestion) {
-            const prefixText = val; 
-            ghost.innerHTML = `<span style="opacity:0">${prefixText}</span><span style="opacity:0.4">${suggestion}</span>`;
+          const prefixText = val;
+          ghost.innerHTML = `<span style="opacity:0">${prefixText}</span><span style="opacity:0.4">${suggestion}</span>`;
         } else {
-            ghost.innerHTML = '';
+          ghost.innerHTML = "";
         }
-    });
+      });
 
-    input.addEventListener('keydown', async (e) => {
-        if (e.key === 'Tab') {
-            e.preventDefault();
-            const gText = ghost.textContent;
-            if(gText) {
-                input.value += gText.substring(input.value.length);
-                ghost.innerHTML = '';
-            }
+      input.addEventListener("keydown", async (e) => {
+        if (e.key === "Tab") {
+          e.preventDefault();
+          const gText = ghost.textContent;
+          if (gText) {
+            input.value += gText.substring(input.value.length);
+            ghost.innerHTML = "";
+          }
         }
-        if (e.key === 'Enter') { const val = input.value; input.value = ''; ghost.innerHTML = ''; await execute(val); }
-    });
+        if (e.key === "Enter") {
+          const val = input.value;
+          input.value = "";
+          ghost.innerHTML = "";
+          await execute(val);
+        }
+      });
 
-    initDB().then(async () => {
-        document.getElementById('import-picker').addEventListener('change', (e) => { 
+      initDB().then(async () => {
+        document
+          .getElementById("import-picker")
+          .addEventListener("change", (e) => {
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
             reader.onload = async (ev) => {
-                try {
-                    const data = JSON.parse(ev.target.result);
-                    for (const t of data) if (t.uuid) await dbOps.update(t);
-                    print(`<span class="msg-success">Imported tasks.</span>`);
-                    execute('list');
-                } catch (err) { print(`<span class="msg-error">Error: ${err.message}</span>`); }
-                e.target.value = '';
+              try {
+                const data = JSON.parse(ev.target.result);
+                for (const t of data) if (t.uuid) await dbOps.update(t);
+                print(`<span class="msg-success">Imported tasks.</span>`);
+                execute("list");
+              } catch (err) {
+                print(`<span class="msg-error">Error: ${err.message}</span>`);
+              }
+              e.target.value = "";
             };
             reader.readAsText(file);
-        });
-        
-        try { 
-            const tasks = await dbOps.getAll(); 
-            updateCache(tasks); 
-            if(tasks.length > 0) execute('list'); 
-        } catch(e){}
-    });
+          });
 
-</script>
-</body>
+        try {
+          const tasks = await dbOps.getAll();
+          updateCache(tasks);
+          if (tasks.length > 0) execute("list");
+        } catch (e) {}
+      });
+    </script>
+  </body>
 </html>

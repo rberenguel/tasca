@@ -1,63 +1,63 @@
-import { getDaysRemaining } from './logic.js';
+import { getDaysRemaining } from "./logic.js";
 let projectMetadata = {};
 let cachedProjectCounts = {}; // for projects table
 
 export const setProjectMetadata = (meta) => {
-    projectMetadata = {};
-    if(meta && meta.length) {
-        meta.forEach(m => projectMetadata[m.name] = m);
-    }
+  projectMetadata = {};
+  if (meta && meta.length) {
+    meta.forEach((m) => (projectMetadata[m.name] = m));
+  }
 };
 
 export const print = (html, append = true) => {
-    const term = document.getElementById('terminal-output');
-    if (!append) term.innerHTML = '';
-    const div = document.createElement('div');
-    div.style.marginBottom = "8px";
-    div.innerHTML = html;
-    term.appendChild(div);
-    term.scrollTop = term.scrollHeight;
+  const term = document.getElementById("terminal-output");
+  if (!append) term.innerHTML = "";
+  const div = document.createElement("div");
+  div.style.marginBottom = "8px";
+  div.innerHTML = html;
+  term.appendChild(div);
+  term.scrollTop = term.scrollHeight;
 };
 
 export const formatProject = (proj) => {
-    if (!proj) return '';
-    
-    // Check for icon
-    let iconHtml = '';
-    // Check exact match or parent match if we want inheritance, but let's stick to simple lookup first.
-    // If strict match:
-    if (projectMetadata[proj] && projectMetadata[proj].icon) {
-        iconHtml = `<i class="${projectMetadata[proj].icon}" style="margin-right:4px;"></i>`;
-    } 
-    // If we wanted inheritance (e.g. Work.Project gets Work icon), we'd split and loop.
-    // Let's support simple inheritance: check 'Work.Project', then 'Work'.
-    else {
-        const parts = proj.split('.');
-        while(parts.length > 0) {
-            const p = parts.join('.');
-            if (projectMetadata[p] && projectMetadata[p].icon) {
-                iconHtml = `<i class="${projectMetadata[p].icon}" style="margin-right:4px;"></i>`;
-                break;
-            }
-            parts.pop();
-        }
-    }
+  if (!proj) return "";
 
-    const parts = proj.split('.');
-    let html = '';
-    for (let i = 0; i < parts.length; i++) {
-        const isLeaf = i === parts.length - 1;
-        html += `<span class="${isLeaf ? 'row-proj-leaf' : 'row-proj-parent'}">${parts[i]}</span>`;
-        if (!isLeaf) html += '<span class="row-proj-parent">.</span>';
+  // Check for icon
+  let iconHtml = "";
+  // Check exact match or parent match if we want inheritance, but let's stick to simple lookup first.
+  // If strict match:
+  if (projectMetadata[proj] && projectMetadata[proj].icon) {
+    iconHtml = `<i class="${projectMetadata[proj].icon}" style="margin-right:4px;"></i>`;
+  }
+  // If we wanted inheritance (e.g. Work.Project gets Work icon), we'd split and loop.
+  // Let's support simple inheritance: check 'Work.Project', then 'Work'.
+  else {
+    const parts = proj.split(".");
+    while (parts.length > 0) {
+      const p = parts.join(".");
+      if (projectMetadata[p] && projectMetadata[p].icon) {
+        iconHtml = `<i class="${projectMetadata[p].icon}" style="margin-right:4px;"></i>`;
+        break;
+      }
+      parts.pop();
     }
-    return iconHtml + html;
+  }
+
+  const parts = proj.split(".");
+  let html = "";
+  for (let i = 0; i < parts.length; i++) {
+    const isLeaf = i === parts.length - 1;
+    html += `<span class="${isLeaf ? "row-proj-leaf" : "row-proj-parent"}">${parts[i]}</span>`;
+    if (!isLeaf) html += '<span class="row-proj-parent">.</span>';
+  }
+  return iconHtml + html;
 };
 
 export const renderTable = (tasks, allTasks, displayMapRef, projects = []) => {
-    setProjectMetadata(projects);
-    if (!tasks || tasks.length === 0) {
-        displayMapRef.value = [];
-        let html = `
+  setProjectMetadata(projects);
+  if (!tasks || tasks.length === 0) {
+    displayMapRef.value = [];
+    let html = `
         <div class="table-wrapper">
         <table>
             <thead><tr>
@@ -67,13 +67,13 @@ export const renderTable = (tasks, allTasks, displayMapRef, projects = []) => {
             </tr></thead>
             <tbody></tbody>
         </table></div>`;
-        html += `<div style="font-size:0.8em; color:var(--base01)">0 tasks shown.</div>`;
-        return print(html, false);
-    }
-    
-    displayMapRef.value = tasks.map(t => t.uuid);
-    
-    let html = `
+    html += `<div style="font-size:0.8em; color:var(--base01)">0 tasks shown.</div>`;
+    return print(html, false);
+  }
+
+  displayMapRef.value = tasks.map((t) => t.uuid);
+
+  let html = `
     <div class="table-wrapper">
     <table>
         <thead><tr>
@@ -83,64 +83,67 @@ export const renderTable = (tasks, allTasks, displayMapRef, projects = []) => {
         </tr></thead>
         <tbody>`;
 
-    tasks.forEach((t, index) => {
-        let desc = t.description;
-        
-        let tagsHtml = '';
-        if (t.tags && t.tags.length > 0) {
-            t.tags.forEach(tag => {
-                tagsHtml += ` <span class="tag-pill">+${tag}</span>`;
-            });
-        }
-        
-        // Enrich description with project, priority etc if not simple list
-        let metaHtml = '';
-        if (t.project) metaHtml += ` ${formatProject(t.project)}`;
-        if (t.priority) metaHtml += ` <span style="color:${t.priority==='H'?'var(--red)':(t.priority==='M'?'var(--yellow)':'var(--base01)')}; font-weight:bold">pri:${t.priority}</span>`;
-        
-        if (t.due) {
-            const daysCheck = getDaysRemaining(t.due);
-            let cls = 'date-far';
-            if (daysCheck < 2) cls = 'date-urgent';
-            else if (daysCheck < 7) cls = 'date-soon';
-            metaHtml += ` <span class="date-pill ${cls}">(${daysCheck}d)</span>`;
-        }
-        if (t.wait && t.wait > Date.now()) {
-             metaHtml += ` <span class="date-pill date-wait">wait:${new Date(t.wait).toISOString().slice(0,10).replace(/-/g,'')}</span>`;
-        }
-        if (t.recur) {
-             metaHtml += ` <span class="recur-icon">↻${t.recur}</span>`;
-        }
-        if (t.depends && t.depends.length > 0) {
-             const activeDeps = allTasks.filter(tsk => t.depends.includes(tsk.uuid) && tsk.status === 'pending');
-             if(activeDeps.length > 0) {
-                 metaHtml += ` <span class="blocked-pill">dep:${activeDeps.length}</span>`;
-             }
-        }
-        if (t.annotations && t.annotations.length > 0) {
-            metaHtml += ` <span class="anno-count">msg:${t.annotations.length}</span>`;
-        }
+  tasks.forEach((t, index) => {
+    let desc = t.description;
 
-        html += `<tr>
+    let tagsHtml = "";
+    if (t.tags && t.tags.length > 0) {
+      t.tags.forEach((tag) => {
+        tagsHtml += ` <span class="tag-pill">+${tag}</span>`;
+      });
+    }
+
+    // Enrich description with project, priority etc if not simple list
+    let metaHtml = "";
+    if (t.project) metaHtml += ` ${formatProject(t.project)}`;
+    if (t.priority)
+      metaHtml += ` <span style="color:${t.priority === "H" ? "var(--red)" : t.priority === "M" ? "var(--yellow)" : "var(--base01)"}; font-weight:bold">pri:${t.priority}</span>`;
+
+    if (t.due) {
+      const daysCheck = getDaysRemaining(t.due);
+      let cls = "date-far";
+      if (daysCheck < 2) cls = "date-urgent";
+      else if (daysCheck < 7) cls = "date-soon";
+      metaHtml += ` <span class="date-pill ${cls}">(${daysCheck}d)</span>`;
+    }
+    if (t.wait && t.wait > Date.now()) {
+      metaHtml += ` <span class="date-pill date-wait">wait:${new Date(t.wait).toISOString().slice(0, 10).replace(/-/g, "")}</span>`;
+    }
+    if (t.recur) {
+      metaHtml += ` <span class="recur-icon">↻${t.recur}</span>`;
+    }
+    if (t.depends && t.depends.length > 0) {
+      const activeDeps = allTasks.filter(
+        (tsk) => t.depends.includes(tsk.uuid) && tsk.status === "pending",
+      );
+      if (activeDeps.length > 0) {
+        metaHtml += ` <span class="blocked-pill">dep:${activeDeps.length}</span>`;
+      }
+    }
+    if (t.annotations && t.annotations.length > 0) {
+      metaHtml += ` <span class="anno-count">msg:${t.annotations.length}</span>`;
+    }
+
+    html += `<tr>
             <td class="row-id">${index + 1}</td>
             <td class="row-desc">${desc}${metaHtml}${tagsHtml}</td>
             <td class="row-urgency">${t.urgency}</td>
         </tr>`;
-    });
+  });
 
-    html += `</tbody></table></div>`;
-    html += `<div style="font-size:0.8em; color:var(--base01)">${tasks.length} tasks shown.</div>`;
-    
-    // renderChain is effectively dead code in this modular version unless imported/refactored,
-    // keeping ui.js consistent with previous file but updated.
+  html += `</tbody></table></div>`;
+  html += `<div style="font-size:0.8em; color:var(--base01)">${tasks.length} tasks shown.</div>`;
 
-    print(html, false);
+  // renderChain is effectively dead code in this modular version unless imported/refactored,
+  // keeping ui.js consistent with previous file but updated.
+
+  print(html, false);
 };
 
 export const renderProjectsTable = (projectNames, projectsMeta, taskCounts) => {
-    setProjectMetadata(projectsMeta);
-    if (!projectNames || projectNames.length === 0) {
-        let html = `
+  setProjectMetadata(projectsMeta);
+  if (!projectNames || projectNames.length === 0) {
+    let html = `
         <div class="table-wrapper">
         <table>
             <thead><tr>
@@ -149,11 +152,11 @@ export const renderProjectsTable = (projectNames, projectsMeta, taskCounts) => {
             </tr></thead>
             <tbody></tbody>
         </table></div>`;
-        html += `<div style="font-size:0.8em; color:var(--base01)">0 projects.</div>`;
-        return print(html, false);
-    }
+    html += `<div style="font-size:0.8em; color:var(--base01)">0 projects.</div>`;
+    return print(html, false);
+  }
 
-    let html = `
+  let html = `
     <div class="table-wrapper">
     <table>
         <thead><tr>
@@ -162,16 +165,16 @@ export const renderProjectsTable = (projectNames, projectsMeta, taskCounts) => {
         </tr></thead>
         <tbody>`;
 
-    projectNames.sort().forEach(name => {
-        const count = taskCounts[name] || 0;
-        html += `<tr>
+  projectNames.sort().forEach((name) => {
+    const count = taskCounts[name] || 0;
+    html += `<tr>
             <td>${formatProject(name)}</td>
             <td style="text-align:right">${count}</td>
         </tr>`;
-    });
+  });
 
-    html += `</tbody></table></div>`;
-    html += `<div style="font-size:0.8em; color:var(--base01)">${projectNames.length} projects.</div>`;
+  html += `</tbody></table></div>`;
+  html += `<div style="font-size:0.8em; color:var(--base01)">${projectNames.length} projects.</div>`;
 
-    print(html, false);
+  print(html, false);
 };
