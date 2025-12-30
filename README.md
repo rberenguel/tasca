@@ -15,7 +15,7 @@ Tasca runs entirely in the browser using IndexedDB for storage. No server requir
 | `next [N]`             | List top N tasks by urgency |
 | `done <ID>`            | Mark task complete          |
 | `delete <ID>`          | Remove task                 |
-| `mod <ID> [options]`   | Modify task                 |
+| `mod <ID> [desc] [options]` | Modify task (description and/or options) |
 | `annotate <ID> <note>` | Add note to task            |
 | `annotate <ID> -N`     | Remove annotation by index  |
 | `info <ID>`            | Show task details           |
@@ -34,8 +34,8 @@ Tasca runs entirely in the browser using IndexedDB for storage. No server requir
 | `due:YYYYMMDD`                      | Due date                                   |
 | `wait:YYYYMMDD`                     | Hide until date                            |
 | `recur:daily/weekly/monthly/yearly` | Recurrence                                 |
-| `dep:ID,ID`                         | Dependencies                               |
-| `!tag`                              | Add tag (toggles on `mod`)                 |
+| `dep:ID,ID`                         | Dependencies (toggles on `mod`)            |
+| `!tag`                              | Tag (toggles on `mod`)                     |
 
 ### Filters
 

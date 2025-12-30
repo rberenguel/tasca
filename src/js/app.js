@@ -196,8 +196,7 @@ const execute = async (str) => {
     } else if (cmd === "import")
       document.getElementById("import-picker").click();
     else if (cmd === "clear") {
-      document.getElementById("terminal-output").innerHTML =
-        '<div style="color: var(--base01); margin-bottom: 10px;">Tasca v0.0.17 [PWA]</div>';
+      document.getElementById("terminal-output").innerHTML = "";
       execute("next");
     } else if (["add", "log"].includes(cmd)) {
       let desc = [],
@@ -512,38 +511,50 @@ const execute = async (str) => {
       if (!id || !displayMapRef.value[id - 1])
         return print('<span class="msg-error">Invalid ID.</span>');
       const task = await dbOps.get(displayMapRef.value[id - 1]);
+      const descParts = [];
       tokens.forEach((token) => {
         if (token.startsWith("pri:"))
           task.priority = token.split(":")[1].toUpperCase();
-        if (
+        else if (
           token.startsWith("pro:") ||
           token.startsWith("proj:") ||
           token.startsWith("project:")
         )
           task.project = token.split(":")[1];
-        if (token.startsWith("due:")) task.due = parseDate(token.split(":")[1]);
-        if (token.startsWith("wait:"))
+        else if (token.startsWith("due:"))
+          task.due = parseDate(token.split(":")[1]);
+        else if (token.startsWith("wait:"))
           task.wait = parseDate(token.split(":")[1]);
-        if (token.startsWith("recur:")) task.recur = token.split(":")[1];
-        if (token.startsWith("!")) {
+        else if (token.startsWith("recur:")) task.recur = token.split(":")[1];
+        else if (token.startsWith("!")) {
           const tag = token.substring(1);
           if (!task.tags) task.tags = [];
           const idx = task.tags.indexOf(tag);
           if (idx >= 0)
             task.tags.splice(idx, 1); // remove if exists
           else task.tags.push(tag); // add if not
-        }
-        if (token.startsWith("dep:")) {
+        } else if (token.startsWith("dep:")) {
           if (!task.depends) task.depends = [];
           token
             .split(":")[1]
             .split(",")
             .forEach((i) => {
-              if (displayMapRef.value[i - 1])
-                task.depends.push(displayMapRef.value[i - 1]);
+              const uuid = displayMapRef.value[i - 1];
+              if (uuid) {
+                const idx = task.depends.indexOf(uuid);
+                if (idx >= 0)
+                  task.depends.splice(idx, 1); // remove if exists
+                else task.depends.push(uuid); // add if not
+              }
             });
+        } else {
+          // Plain text becomes part of new description
+          descParts.push(token);
         }
       });
+      if (descParts.length > 0) {
+        task.description = descParts.join(" ");
+      }
       await dbOps.update(task);
       runList(lastFilterArgs);
     } else if (cmd === "done" || (targetId && args[0] === "done")) {
@@ -844,6 +855,6 @@ initDB().then(async () => {
   try {
     const tasks = await dbOps.getAll();
     updateCache(tasks);
-    if (tasks.length > 0) execute("next");
+    execute("next");
   } catch (e) {}
 });
