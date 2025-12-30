@@ -42,9 +42,9 @@ const runList = async (args, limit = Infinity) => {
     for (let token of args) {
         if (token.startsWith('pro:') || token.startsWith('proj:') || token.startsWith('project:')) fProj = token.split(':')[1];
         else if (token.startsWith('+')) {
-            const tag = token.substring(1);
-            if (tag.toUpperCase() === 'WAITING' || tag.toUpperCase() === 'ALL') showWaiting = true;
-            fTags.push(token);
+            const tag = token.substring(1).toUpperCase();
+            if (tag === 'WAITING' || tag === 'ALL') showWaiting = true;
+            if (tag !== 'ALL') fTags.push(token); // +ALL is just a flag, not a filter
         }
         else search.push(token.toLowerCase());
     }
@@ -53,8 +53,8 @@ const runList = async (args, limit = Infinity) => {
     if (fProj) pending = pending.filter(t => matchesProject(t.project, fProj));
     if (fTags.length) {
         pending = pending.filter(t => fTags.every(ft => {
-            const tag = ft.substring(1);
-            if (t.tags && t.tags.includes(tag)) return true;
+            const tag = ft.substring(1).toLowerCase();
+            if (t.tags && t.tags.some(tt => tt.toLowerCase() === tag)) return true;
             if (hasVirtualTag(t, ft, all)) return true;
             return false;
         }));
@@ -88,12 +88,40 @@ const execute = async (str) => {
 
         if (cmd === 'export') {
             const all = await dbOps.getAll();
-            const dataStr = JSON.stringify(all, null, 2);
+            let filtered = all;
+
+            // Apply filters like list does
+            if (args.length > 0) {
+                let fProj = null, fTags = [], search = [];
+                for (let token of args) {
+                    if (token.startsWith('pro:') || token.startsWith('proj:') || token.startsWith('project:')) fProj = token.split(':')[1];
+                    else if (token.startsWith('+')) {
+                        const tag = token.substring(1).toUpperCase();
+                        if (tag !== 'ALL') fTags.push(token); // +ALL is just a flag, not a filter
+                    }
+                    else search.push(token.toLowerCase());
+                }
+                if (fProj) filtered = filtered.filter(t => matchesProject(t.project, fProj));
+                if (fTags.length) {
+                    filtered = filtered.filter(t => fTags.every(ft => {
+                        const tag = ft.substring(1).toLowerCase();
+                        if (t.tags && t.tags.some(tt => tt.toLowerCase() === tag)) return true;
+                        if (hasVirtualTag(t, ft, all)) return true;
+                        return false;
+                    }));
+                }
+                if (search.length) filtered = filtered.filter(t => search.every(s => t.description.toLowerCase().includes(s)));
+            }
+
+            const dataStr = JSON.stringify(filtered, null, 2);
             const blob = new Blob([dataStr], {type: "application/json"});
             const url = URL.createObjectURL(blob);
-            const a = document.createElement('a'); a.href = url; a.download = `tasca_${new Date().toISOString().slice(0,10).replace(/-/g,'')}.json`;
+            const filename = args.length > 0
+                ? `tasca_${args.join('_').replace(/[^a-zA-Z0-9]/g, '')}_${new Date().toISOString().slice(0,10).replace(/-/g,'')}.json`
+                : `tasca_${new Date().toISOString().slice(0,10).replace(/-/g,'')}.json`;
+            const a = document.createElement('a'); a.href = url; a.download = filename;
             document.body.appendChild(a); a.click(); document.body.removeChild(a);
-            print(`<span class="msg-success">Exported ${all.length} tasks.</span>`);
+            print(`<span class="msg-success">Exported ${filtered.length} tasks.</span>`);
         }
         else if (cmd === 'import') document.getElementById('import-picker').click();
         else if (cmd === 'clear') {
@@ -258,7 +286,7 @@ const execute = async (str) => {
             const id = parseInt(args[0] || rawCmd);
             if (!id || !displayMapRef.value[id-1]) return print('<span class="msg-error">Invalid ID.</span>');
             const t = await dbOps.get(displayMapRef.value[id-1]);
-            let html = `<div style="border:1px solid var(--base01); padding:10px; margin-bottom:10px">`;
+            let html = `<div style="padding:10px 0; margin-bottom:10px">`;
             html += `<div style="color:var(--yellow)">Task ${id} - ${t.uuid}</div>`;
             html += `<div><b>Desc:</b> ${t.description}</div>`;
             html += `<div><b>Status:</b> ${t.status}</div>`;
@@ -380,8 +408,13 @@ const execute = async (str) => {
                 else if (c === 'info') print(`<div class="msg-help"><span class="msg-hl">info</span> ID<br>Shows full details including annotations and full UUID.</div>`);
                 else if (c === 'chain') print(`<div class="msg-help"><span class="msg-hl">chain</span> ID<br>Visualizes dependency tree for the specified task.</div>`);
                 else if (c === 'projects' || c === 'proj') print(`<div class="msg-help"><span class="msg-hl">projects</span><br>Lists all projects with task counts.</div>`);
+                else if (c === 'export') print(`<div class="msg-help"><span class="msg-hl">export</span> [search] <span class="msg-arg">pro:Project</span> <span class="msg-arg">+tag</span><br>Exports tasks as JSON. Supports same filters as list.</div>`);
                 else print(`<span class="msg-error">No specific help for: ${sub}</span>`);
             }
+        }
+
+        else if (cmd === 'about') {
+            print(`<div style="color:var(--base1)">PWA task manager inspired by Taskwarrior.<br>Ruben Berenguel, 2025 with the help of Claude and Gemini.</div>`);
         }
 
         else if (['projects', 'proj'].includes(cmd)) {
@@ -506,7 +539,18 @@ initDB().then(async () => {
     });
     
     setupInput();
-    
+
+    // Tap output area to toggle input focus (mobile UX)
+    const terminalOutput = document.getElementById('terminal-output');
+    const cmdInput = document.getElementById('cmd-input');
+    terminalOutput.addEventListener('click', () => {
+        if (document.activeElement === cmdInput) {
+            cmdInput.blur();
+        } else {
+            cmdInput.focus();
+        }
+    });
+
     // Fire and forget icon fetch
     fetchIcons();
     

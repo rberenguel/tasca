@@ -55,7 +55,21 @@ export const formatProject = (proj) => {
 
 export const renderTable = (tasks, allTasks, displayMapRef, projects = []) => {
     setProjectMetadata(projects);
-    if (!tasks || tasks.length === 0) return print('<span class="msg-info">No tasks found.</span>', false);
+    if (!tasks || tasks.length === 0) {
+        displayMapRef.value = [];
+        let html = `
+        <div class="table-wrapper">
+        <table>
+            <thead><tr>
+                <th style="width:25px">ID</th>
+                <th>Description</th>
+                <th style="width:40px; text-align:right">Urg</th>
+            </tr></thead>
+            <tbody></tbody>
+        </table></div>`;
+        html += `<div style="font-size:0.8em; color:var(--base01)">0 tasks shown.</div>`;
+        return print(html, false);
+    }
     
     displayMapRef.value = tasks.map(t => t.uuid);
     
@@ -125,7 +139,19 @@ export const renderTable = (tasks, allTasks, displayMapRef, projects = []) => {
 
 export const renderProjectsTable = (projectNames, projectsMeta, taskCounts) => {
     setProjectMetadata(projectsMeta);
-    if (!projectNames || projectNames.length === 0) return print('<span class="msg-info">No projects found.</span>', false);
+    if (!projectNames || projectNames.length === 0) {
+        let html = `
+        <div class="table-wrapper">
+        <table>
+            <thead><tr>
+                <th>Project</th>
+                <th style="width:60px; text-align:right">Tasks</th>
+            </tr></thead>
+            <tbody></tbody>
+        </table></div>`;
+        html += `<div style="font-size:0.8em; color:var(--base01)">0 projects.</div>`;
+        return print(html, false);
+    }
 
     let html = `
     <div class="table-wrapper">

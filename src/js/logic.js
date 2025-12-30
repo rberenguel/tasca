@@ -47,7 +47,7 @@ export const hasVirtualTag = (t, tag, allTasks) => {
     return false;
 };
 
-export const VALID_COMMANDS = ['add', 'log', 'list', 'ls', 'next', 'done', 'delete', 'rm', 'modify', 'mod', 'export', 'import', 'help', 'clear', 'annotate', 'info', 'chain', 'projects', 'proj'];
+export const VALID_COMMANDS = ['add', 'log', 'list', 'ls', 'next', 'done', 'delete', 'rm', 'modify', 'mod', 'export', 'import', 'help', 'clear', 'annotate', 'info', 'chain', 'projects', 'proj', 'about'];
 
 export const resolveCommand = (str) => {
     const matches = VALID_COMMANDS.filter(c => c.startsWith(str));
