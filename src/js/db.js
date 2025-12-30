@@ -1,11 +1,12 @@
 const DB_NAME = "tasca_db";
 const STORE_NAME = "tasks";
 const PROJ_STORE_NAME = "projects";
+const SETTINGS_STORE_NAME = "settings";
 let db = null;
 
 export const initDB = () =>
   new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 5);
+    const request = indexedDB.open(DB_NAME, 6);
 
     request.onupgradeneeded = (event) => {
       const db = event.target.result;
@@ -16,6 +17,9 @@ export const initDB = () =>
       }
       if (!db.objectStoreNames.contains(PROJ_STORE_NAME)) {
         db.createObjectStore(PROJ_STORE_NAME, { keyPath: "name" });
+      }
+      if (!db.objectStoreNames.contains(SETTINGS_STORE_NAME)) {
+        db.createObjectStore(SETTINGS_STORE_NAME, { keyPath: "key" });
       }
     };
 
@@ -88,6 +92,34 @@ export const dbOps = {
       const tx = db.transaction(PROJ_STORE_NAME, "readwrite");
       const store = tx.objectStore(PROJ_STORE_NAME);
       const req = store.put(projData);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    }),
+  // Settings Operations
+  getSetting: (key) =>
+    new Promise((resolve, reject) => {
+      if (!db) return reject("DB not init");
+      if (!db.objectStoreNames.contains(SETTINGS_STORE_NAME))
+        return resolve(null);
+      const tx = db.transaction(SETTINGS_STORE_NAME, "readonly");
+      const store = tx.objectStore(SETTINGS_STORE_NAME);
+      const req = store.get(key);
+      req.onsuccess = () => resolve(req.result?.value ?? null);
+      req.onerror = () => reject(req.error);
+    }),
+  setSetting: (key, value) =>
+    new Promise((resolve, reject) => {
+      const tx = db.transaction(SETTINGS_STORE_NAME, "readwrite");
+      const store = tx.objectStore(SETTINGS_STORE_NAME);
+      const req = store.put({ key, value });
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    }),
+  deleteSetting: (key) =>
+    new Promise((resolve, reject) => {
+      const tx = db.transaction(SETTINGS_STORE_NAME, "readwrite");
+      const store = tx.objectStore(SETTINGS_STORE_NAME);
+      const req = store.delete(key);
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
     }),

@@ -23,6 +23,9 @@ Tasca runs entirely in the browser using IndexedDB for storage. No server requir
 | `projects`             | List all projects           |
 | `export [filters]`     | Export tasks as JSON        |
 | `import`               | Import tasks from JSON      |
+| `link`                 | Link a sync file (desktop)  |
+| `sync`                 | Export to linked file       |
+| `unlink`               | Remove linked file          |
 | `help [cmd]`           | Show help                   |
 
 ### Task Options
@@ -71,6 +74,17 @@ import                      # on device B
 ```
 
 Tasks are matched by UUID. Re-importing updates existing tasks.
+
+### Quick Sync (Desktop Chrome)
+
+On desktop Chrome, use the File System Access API for persistent file access:
+
+```
+link                        # pick/create sync file (once)
+sync                        # export all tasks to linked file
+```
+
+The file handle persists across sessions. Use `unlink` to disconnect.
 
 ### Keyboard Shortcuts
 

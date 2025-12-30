@@ -94,6 +94,9 @@ export const VALID_COMMANDS = [
   "projects",
   "proj",
   "about",
+  "link",
+  "sync",
+  "unlink",
 ];
 
 export const resolveCommand = (str) => {

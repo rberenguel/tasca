@@ -681,6 +681,66 @@ const execute = async (str) => {
       projectsMeta.forEach((p) => projectSet.add(p.name));
 
       renderProjectsTable(Array.from(projectSet), projectsMeta, taskCounts);
+    } else if (cmd === "link") {
+      if (!window.showSaveFilePicker) {
+        return print(
+          '<span class="msg-error">File System Access API not supported in this browser.</span>',
+        );
+      }
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: "tasca-sync.json",
+          types: [
+            {
+              description: "JSON files",
+              accept: { "application/json": [".json"] },
+            },
+          ],
+        });
+        await dbOps.setSetting("syncFileHandle", handle);
+        print(
+          `<span class="msg-success">Linked to ${handle.name}. Use 'sync' to export.</span>`,
+        );
+      } catch (e) {
+        if (e.name !== "AbortError") {
+          print(`<span class="msg-error">Error: ${e.message}</span>`);
+        }
+      }
+    } else if (cmd === "sync") {
+      const handle = await dbOps.getSetting("syncFileHandle");
+      if (!handle) {
+        return print(
+          '<span class="msg-error">No file linked. Use \'link\' first.</span>',
+        );
+      }
+      try {
+        // Verify permission
+        const options = { mode: "readwrite" };
+        if ((await handle.queryPermission(options)) !== "granted") {
+          if ((await handle.requestPermission(options)) !== "granted") {
+            return print(
+              '<span class="msg-error">Permission denied. Try \'link\' again.</span>',
+            );
+          }
+        }
+        // Export all tasks
+        const all = await dbOps.getAll();
+        const writable = await handle.createWritable();
+        await writable.write(JSON.stringify(all, null, 2));
+        await writable.close();
+        print(
+          `<span class="msg-success">Synced ${all.length} tasks to ${handle.name}.</span>`,
+        );
+      } catch (e) {
+        print(`<span class="msg-error">Sync failed: ${e.message}</span>`);
+      }
+    } else if (cmd === "unlink") {
+      const handle = await dbOps.getSetting("syncFileHandle");
+      if (!handle) {
+        return print('<span class="msg-error">No file linked.</span>');
+      }
+      await dbOps.deleteSetting("syncFileHandle");
+      print('<span class="msg-success">Unlinked sync file.</span>');
     } else print(`<span class="msg-error">Unknown: ${cmd}</span>`);
   } catch (err) {
     console.error(err);
