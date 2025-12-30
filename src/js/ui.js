@@ -12,6 +12,7 @@ export const print = (html, append = true) => {
     const term = document.getElementById('terminal-output');
     if (!append) term.innerHTML = '';
     const div = document.createElement('div');
+    div.style.marginBottom = "8px";
     div.innerHTML = html;
     term.appendChild(div);
     term.scrollTop = term.scrollHeight;

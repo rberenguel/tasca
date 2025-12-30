@@ -16,6 +16,43 @@ const updateCache = (tasks) => {
     });
 };
 
+const runList = async (args, limit = Infinity) => {
+    const all = await dbOps.getAll();
+    let pending = all.filter(t => t.status === 'pending');
+    let search = [], fProj = null, fTags = [];
+    let showWaiting = false;
+
+    for (let token of args) {
+        if (token.startsWith('pro:') || token.startsWith('project:')) fProj = token.split(':')[1];
+        else if (token.startsWith('+')) {
+            const tag = token.substring(1);
+            if (tag.toUpperCase() === 'WAITING' || tag.toUpperCase() === 'ALL') showWaiting = true;
+            fTags.push(token);
+        }
+        else search.push(token.toLowerCase());
+    }
+
+    if (!showWaiting) pending = pending.filter(t => !t.wait || t.wait <= Date.now());
+    if (fProj) pending = pending.filter(t => matchesProject(t.project, fProj));
+    if (fTags.length) {
+        pending = pending.filter(t => fTags.every(ft => {
+            const tag = ft.substring(1);
+            if (t.tags && t.tags.includes(tag)) return true;
+            if (hasVirtualTag(t, ft, all)) return true;
+            return false;
+        }));
+    }
+    if (search.length) pending = pending.filter(t => search.every(s => t.description.toLowerCase().includes(s)));
+    pending.forEach(t => t.urgency = calculateUrgency(t, all));
+    pending.sort((a,b) => parseFloat(b.urgency) - parseFloat(a.urgency));
+    
+    if (limit !== Infinity && limit > 0) {
+        pending = pending.slice(0, limit);
+    }
+    
+    renderTable(pending, all, displayMapRef);
+};
+
 const execute = async (str) => {
     dbOps.check();
 
@@ -61,36 +98,21 @@ const execute = async (str) => {
             execute('list');
         }
 
-        else if (['list', 'ls', 'next'].includes(cmd)) {
-            const all = await dbOps.getAll();
-            let pending = all.filter(t => t.status === 'pending');
-            let search = [], fProj = null, fTags = [];
-            let showWaiting = false;
-
-            for (let token of args) {
-                if (token.startsWith('pro:') || token.startsWith('project:')) fProj = token.split(':')[1];
-                else if (token.startsWith('+')) {
-                    const tag = token.substring(1);
-                    if (tag.toUpperCase() === 'WAITING' || tag.toUpperCase() === 'ALL') showWaiting = true;
-                    fTags.push(token);
-                }
-                else search.push(token.toLowerCase());
+        else if (cmd === 'list' || cmd === 'ls') {
+            await runList(args);
+        }
+        
+        else if (cmd === 'next') {
+            let limit = localStorage.getItem('tasca_next_limit') ? parseInt(localStorage.getItem('tasca_next_limit')) : 1000;
+            
+            // Check if user provided explicit limit
+            if (args.length > 0 && args[0].match(/^\d+$/)) {
+                limit = parseInt(args[0]);
+                localStorage.setItem('tasca_next_limit', limit);
+                args.shift(); // Remove the limit argument so it doesn't affect search
             }
-
-            if (!showWaiting) pending = pending.filter(t => !t.wait || t.wait <= Date.now());
-            if (fProj) pending = pending.filter(t => matchesProject(t.project, fProj));
-            if (fTags.length) {
-                pending = pending.filter(t => fTags.every(ft => {
-                    const tag = ft.substring(1);
-                    if (t.tags && t.tags.includes(tag)) return true;
-                    if (hasVirtualTag(t, ft, all)) return true;
-                    return false;
-                }));
-            }
-            if (search.length) pending = pending.filter(t => search.every(s => t.description.toLowerCase().includes(s)));
-            pending.forEach(t => t.urgency = calculateUrgency(t, all));
-            pending.sort((a,b) => parseFloat(b.urgency) - parseFloat(a.urgency));
-            renderTable(pending, all, displayMapRef);
+            
+            await runList(args, limit);
         }
 
         else if (cmd === 'chain') {
@@ -150,7 +172,7 @@ const execute = async (str) => {
             if (roots.length === 0 && relevantUUIDs.size > 0) renderFinal(rootUuid, '', undefined);
             else roots.forEach(r => renderFinal(r, '', undefined));
             html += '</div>';
-            print(html, false);
+            print(html, true);
         }
 
         else if (cmd === 'annotate') {
@@ -182,7 +204,8 @@ const execute = async (str) => {
                  t.annotations.forEach(a => { html += `<div style="margin-left:10px; font-size:0.9em; color:var(--base1)">${formatDate(a.entry)}: ${a.description}</div>`; });
             }
             html += `</div>`;
-            print(html, false);
+            html += `</div>`;
+            print(html, true);
         }
 
         else if (targetId && (args[0] === 'mod' || args[0] === 'modify') || (['modify','mod'].includes(cmd) && args[0].match(/^\d+$/))) {
@@ -336,6 +359,6 @@ initDB().then(async () => {
     try { 
         const tasks = await dbOps.getAll(); 
         updateCache(tasks); 
-        if(tasks.length > 0) execute('list'); 
+        if(tasks.length > 0) execute('next'); 
     } catch(e){}
 });
