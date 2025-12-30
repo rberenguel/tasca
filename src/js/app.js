@@ -629,8 +629,14 @@ const execute = async (str) => {
           print(`<span class="msg-error">No specific help for: ${sub}</span>`);
       }
     } else if (cmd === "about") {
+      let version = "unknown";
+      try {
+        const res = await fetch("manifest.json");
+        const manifest = await res.json();
+        version = manifest.version || "unknown";
+      } catch (e) {}
       print(
-        `<div style="color:var(--base1)">PWA task manager inspired by Taskwarrior.<br>Ruben Berenguel, 2025 with the help of Claude and Gemini.</div>`,
+        `<div style="color:var(--base1)">Tasca v${version}<br>PWA task manager inspired by Taskwarrior.<br>Ruben Berenguel, 2025 with the help of Claude and Gemini.</div>`,
       );
     } else if (["projects", "proj"].includes(cmd)) {
       const all = await dbOps.getAll();
