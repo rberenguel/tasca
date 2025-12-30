@@ -1,4 +1,4 @@
-# <img src="icon.png" alt="Tasca Icon" width="32" height="32">Tasca
+# <img src="icon.png" alt="Tasca Icon" width="32" height="32"> Tasca
 
 A local-first PWA task manager inspired by Taskwarrior.
 
