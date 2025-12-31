@@ -11,7 +11,7 @@ Tasca runs entirely in the browser using IndexedDB for storage. No server requir
 | Command                  | Description                 |
 | ------------------------ | --------------------------- |
 | `add` / `a <desc> [opts]` | Add a task                  |
-| `list [filters]`       | List pending tasks          |
+| `list` / `l [filters]` | List pending tasks          |
 | `next [N]`             | List top N tasks by urgency |
 | `start` / `st <ID>`    | Mark task as started        |
 | `done <ID>`            | Mark task complete          |
@@ -19,14 +19,15 @@ Tasca runs entirely in the browser using IndexedDB for storage. No server requir
 | `mod <ID> [desc] [options]` | Modify task (description and/or options) |
 | `annotate <ID> <note>` | Add note to task            |
 | `annotate <ID> -N`     | Remove annotation by index  |
-| `info <ID>`            | Show task details           |
+| `info` / `i <ID>`      | Show task details           |
 | `chain <ID>`           | Show dependency tree        |
 | `projects`             | List all projects           |
 | `export` / `exp [filters]` | Export tasks as JSON        |
 | `import` / `imp`       | Import tasks from JSON      |
 | `link`                 | Link a sync file (desktop)  |
-| `sync`                 | Export to linked file       |
+| `sync`                 | Pull & push to linked file  |
 | `unlink`               | Remove linked file          |
+| `about`                | Show version info           |
 | `help [cmd]`           | Show help                   |
 
 ### Task Options

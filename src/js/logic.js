@@ -4,6 +4,7 @@ export const C = {
   next: 15.0,
   due: 12.0,
   blocking: 8.0,
+  active: 4.0,
   blocked: -5.0,
   priority: { H: 6.0, M: 3.9, L: 1.8 },
   age: 2.0,
@@ -14,6 +15,7 @@ export const calculateUrgency = (t, allTasks) => {
   if (t.wait && t.wait > Date.now()) return -10.0;
   let u = 0.0;
   if (t.tags && t.tags.includes("next")) u += C.next;
+  if (t.start) u += C.active; // Started tasks get priority
   if (t.priority && C.priority[t.priority]) u += C.priority[t.priority];
   if (t.project) u += C.project;
   const ageDays = (Date.now() - t.entry) / (1000 * 60 * 60 * 24);
