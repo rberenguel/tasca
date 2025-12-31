@@ -13,6 +13,7 @@ import {
   addDays,
   addMonths,
   calculateNextRecurrence,
+  parseDate,
 } from "../src/js/utils.js";
 
 describe("Tasca Logic Tests", function () {
@@ -107,6 +108,16 @@ describe("Tasca Logic Tests", function () {
       const t = { entry: now, sched: now - Day, status: "pending", tags: [] };
       expect(hasVirtualTag(t, "+SCHEDULED", [])).to.be.false;
     });
+
+    it("should identify +RECURRING", function () {
+      const t = { entry: now, recur: "1w", status: "pending", tags: [] };
+      expect(hasVirtualTag(t, "+RECURRING", [])).to.be.true;
+    });
+
+    it("should NOT identify +RECURRING for non-recurring task", function () {
+      const t = { entry: now, status: "pending", tags: [] };
+      expect(hasVirtualTag(t, "+RECURRING", [])).to.be.false;
+    });
   });
 
   describe("Days Remaining", function () {
@@ -137,6 +148,85 @@ describe("Utils Tests", function () {
     const uuid = generateUUID();
     expect(uuid).to.be.a("string");
     expect(uuid.length).to.equal(36);
+  });
+
+  describe("parseDate", function () {
+    it("should parse YYYYMMDD format", function () {
+      const result = parseDate("20250115");
+      const d = new Date(result);
+      expect(d.getFullYear()).to.equal(2025);
+      expect(d.getMonth()).to.equal(0); // January
+      expect(d.getDate()).to.equal(15);
+    });
+
+    it("should parse 'today'", function () {
+      const result = parseDate("today");
+      const d = new Date(result);
+      const now = new Date();
+      expect(d.getDate()).to.equal(now.getDate());
+      expect(d.getMonth()).to.equal(now.getMonth());
+    });
+
+    it("should parse 'tod' abbreviation", function () {
+      const result = parseDate("tod");
+      expect(result).to.not.be.null;
+    });
+
+    it("should parse 'tomorrow'", function () {
+      const result = parseDate("tomorrow");
+      const d = new Date(result);
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      expect(d.getDate()).to.equal(tomorrow.getDate());
+    });
+
+    it("should parse 'tom' abbreviation", function () {
+      const result = parseDate("tom");
+      expect(result).to.not.be.null;
+    });
+
+    it("should parse Nd (days)", function () {
+      const result = parseDate("3d");
+      const d = new Date(result);
+      const expected = new Date();
+      expected.setDate(expected.getDate() + 3);
+      expect(d.getDate()).to.equal(expected.getDate());
+    });
+
+    it("should parse Nw (weeks)", function () {
+      const result = parseDate("2w");
+      const d = new Date(result);
+      const expected = new Date();
+      expected.setDate(expected.getDate() + 14);
+      expect(d.getDate()).to.equal(expected.getDate());
+    });
+
+    it("should parse Nm (months)", function () {
+      const result = parseDate("1m");
+      const d = new Date(result);
+      const expected = new Date();
+      expected.setMonth(expected.getMonth() + 1);
+      expect(d.getMonth()).to.equal(expected.getMonth());
+    });
+
+    it("should be case-insensitive", function () {
+      expect(parseDate("TODAY")).to.not.be.null;
+      expect(parseDate("Tomorrow")).to.not.be.null;
+      expect(parseDate("3D")).to.not.be.null;
+    });
+
+    it("should return null for invalid input", function () {
+      expect(parseDate("invalid")).to.be.null;
+      expect(parseDate("")).to.be.null;
+      expect(parseDate(null)).to.be.null;
+    });
+
+    it("should set time to end of day", function () {
+      const result = parseDate("today");
+      const d = new Date(result);
+      expect(d.getHours()).to.equal(23);
+      expect(d.getMinutes()).to.equal(59);
+    });
   });
 
   describe("Date Utilities", function () {
@@ -180,10 +270,10 @@ describe("Recurrence Tests", function () {
   const Day = 86400000;
 
   describe("Daily Recurrence", function () {
-    it("should calculate next day for daily recurrence", function () {
+    it("should calculate next day for 1d recurrence", function () {
       const task = {
         due: new Date(2025, 0, 15, 23, 59, 59).getTime(),
-        recur: "daily",
+        recur: "1d",
       };
       const result = calculateNextRecurrence(task);
       expect(result).to.not.be.null;
@@ -191,10 +281,21 @@ describe("Recurrence Tests", function () {
       expect(nextDue.getDate()).to.equal(16);
     });
 
-    it("should accept abbreviated daily (dai)", function () {
+    it("should calculate 3 days for 3d recurrence", function () {
       const task = {
         due: new Date(2025, 0, 15).getTime(),
-        recur: "dai",
+        recur: "3d",
+      };
+      const result = calculateNextRecurrence(task);
+      expect(result).to.not.be.null;
+      const nextDue = new Date(result.nextDue);
+      expect(nextDue.getDate()).to.equal(18);
+    });
+
+    it("should accept legacy daily", function () {
+      const task = {
+        due: new Date(2025, 0, 15).getTime(),
+        recur: "daily",
       };
       const result = calculateNextRecurrence(task);
       expect(result).to.not.be.null;
@@ -202,10 +303,10 @@ describe("Recurrence Tests", function () {
   });
 
   describe("Weekly Recurrence", function () {
-    it("should calculate next week for weekly recurrence", function () {
+    it("should calculate next week for 1w recurrence", function () {
       const task = {
         due: new Date(2025, 0, 15).getTime(),
-        recur: "weekly",
+        recur: "1w",
       };
       const result = calculateNextRecurrence(task);
       expect(result).to.not.be.null;
@@ -213,10 +314,21 @@ describe("Recurrence Tests", function () {
       expect(nextDue.getDate()).to.equal(22);
     });
 
-    it("should accept abbreviated weekly (wee)", function () {
+    it("should calculate 2 weeks for 2w recurrence", function () {
       const task = {
         due: new Date(2025, 0, 15).getTime(),
-        recur: "wee",
+        recur: "2w",
+      };
+      const result = calculateNextRecurrence(task);
+      expect(result).to.not.be.null;
+      const nextDue = new Date(result.nextDue);
+      expect(nextDue.getDate()).to.equal(29);
+    });
+
+    it("should accept legacy weekly", function () {
+      const task = {
+        due: new Date(2025, 0, 15).getTime(),
+        recur: "weekly",
       };
       const result = calculateNextRecurrence(task);
       expect(result).to.not.be.null;
@@ -224,10 +336,10 @@ describe("Recurrence Tests", function () {
   });
 
   describe("Monthly Recurrence", function () {
-    it("should calculate next month for monthly recurrence", function () {
+    it("should calculate next month for 1m recurrence", function () {
       const task = {
         due: new Date(2025, 0, 15).getTime(),
-        recur: "monthly",
+        recur: "1m",
       };
       const result = calculateNextRecurrence(task);
       expect(result).to.not.be.null;
@@ -236,10 +348,21 @@ describe("Recurrence Tests", function () {
       expect(nextDue.getMonth()).to.equal(1); // February
     });
 
-    it("should accept abbreviated monthly (mon)", function () {
+    it("should calculate 3 months for 3m recurrence", function () {
       const task = {
         due: new Date(2025, 0, 15).getTime(),
-        recur: "mon",
+        recur: "3m",
+      };
+      const result = calculateNextRecurrence(task);
+      expect(result).to.not.be.null;
+      const nextDue = new Date(result.nextDue);
+      expect(nextDue.getMonth()).to.equal(3); // April
+    });
+
+    it("should accept legacy monthly", function () {
+      const task = {
+        due: new Date(2025, 0, 15).getTime(),
+        recur: "monthly",
       };
       const result = calculateNextRecurrence(task);
       expect(result).to.not.be.null;
@@ -247,10 +370,10 @@ describe("Recurrence Tests", function () {
   });
 
   describe("Yearly Recurrence", function () {
-    it("should calculate next year for yearly recurrence", function () {
+    it("should calculate next year for 1y recurrence", function () {
       const task = {
         due: new Date(2025, 0, 15).getTime(),
-        recur: "yearly",
+        recur: "1y",
       };
       const result = calculateNextRecurrence(task);
       expect(result).to.not.be.null;
@@ -260,10 +383,21 @@ describe("Recurrence Tests", function () {
       expect(nextDue.getFullYear()).to.equal(2026);
     });
 
-    it("should accept abbreviated yearly (yea)", function () {
+    it("should calculate 2 years for 2y recurrence", function () {
       const task = {
         due: new Date(2025, 0, 15).getTime(),
-        recur: "yea",
+        recur: "2y",
+      };
+      const result = calculateNextRecurrence(task);
+      expect(result).to.not.be.null;
+      const nextDue = new Date(result.nextDue);
+      expect(nextDue.getFullYear()).to.equal(2027);
+    });
+
+    it("should accept legacy yearly", function () {
+      const task = {
+        due: new Date(2025, 0, 15).getTime(),
+        recur: "yearly",
       };
       const result = calculateNextRecurrence(task);
       expect(result).to.not.be.null;

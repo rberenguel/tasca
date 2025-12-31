@@ -76,6 +76,8 @@ export const hasVirtualTag = (t, tag, allTasks) => {
     return t.status === "completed";
   if (tagClean === "ACTIVE" || tagClean === "STARTED")
     return t.start && t.status === "pending";
+  if (tagClean === "RECURRING" || tagClean === "RECUR")
+    return !!t.recur && t.status === "pending";
   return false;
 };
 
@@ -113,6 +115,9 @@ export const VALID_COMMANDS = [
   "context",
   "ctx",
   "c",
+  "calendar",
+  "cal",
+  "skip",
 ];
 
 export const resolveCommand = (str) => {

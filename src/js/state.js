@@ -11,8 +11,12 @@ export const knownIcons = new Set();
 
 // Persist last filter for reapplication after operations
 export let lastFilterArgs = [];
+export let lastLimit = Infinity;
 export const setLastFilterArgs = (args) => {
   lastFilterArgs = args;
+};
+export const setLastLimit = (limit) => {
+  lastLimit = limit;
 };
 
 // Command history

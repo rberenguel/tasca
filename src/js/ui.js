@@ -48,7 +48,14 @@ export const formatProject = (proj) => {
   const parts = proj.split(".");
   let html = "";
   // Cycle through solarized colors by depth: yellow, orange, red, magenta, violet, blue
-  const depthClasses = ["row-proj-d0", "row-proj-d1", "row-proj-d2", "row-proj-d3", "row-proj-d4", "row-proj-d5"];
+  const depthClasses = [
+    "row-proj-d0",
+    "row-proj-d1",
+    "row-proj-d2",
+    "row-proj-d3",
+    "row-proj-d4",
+    "row-proj-d5",
+  ];
   for (let i = 0; i < parts.length; i++) {
     const depthClass = depthClasses[Math.min(i, depthClasses.length - 1)];
     html += `<span class="${depthClass}">${parts[i]}</span>`;

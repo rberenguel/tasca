@@ -2,13 +2,14 @@ import { dbOps } from "./db.js";
 import { calculateUrgency, hasVirtualTag, matchesProject } from "./logic.js";
 import { renderTable } from "./ui.js";
 import { parseRelativeTime } from "./utils.js";
-import { displayMapRef, setLastFilterArgs } from "./state.js";
+import { displayMapRef, setLastFilterArgs, setLastLimit } from "./state.js";
 import { mergeFilters } from "./context.js";
 
 export const runList = async (args, limit = Infinity) => {
   // Apply context filters
   const effectiveArgs = mergeFilters(args);
   setLastFilterArgs(effectiveArgs);
+  setLastLimit(limit);
   const all = await dbOps.getAll();
   const projects = await dbOps.getAllProjects();
   let search = [],

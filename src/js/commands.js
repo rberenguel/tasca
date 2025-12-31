@@ -5,14 +5,15 @@ import {
   calculateNextRecurrence,
 } from "./utils.js";
 import { dbOps } from "./db.js";
-import {
-  resolveCommand,
-  matchesProject,
-  hasVirtualTag,
-} from "./logic.js";
+import { resolveCommand, matchesProject, hasVirtualTag } from "./logic.js";
 import { print, renderProjectsTable, formatProject } from "./ui.js";
 import { runList } from "./list.js";
-import { displayMapRef, updateCache, lastFilterArgs } from "./state.js";
+import {
+  displayMapRef,
+  updateCache,
+  lastFilterArgs,
+  lastLimit,
+} from "./state.js";
 import { setContext, getInheritedAttributes } from "./context.js";
 
 export const execute = async (str) => {
@@ -191,7 +192,7 @@ export const execute = async (str) => {
         status: "pending",
         entry: Date.now(),
       });
-      runList(lastFilterArgs);
+      runList(lastFilterArgs, lastLimit);
     } else if (cmd === "list" || cmd === "ls" || cmd === "l") {
       await runList(args);
     } else if (cmd === "next") {
@@ -320,7 +321,7 @@ export const execute = async (str) => {
           print(
             `<span class="msg-success">Project ${projName} updated.</span>`,
           );
-          runList(lastFilterArgs);
+          runList(lastFilterArgs, lastLimit);
         } else {
           print(
             '<span class="msg-info">No changes (icon not specified).</span>',
@@ -353,14 +354,14 @@ export const execute = async (str) => {
         task.annotations.splice(n - 1, 1);
         await dbOps.update(task);
         print(`<span class="msg-success">Annotation ${n} removed.</span>`);
-        runList(lastFilterArgs);
+        runList(lastFilterArgs, lastLimit);
         return;
       }
 
       if (!task.annotations) task.annotations = [];
       task.annotations.push({ entry: Date.now(), description: note });
       await dbOps.update(task);
-      runList(lastFilterArgs);
+      runList(lastFilterArgs, lastLimit);
     } else if (cmd === "info" || cmd === "i") {
       const id = parseInt(args[0] || rawCmd);
       if (!id || !displayMapRef.value[id - 1])
@@ -382,7 +383,8 @@ export const execute = async (str) => {
         html += `<div><b>URL:</b> <a href="${t.url}" target="_blank" rel="noopener" class="task-link">${t.url}</a></div>`;
       if (t.due) html += `<div><b>Due:</b> ${formatDate(t.due)}</div>`;
       if (t.wait) html += `<div><b>Wait:</b> ${formatDate(t.wait)}</div>`;
-      if (t.sched) html += `<div><b>Scheduled:</b> ${formatDate(t.sched)}</div>`;
+      if (t.sched)
+        html += `<div><b>Scheduled:</b> ${formatDate(t.sched)}</div>`;
       if (t.recur) html += `<div><b>Recur:</b> ${t.recur}</div>`;
       if (t.start) html += `<div><b>Started:</b> ${formatDate(t.start)}</div>`;
       if (t.end) html += `<div><b>Completed:</b> ${formatDate(t.end)}</div>`;
@@ -436,7 +438,7 @@ export const execute = async (str) => {
       proj.icon = icon;
       await dbOps.updateProject(proj);
       print(`<span class="msg-success">Project ${projName} updated.</span>`);
-      runList(lastFilterArgs);
+      runList(lastFilterArgs, lastLimit);
     } else if (
       (targetId && (args[0] === "mod" || args[0] === "modify")) ||
       (["modify", "mod"].includes(cmd) && args[0] && args[0].match(/^\d+$/))
@@ -493,7 +495,7 @@ export const execute = async (str) => {
         task.description = descParts.join(" ");
       }
       await dbOps.update(task);
-      runList(lastFilterArgs);
+      runList(lastFilterArgs, lastLimit);
     } else if (
       cmd === "start" ||
       cmd === "st" ||
@@ -507,7 +509,7 @@ export const execute = async (str) => {
         task.start = Date.now();
         await dbOps.update(task);
         print(`<span class="msg-success">Started task ${id}.</span>`);
-        runList(lastFilterArgs);
+        runList(lastFilterArgs, lastLimit);
       }
     } else if (cmd === "done" || (targetId && args[0] === "done")) {
       const id = targetId || parseInt(args.find((a) => a.match(/^\d+$/)));
@@ -536,25 +538,67 @@ export const execute = async (str) => {
           await dbOps.add(newTask);
           print(`<span class="msg-success">Recurring task created.</span>`);
         }
-        runList(lastFilterArgs);
+        runList(lastFilterArgs, lastLimit);
       }
     } else if (["delete", "rm"].includes(cmd)) {
       const id = parseInt(args[0]);
       if (!id || !displayMapRef.value[id - 1])
         return print('<span class="msg-error">Invalid ID.</span>');
       await dbOps.delete(displayMapRef.value[id - 1]);
-      runList(lastFilterArgs);
+      runList(lastFilterArgs, lastLimit);
+    } else if (cmd === "skip") {
+      const id = parseInt(args[0]);
+      if (!id || !displayMapRef.value[id - 1])
+        return print('<span class="msg-error">Invalid ID.</span>');
+      const task = await dbOps.get(displayMapRef.value[id - 1]);
+      if (!task) return print('<span class="msg-error">Task not found.</span>');
+      if (!task.recur || !task.due)
+        return print(
+          '<span class="msg-error">Task is not recurring (needs both due: and recur:).</span>',
+        );
+
+      const recurrence = calculateNextRecurrence(task);
+      if (!recurrence)
+        return print(
+          '<span class="msg-error">Could not calculate next recurrence.</span>',
+        );
+
+      // Mark current as skipped
+      task.status = "skipped";
+      task.end = Date.now();
+      await dbOps.update(task);
+
+      // Create next occurrence
+      const newTask = {
+        ...task,
+        uuid: generateUUID(),
+        status: "pending",
+        due: recurrence.nextDue,
+        wait: recurrence.nextWait || null,
+        sched: recurrence.nextSched || null,
+        entry: Date.now(),
+        annotations: [],
+      };
+      delete newTask.depends;
+      delete newTask.end;
+      delete newTask.start;
+      await dbOps.add(newTask);
+
+      print(
+        '<span class="msg-success">Skipped. Next occurrence created.</span>',
+      );
+      runList(lastFilterArgs, lastLimit);
     } else if (cmd === "help") {
       const sub = args[0];
       if (!sub) {
         print(
-          `<span style="color:var(--yellow)">Commands:</span> add, list, done, delete, modify, annotate, info, chain, projects, context, export, import. Type <span class="msg-hl">help [cmd]</span> for details.`,
+          `<span style="color:var(--yellow)">Commands:</span> add, list, done, skip, delete, modify, annotate, info, chain, projects, context, calendar, export, import. Type <span class="msg-hl">help [cmd]</span> for details.`,
         );
       } else {
         const c = resolveCommand(sub);
         if (c === "add")
           print(
-            `<div class="msg-help"><span class="msg-hl">add</span> description <span class="msg-arg">pro:Project</span> <span class="msg-arg">pri:H/M/L</span> <span class="msg-arg">due:YYYYMMDD</span> <span class="msg-arg">wait:YYYYMMDD</span> <span class="msg-arg">sched:YYYYMMDD</span> <span class="msg-arg">recur:period</span> <span class="msg-arg">!tag</span></div>`,
+            `<div class="msg-help"><span class="msg-hl">add</span> description <span class="msg-arg">pro:Project</span> <span class="msg-arg">pri:H/M/L</span> <span class="msg-arg">due:DATE</span> <span class="msg-arg">wait:DATE</span> <span class="msg-arg">sched:DATE</span> <span class="msg-arg">recur:PERIOD</span> <span class="msg-arg">!tag</span><br>DATE: <span class="msg-arg">YYYYMMDD</span> | <span class="msg-arg">today</span> | <span class="msg-arg">tomorrow</span> | <span class="msg-arg">3d</span> | <span class="msg-arg">2w</span> | <span class="msg-arg">1m</span><br>PERIOD: <span class="msg-arg">1d</span> | <span class="msg-arg">1w</span> | <span class="msg-arg">2w</span> | <span class="msg-arg">1m</span> | <span class="msg-arg">1y</span></div>`,
           );
         else if (c === "modify")
           print(
@@ -562,11 +606,15 @@ export const execute = async (str) => {
           );
         else if (c === "list")
           print(
-            `<div class="msg-help"><span class="msg-hl">list</span> [search] <span class="msg-arg">pro:Project</span> <span class="msg-arg">!tag</span> <span class="msg-arg">end:1w</span><br>Virtual: <span class="msg-arg">!overdue</span> <span class="msg-arg">!today</span> <span class="msg-arg">!waiting</span> <span class="msg-arg">!scheduled</span> <span class="msg-arg">!blocked</span> <span class="msg-arg">!done</span> <span class="msg-arg">!all</span></div>`,
+            `<div class="msg-help"><span class="msg-hl">list</span> [search] <span class="msg-arg">pro:Project</span> <span class="msg-arg">!tag</span> <span class="msg-arg">end:1w</span><br>Virtual: <span class="msg-arg">!overdue</span> <span class="msg-arg">!today</span> <span class="msg-arg">!waiting</span> <span class="msg-arg">!scheduled</span> <span class="msg-arg">!recurring</span> <span class="msg-arg">!blocked</span> <span class="msg-arg">!done</span> <span class="msg-arg">!all</span></div>`,
           );
         else if (c === "done")
           print(
             `<div class="msg-help"><span class="msg-hl">done</span> ID<br>Completes a task. If recurring, creates the next instance.</div>`,
+          );
+        else if (c === "skip")
+          print(
+            `<div class="msg-help"><span class="msg-hl">skip</span> ID<br>Skip a recurring task. Marks as skipped and creates next instance.</div>`,
           );
         else if (c === "delete")
           print(
@@ -595,6 +643,10 @@ export const execute = async (str) => {
         else if (c === "context" || c === "ctx" || c === "c")
           print(
             `<div class="msg-help"><span class="msg-hl">context</span> <span class="msg-arg">pro:Project</span> <span class="msg-arg">!tag</span> <span class="msg-arg">search</span><br>Set persistent filter context. Filters auto-apply to list/next, attributes inherit to add.<br><span class="msg-hl">context</span> (no args) clears context.</div>`,
+          );
+        else if (c === "calendar" || c === "cal")
+          print(
+            `<div class="msg-help"><span class="msg-hl">cal</span> [search] <span class="msg-arg">pro:Project</span> <span class="msg-arg">!tag</span> <span class="msg-arg">lim:N</span><br>Agenda view of dated tasks. Shows <span class="msg-arg">[due]</span> <span class="msg-arg">[sched]</span> <span class="msg-arg">[wait]</span> dates.<br>Includes overdue from past 7 days. <span class="msg-arg">!done</span> shows completed by end date.</div>`,
           );
         else
           print(`<span class="msg-error">No specific help for: ${sub}</span>`);
@@ -655,7 +707,7 @@ export const execute = async (str) => {
       const handle = await dbOps.getSetting("syncFileHandle");
       if (!handle) {
         return print(
-          '<span class="msg-error">No file linked. Use \'link\' first.</span>',
+          "<span class=\"msg-error\">No file linked. Use 'link' first.</span>",
         );
       }
       try {
@@ -663,7 +715,7 @@ export const execute = async (str) => {
         if ((await handle.queryPermission(options)) !== "granted") {
           if ((await handle.requestPermission(options)) !== "granted") {
             return print(
-              '<span class="msg-error">Permission denied. Try \'link\' again.</span>',
+              "<span class=\"msg-error\">Permission denied. Try 'link' again.</span>",
             );
           }
         }
@@ -692,7 +744,7 @@ export const execute = async (str) => {
         );
         if (imported > 0) {
           updateCache(all);
-          runList(lastFilterArgs);
+          runList(lastFilterArgs, lastLimit);
         }
       } catch (e) {
         print(`<span class="msg-error">Sync failed: ${e.message}</span>`);
@@ -713,7 +765,176 @@ export const execute = async (str) => {
       } else {
         print(`<span class="msg-info">Context cleared.</span>`);
       }
-      runList([]);
+      runList([], lastLimit);
+    } else if (["calendar", "cal"].includes(cmd)) {
+      const { mergeFilters } = await import("./context.js");
+      const effectiveArgs = mergeFilters(args);
+
+      // Parse limit from args (lim:N or l:N)
+      let limit = localStorage.getItem("tasca_cal_limit")
+        ? parseInt(localStorage.getItem("tasca_cal_limit"))
+        : 14;
+      let filterArgs = [];
+      let showDone = false;
+
+      for (const token of effectiveArgs) {
+        if (token.startsWith("lim:") || token.startsWith("l:")) {
+          limit = parseInt(token.split(":")[1]) || 14;
+          localStorage.setItem("tasca_cal_limit", limit);
+        } else {
+          filterArgs.push(token);
+          const tag = token.startsWith("!")
+            ? token.substring(1).toUpperCase()
+            : "";
+          if (tag === "DONE" || tag === "COMPLETED") showDone = true;
+        }
+      }
+
+      const all = await dbOps.getAll();
+      const projects = await dbOps.getAllProjects();
+      const now = Date.now();
+      const Day = 86400000;
+      const startOfToday = new Date().setHours(0, 0, 0, 0);
+      const pastLimit = startOfToday - 7 * Day; // 7 days ago
+      const futureLimit = startOfToday + limit * Day;
+
+      // Parse filters (same as list)
+      let fProj = null,
+        fTags = [],
+        search = [];
+      for (let token of filterArgs) {
+        if (
+          token.startsWith("pro:") ||
+          token.startsWith("proj:") ||
+          token.startsWith("project:")
+        )
+          fProj = token.split(":")[1];
+        else if (token.startsWith("!")) {
+          fTags.push(token);
+        } else search.push(token.toLowerCase());
+      }
+
+      // Filter tasks
+      let tasks = showDone
+        ? all.filter((t) => t.status === "completed")
+        : all.filter((t) => t.status === "pending");
+
+      if (fProj) tasks = tasks.filter((t) => matchesProject(t.project, fProj));
+      if (fTags.length) {
+        tasks = tasks.filter((t) =>
+          fTags.every((ft) => {
+            const tag = ft.substring(1).toLowerCase();
+            if (t.tags && t.tags.some((tt) => tt.toLowerCase() === tag))
+              return true;
+            if (hasVirtualTag(t, ft, all)) return true;
+            return false;
+          }),
+        );
+      }
+      if (search.length)
+        tasks = tasks.filter((t) =>
+          search.every((s) => t.description.toLowerCase().includes(s)),
+        );
+
+      // Collect date entries: { date, type, task }
+      const entries = [];
+      for (const t of tasks) {
+        if (showDone) {
+          // For done tasks, show by end date
+          if (t.end && t.end >= pastLimit && t.end < futureLimit) {
+            entries.push({ date: t.end, type: "end", task: t });
+          }
+        } else {
+          // For pending tasks, show due/sched/wait
+          if (t.due) {
+            // Show overdue (past 7 days) or future within limit
+            if (
+              (t.due < startOfToday && t.due >= pastLimit) ||
+              (t.due >= startOfToday && t.due < futureLimit)
+            ) {
+              entries.push({ date: t.due, type: "due", task: t });
+            }
+          }
+          if (t.sched && t.sched >= startOfToday && t.sched < futureLimit) {
+            entries.push({ date: t.sched, type: "sched", task: t });
+          }
+          if (t.wait && t.wait >= startOfToday && t.wait < futureLimit) {
+            entries.push({ date: t.wait, type: "wait", task: t });
+          }
+        }
+      }
+
+      // Sort by date
+      entries.sort((a, b) => a.date - b.date);
+
+      // Group by day
+      const groups = {};
+      for (const e of entries) {
+        const dayKey = new Date(e.date).toDateString();
+        if (!groups[dayKey]) groups[dayKey] = [];
+        groups[dayKey].push(e);
+      }
+
+      // Render
+      if (Object.keys(groups).length === 0) {
+        print(
+          `<span class="msg-info">No dated tasks in range (${limit}d).</span>`,
+        );
+      } else {
+        const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        const monthNames = [
+          "Jan",
+          "Feb",
+          "Mar",
+          "Apr",
+          "May",
+          "Jun",
+          "Jul",
+          "Aug",
+          "Sep",
+          "Oct",
+          "Nov",
+          "Dec",
+        ];
+        let html = '<div class="calendar-view">';
+
+        for (const dayKey of Object.keys(groups)) {
+          const d = new Date(dayKey);
+          const isOverdue = d.getTime() < startOfToday;
+          const isToday = d.toDateString() === new Date().toDateString();
+          const dayLabel = `${monthNames[d.getMonth()]} ${d.getDate()} (${dayNames[d.getDay()]})`;
+
+          let headerStyle =
+            "color:var(--cyan); border-bottom:1px solid var(--base01); margin-top:8px;";
+          if (isOverdue)
+            headerStyle =
+              "color:var(--red); border-bottom:1px solid var(--base01); margin-top:8px;";
+          if (isToday)
+            headerStyle =
+              "color:var(--green); border-bottom:1px solid var(--base01); margin-top:8px; font-weight:bold;";
+
+          html += `<div style="${headerStyle}">${dayLabel}${isToday ? " (today)" : ""}${isOverdue ? " (overdue)" : ""}</div>`;
+
+          for (const e of groups[dayKey]) {
+            const t = e.task;
+            const typeLabel = `<span style="color:var(--base01)">[${e.type}]</span>`;
+            let desc = t.description;
+            if (t.priority)
+              desc += ` <span style="color:var(--magenta)">pri:${t.priority}</span>`;
+            if (t.project) {
+              const pMeta = projects.find((p) => p.name === t.project);
+              const icon =
+                pMeta && pMeta.icon
+                  ? `<i class="${pMeta.icon}" style="margin-right:3px"></i>`
+                  : "";
+              desc += ` <span style="color:var(--yellow)">${icon}${t.project}</span>`;
+            }
+            html += `<div style="margin-left:12px">${typeLabel} ${desc}</div>`;
+          }
+        }
+        html += "</div>";
+        print(html, true);
+      }
     } else print(`<span class="msg-error">Unknown: ${cmd}</span>`);
   } catch (err) {
     console.error(err);

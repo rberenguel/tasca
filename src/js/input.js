@@ -110,8 +110,12 @@ export const setupInput = (execute) => {
           historyState.cmdHistory[historyState.cmdHistory.length - 1] !== val
         ) {
           historyState.cmdHistory.push(val);
-          if (historyState.cmdHistory.length > 100) historyState.cmdHistory.shift();
-          localStorage.setItem("tasca_history", JSON.stringify(historyState.cmdHistory));
+          if (historyState.cmdHistory.length > 100)
+            historyState.cmdHistory.shift();
+          localStorage.setItem(
+            "tasca_history",
+            JSON.stringify(historyState.cmdHistory),
+          );
         }
       }
       historyState.historyIndex = -1;

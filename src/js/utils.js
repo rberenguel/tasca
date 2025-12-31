@@ -9,13 +9,52 @@ export const generateUUID = () => {
 };
 
 export const parseDate = (str) => {
-  if (!/^\d{8}$/.test(str)) return null;
-  const y = parseInt(str.substring(0, 4));
-  const m = parseInt(str.substring(4, 6)) - 1;
-  const d = parseInt(str.substring(6, 8));
-  const date = new Date(y, m, d);
-  date.setHours(23, 59, 59, 999);
-  return date.getTime();
+  if (!str) return null;
+  const s = str.toLowerCase();
+
+  // Helper to set end of day
+  const endOfDay = (date) => {
+    date.setHours(23, 59, 59, 999);
+    return date.getTime();
+  };
+
+  // Relative keywords
+  if (s === "today" || s === "tod") {
+    return endOfDay(new Date());
+  }
+  if (s === "tomorrow" || s === "tom") {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return endOfDay(d);
+  }
+  if (s === "yesterday") {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return endOfDay(d);
+  }
+
+  // Relative: Nd (days), Nw (weeks), Nm (months)
+  const relMatch = s.match(/^(\d+)([dwm])$/);
+  if (relMatch) {
+    const n = parseInt(relMatch[1]);
+    const unit = relMatch[2];
+    const d = new Date();
+    if (unit === "d") d.setDate(d.getDate() + n);
+    else if (unit === "w") d.setDate(d.getDate() + n * 7);
+    else if (unit === "m") d.setMonth(d.getMonth() + n);
+    return endOfDay(d);
+  }
+
+  // Absolute: YYYYMMDD
+  if (/^\d{8}$/.test(str)) {
+    const y = parseInt(str.substring(0, 4));
+    const m = parseInt(str.substring(4, 6)) - 1;
+    const day = parseInt(str.substring(6, 8));
+    const date = new Date(y, m, day);
+    return endOfDay(date);
+  }
+
+  return null;
 };
 
 export const formatDate = (ts) => {
@@ -52,6 +91,8 @@ export const parseRelativeTime = (str) => {
 };
 
 // Calculate next recurrence dates based on recur pattern
+// Supports: Nd (days), Nw (weeks), Nm (months), Ny (years)
+// Also supports legacy: daily, weekly, monthly, yearly
 // Returns { nextDue, nextWait, nextSched } or null if pattern not recognized
 export const calculateNextRecurrence = (task) => {
   if (!task.recur || !task.due) return null;
@@ -59,7 +100,18 @@ export const calculateNextRecurrence = (task) => {
   let nextDue = null;
   const recur = task.recur.toLowerCase();
 
-  if (recur.startsWith("dai")) nextDue = addDays(task.due, 1);
+  // New syntax: Nd, Nw, Nm, Ny
+  const match = recur.match(/^(\d+)([dwmy])$/);
+  if (match) {
+    const n = parseInt(match[1]);
+    const unit = match[2];
+    if (unit === "d") nextDue = addDays(task.due, n);
+    else if (unit === "w") nextDue = addDays(task.due, n * 7);
+    else if (unit === "m") nextDue = addMonths(task.due, n);
+    else if (unit === "y") nextDue = addMonths(task.due, n * 12);
+  }
+  // Legacy syntax: daily, weekly, monthly, yearly
+  else if (recur.startsWith("dai")) nextDue = addDays(task.due, 1);
   else if (recur.startsWith("wee")) nextDue = addDays(task.due, 7);
   else if (recur.startsWith("mon")) nextDue = addMonths(task.due, 1);
   else if (recur.startsWith("yea")) nextDue = addMonths(task.due, 12);
