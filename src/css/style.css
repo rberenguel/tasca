@@ -253,3 +253,7 @@ td {
   user-select: text;
   -webkit-user-select: text;
 }
+.active-icon {
+  color: var(--green);
+  font-size: 0.8em;
+}

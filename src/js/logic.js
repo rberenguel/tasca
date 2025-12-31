@@ -70,6 +70,8 @@ export const hasVirtualTag = (t, tag, allTasks) => {
     );
   if (tagClean === "DONE" || tagClean === "COMPLETED")
     return t.status === "completed";
+  if (tagClean === "ACTIVE" || tagClean === "STARTED")
+    return t.start && t.status === "pending";
   return false;
 };
 
@@ -79,6 +81,7 @@ export const VALID_COMMANDS = [
   "log",
   "list",
   "ls",
+  "l",
   "next",
   "done",
   "delete",
@@ -93,6 +96,7 @@ export const VALID_COMMANDS = [
   "clear",
   "annotate",
   "info",
+  "i",
   "chain",
   "projects",
   "proj",
@@ -100,6 +104,8 @@ export const VALID_COMMANDS = [
   "link",
   "sync",
   "unlink",
+  "start",
+  "st",
 ];
 
 export const resolveCommand = (str) => {

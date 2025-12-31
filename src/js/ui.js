@@ -115,6 +115,9 @@ export const renderTable = (tasks, allTasks, displayMapRef, projects = []) => {
     if (t.recur) {
       metaHtml += ` <span class="recur-icon">↻${t.recur}</span>`;
     }
+    if (t.start && t.status === "pending") {
+      metaHtml += ` <span class="active-icon">▶</span>`;
+    }
     if (t.depends && t.depends.length > 0) {
       const activeDeps = allTasks.filter(
         (tsk) => t.depends.includes(tsk.uuid) && tsk.status === "pending",

@@ -294,7 +294,7 @@ const execute = async (str) => {
         entry: Date.now(),
       });
       runList(lastFilterArgs);
-    } else if (cmd === "list" || cmd === "ls") {
+    } else if (cmd === "list" || cmd === "ls" || cmd === "l") {
       await runList(args);
     } else if (cmd === "next") {
       let limit = localStorage.getItem("tasca_next_limit")
@@ -478,7 +478,7 @@ const execute = async (str) => {
       task.annotations.push({ entry: Date.now(), description: note });
       await dbOps.update(task);
       runList(lastFilterArgs);
-    } else if (cmd === "info") {
+    } else if (cmd === "info" || cmd === "i") {
       const id = parseInt(args[0] || rawCmd);
       if (!id || !displayMapRef.value[id - 1])
         return print('<span class="msg-error">Invalid ID.</span>');
@@ -500,9 +500,12 @@ const execute = async (str) => {
       if (t.due) html += `<div><b>Due:</b> ${formatDate(t.due)}</div>`;
       if (t.wait) html += `<div><b>Wait:</b> ${formatDate(t.wait)}</div>`;
       if (t.recur) html += `<div><b>Recur:</b> ${t.recur}</div>`;
+      if (t.start) html += `<div><b>Started:</b> ${formatDate(t.start)}</div>`;
       if (t.end) html += `<div><b>Completed:</b> ${formatDate(t.end)}</div>`;
       if (t.tags && t.tags.length > 0)
         html += `<div><b>Tags:</b> ${t.tags.join(" ")}</div>`;
+      if (t.depends && t.depends.length > 0)
+        html += `<div><b>Depends:</b> ${t.depends.length} task(s)</div>`;
       if (t.annotations && t.annotations.length > 0) {
         html += `<div style="margin-top:5px; border-top:1px dashed var(--base01); padding-top:5px"><b>Annotations:</b></div>`;
         t.annotations.forEach((a, i) => {
@@ -609,6 +612,21 @@ const execute = async (str) => {
       }
       await dbOps.update(task);
       runList(lastFilterArgs);
+    } else if (
+      cmd === "start" ||
+      cmd === "st" ||
+      (targetId && (args[0] === "start" || args[0] === "st"))
+    ) {
+      const id = targetId || parseInt(args.find((a) => a.match(/^\d+$/)));
+      if (!id || !displayMapRef.value[id - 1])
+        return print('<span class="msg-error">Invalid ID.</span>');
+      const task = await dbOps.get(displayMapRef.value[id - 1]);
+      if (task) {
+        task.start = Date.now();
+        await dbOps.update(task);
+        print(`<span class="msg-success">Started task ${id}.</span>`);
+        runList(lastFilterArgs);
+      }
     } else if (cmd === "done" || (targetId && args[0] === "done")) {
       const id = targetId || parseInt(args.find((a) => a.match(/^\d+$/)));
       if (!id || !displayMapRef.value[id - 1])

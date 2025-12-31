@@ -13,6 +13,7 @@ Tasca runs entirely in the browser using IndexedDB for storage. No server requir
 | `add` / `a <desc> [opts]` | Add a task                  |
 | `list [filters]`       | List pending tasks          |
 | `next [N]`             | List top N tasks by urgency |
+| `start` / `st <ID>`    | Mark task as started        |
 | `done <ID>`            | Mark task complete          |
 | `delete <ID>`          | Remove task                 |
 | `mod <ID> [desc] [options]` | Modify task (description and/or options) |
@@ -50,7 +51,7 @@ Use with `list` or `export`:
 - `text` — search in description
 - `end:1w` — completed in last week (use with `!done`). Supports `d`ays, `w`eeks, `m`onths.
 
-Virtual tags: `!overdue`, `!today`, `!waiting`, `!blocked`, `!done`, `!all`
+Virtual tags: `!overdue`, `!today`, `!waiting`, `!blocked`, `!active`, `!done`, `!all`
 
 Example: `list !done end:1w` — review tasks completed in the last week.
 
