@@ -33,7 +33,8 @@ export const runList = async (args, limit = Infinity) => {
       sortFields = token.split(":")[1].split(",");
     } else if (token.startsWith("!")) {
       const tag = token.substring(1).toUpperCase();
-      if (tag === "WAITING" || tag === "ALL") showWaiting = true;
+      if (tag === "WAITING" || tag === "SCHEDULED" || tag === "ALL")
+        showWaiting = true;
       if (tag === "DONE" || tag === "COMPLETED") showDone = true;
       if (tag !== "ALL") fTags.push(token);
     } else search.push(token.toLowerCase());
@@ -44,7 +45,11 @@ export const runList = async (args, limit = Infinity) => {
     ? all.filter((t) => t.status === "completed")
     : all.filter((t) => t.status === "pending");
   if (!showWaiting && !showDone)
-    tasks = tasks.filter((t) => !t.wait || t.wait <= Date.now());
+    tasks = tasks.filter(
+      (t) =>
+        (!t.wait || t.wait <= Date.now()) &&
+        (!t.sched || t.sched <= Date.now()),
+    );
   if (fProj) tasks = tasks.filter((t) => matchesProject(t.project, fProj));
   if (endAfter) tasks = tasks.filter((t) => t.end && t.end >= endAfter);
   if (fTags.length) {

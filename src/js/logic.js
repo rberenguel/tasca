@@ -63,6 +63,8 @@ export const hasVirtualTag = (t, tag, allTasks) => {
     return t.due && formatDate(t.due) === formatDate(now);
   if (tagClean === "WAITING")
     return t.wait && t.wait > now && t.status === "pending";
+  if (tagClean === "SCHEDULED")
+    return t.sched && t.sched > now && t.status === "pending";
   if (tagClean === "BLOCKED")
     return (
       t.depends?.length > 0 &&

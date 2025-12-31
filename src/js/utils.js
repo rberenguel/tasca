@@ -50,3 +50,27 @@ export const parseRelativeTime = (str) => {
   if (unit === "m") return now - n * 30 * 24 * 60 * 60 * 1000; // approximate month
   return null;
 };
+
+// Calculate next recurrence dates based on recur pattern
+// Returns { nextDue, nextWait, nextSched } or null if pattern not recognized
+export const calculateNextRecurrence = (task) => {
+  if (!task.recur || !task.due) return null;
+
+  let nextDue = null;
+  const recur = task.recur.toLowerCase();
+
+  if (recur.startsWith("dai")) nextDue = addDays(task.due, 1);
+  else if (recur.startsWith("wee")) nextDue = addDays(task.due, 7);
+  else if (recur.startsWith("mon")) nextDue = addMonths(task.due, 1);
+  else if (recur.startsWith("yea")) nextDue = addMonths(task.due, 12);
+
+  if (!nextDue) return null;
+
+  const result = { nextDue };
+
+  // Preserve offset from due date for wait and sched
+  if (task.wait) result.nextWait = nextDue - (task.due - task.wait);
+  if (task.sched) result.nextSched = nextDue - (task.due - task.sched);
+
+  return result;
+};

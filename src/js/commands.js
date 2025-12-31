@@ -2,8 +2,7 @@ import {
   generateUUID,
   parseDate,
   formatDate,
-  addDays,
-  addMonths,
+  calculateNextRecurrence,
 } from "./utils.js";
 import { dbOps } from "./db.js";
 import {
@@ -138,6 +137,7 @@ export const execute = async (str) => {
         depends = [],
         due = null,
         wait = null,
+        sched = null,
         recur = null,
         url = null;
       for (let token of args) {
@@ -160,6 +160,8 @@ export const execute = async (str) => {
         else if (token.startsWith("due:")) due = parseDate(token.split(":")[1]);
         else if (token.startsWith("wait:"))
           wait = parseDate(token.split(":")[1]);
+        else if (token.startsWith("sched:") || token.startsWith("scheduled:"))
+          sched = parseDate(token.split(":")[1]);
         else if (token.startsWith("recur:")) recur = token.split(":")[1];
         else if (token.startsWith("url:")) url = token.substring(4);
         else if (token.startsWith("!")) tags.push(token.substring(1));
@@ -182,6 +184,7 @@ export const execute = async (str) => {
         depends,
         due,
         wait,
+        sched,
         recur,
         url,
         annotations: [],
@@ -379,6 +382,7 @@ export const execute = async (str) => {
         html += `<div><b>URL:</b> <a href="${t.url}" target="_blank" rel="noopener" class="task-link">${t.url}</a></div>`;
       if (t.due) html += `<div><b>Due:</b> ${formatDate(t.due)}</div>`;
       if (t.wait) html += `<div><b>Wait:</b> ${formatDate(t.wait)}</div>`;
+      if (t.sched) html += `<div><b>Scheduled:</b> ${formatDate(t.sched)}</div>`;
       if (t.recur) html += `<div><b>Recur:</b> ${t.recur}</div>`;
       if (t.start) html += `<div><b>Started:</b> ${formatDate(t.start)}</div>`;
       if (t.end) html += `<div><b>Completed:</b> ${formatDate(t.end)}</div>`;
@@ -456,6 +460,8 @@ export const execute = async (str) => {
           task.due = parseDate(token.split(":")[1]);
         else if (token.startsWith("wait:"))
           task.wait = parseDate(token.split(":")[1]);
+        else if (token.startsWith("sched:") || token.startsWith("scheduled:"))
+          task.sched = parseDate(token.split(":")[1]);
         else if (token.startsWith("recur:")) task.recur = token.split(":")[1];
         else if (token.startsWith("url:")) {
           const val = token.substring(4);
@@ -512,31 +518,23 @@ export const execute = async (str) => {
         task.status = "completed";
         task.end = Date.now();
         await dbOps.update(task);
-        if (task.recur && task.due) {
-          let nextDue = null,
-            nextWait = null;
-          if (task.recur.startsWith("dai")) nextDue = addDays(task.due, 1);
-          else if (task.recur.startsWith("wee")) nextDue = addDays(task.due, 7);
-          else if (task.recur.startsWith("mon"))
-            nextDue = addMonths(task.due, 1);
-          else if (task.recur.startsWith("yea"))
-            nextDue = addMonths(task.due, 12);
-          if (nextDue) {
-            if (task.wait) nextWait = nextDue - (task.due - task.wait);
-            const newTask = {
-              ...task,
-              uuid: generateUUID(),
-              status: "pending",
-              due: nextDue,
-              wait: nextWait,
-              entry: Date.now(),
-              annotations: [],
-            };
-            delete newTask.depends;
-            delete newTask.end;
-            await dbOps.add(newTask);
-            print(`<span class="msg-success">Recurring task created.</span>`);
-          }
+        const recurrence = calculateNextRecurrence(task);
+        if (recurrence) {
+          const newTask = {
+            ...task,
+            uuid: generateUUID(),
+            status: "pending",
+            due: recurrence.nextDue,
+            wait: recurrence.nextWait || null,
+            sched: recurrence.nextSched || null,
+            entry: Date.now(),
+            annotations: [],
+          };
+          delete newTask.depends;
+          delete newTask.end;
+          delete newTask.start;
+          await dbOps.add(newTask);
+          print(`<span class="msg-success">Recurring task created.</span>`);
         }
         runList(lastFilterArgs);
       }
@@ -556,15 +554,15 @@ export const execute = async (str) => {
         const c = resolveCommand(sub);
         if (c === "add")
           print(
-            `<div class="msg-help"><span class="msg-hl">add</span> description <span class="msg-arg">pro:Project</span> <span class="msg-arg">pri:H/M/L</span> <span class="msg-arg">due:YYYYMMDD</span> <span class="msg-arg">wait:YYYYMMDD</span> <span class="msg-arg">recur:period</span> <span class="msg-arg">!tag</span></div>`,
+            `<div class="msg-help"><span class="msg-hl">add</span> description <span class="msg-arg">pro:Project</span> <span class="msg-arg">pri:H/M/L</span> <span class="msg-arg">due:YYYYMMDD</span> <span class="msg-arg">wait:YYYYMMDD</span> <span class="msg-arg">sched:YYYYMMDD</span> <span class="msg-arg">recur:period</span> <span class="msg-arg">!tag</span></div>`,
           );
         else if (c === "modify")
           print(
-            `<div class="msg-help"><span class="msg-hl">mod</span> ID <span class="msg-arg">pro:P</span> <span class="msg-arg">pri:H</span> <span class="msg-arg">due:Y</span> <span class="msg-arg">wait:Y</span> <span class="msg-arg">recur:P</span> <span class="msg-arg">!tag</span> <span class="msg-arg">dep:ID</span><br><span class="msg-hl">mod</span> <span class="msg-arg">pro:Name</span> <span class="msg-arg">icon:value</span> (set/clear project icon)</div>`,
+            `<div class="msg-help"><span class="msg-hl">mod</span> ID <span class="msg-arg">pro:P</span> <span class="msg-arg">pri:H</span> <span class="msg-arg">due:Y</span> <span class="msg-arg">wait:Y</span> <span class="msg-arg">sched:Y</span> <span class="msg-arg">recur:P</span> <span class="msg-arg">!tag</span> <span class="msg-arg">dep:ID</span><br><span class="msg-hl">mod</span> <span class="msg-arg">pro:Name</span> <span class="msg-arg">icon:value</span> (set/clear project icon)</div>`,
           );
         else if (c === "list")
           print(
-            `<div class="msg-help"><span class="msg-hl">list</span> [search] <span class="msg-arg">pro:Project</span> <span class="msg-arg">!tag</span> <span class="msg-arg">end:1w</span><br>Virtual: <span class="msg-arg">!overdue</span> <span class="msg-arg">!today</span> <span class="msg-arg">!waiting</span> <span class="msg-arg">!blocked</span> <span class="msg-arg">!done</span> <span class="msg-arg">!all</span></div>`,
+            `<div class="msg-help"><span class="msg-hl">list</span> [search] <span class="msg-arg">pro:Project</span> <span class="msg-arg">!tag</span> <span class="msg-arg">end:1w</span><br>Virtual: <span class="msg-arg">!overdue</span> <span class="msg-arg">!today</span> <span class="msg-arg">!waiting</span> <span class="msg-arg">!scheduled</span> <span class="msg-arg">!blocked</span> <span class="msg-arg">!done</span> <span class="msg-arg">!all</span></div>`,
           );
         else if (c === "done")
           print(
