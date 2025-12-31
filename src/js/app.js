@@ -137,7 +137,7 @@ const execute = async (str) => {
     let args = parts.slice(1);
     let targetId = rawCmd.match(/^\d+$/) ? parseInt(rawCmd) : null;
 
-    if (cmd === "export") {
+    if (cmd === "export" || cmd === "exp") {
       const all = await dbOps.getAll();
       let filtered = all;
 
@@ -236,12 +236,12 @@ const execute = async (str) => {
       print(
         `<span class="msg-success">Exported ${filtered.length} tasks.</span>`,
       );
-    } else if (cmd === "import")
+    } else if (cmd === "import" || cmd === "imp")
       document.getElementById("import-picker").click();
     else if (cmd === "clear") {
       document.getElementById("terminal-output").innerHTML = "";
       execute("next");
-    } else if (["add", "log"].includes(cmd)) {
+    } else if (["add", "a", "log"].includes(cmd)) {
       let desc = [],
         proj = "",
         priority = "",
@@ -249,7 +249,8 @@ const execute = async (str) => {
         depends = [],
         due = null,
         wait = null,
-        recur = null;
+        recur = null,
+        url = null;
       for (let token of args) {
         if (
           token.startsWith("pro:") ||
@@ -271,6 +272,7 @@ const execute = async (str) => {
         else if (token.startsWith("wait:"))
           wait = parseDate(token.split(":")[1]);
         else if (token.startsWith("recur:")) recur = token.split(":")[1];
+        else if (token.startsWith("url:")) url = token.substring(4);
         else if (token.startsWith("!")) tags.push(token.substring(1));
         else desc.push(token);
       }
@@ -286,6 +288,7 @@ const execute = async (str) => {
         due,
         wait,
         recur,
+        url,
         annotations: [],
         status: "pending",
         entry: Date.now(),
@@ -480,7 +483,7 @@ const execute = async (str) => {
       if (!id || !displayMapRef.value[id - 1])
         return print('<span class="msg-error">Invalid ID.</span>');
       const t = await dbOps.get(displayMapRef.value[id - 1]);
-      let html = `<div style="padding:10px 0; margin-bottom:10px">`;
+      let html = `<div class="task-info">`;
       html += `<div style="color:var(--yellow)">Task ${id} - ${t.uuid}</div>`;
       html += `<div><b>Desc:</b> ${t.description}</div>`;
       html += `<div><b>Status:</b> ${t.status}</div>`;
@@ -492,17 +495,20 @@ const execute = async (str) => {
           pIcon = `<i class="${pMeta.icon}" style="margin-right:5px"></i>`;
         html += `<div><b>Project:</b> ${pIcon}${t.project}</div>`;
       }
+      if (t.url)
+        html += `<div><b>URL:</b> <a href="${t.url}" target="_blank" rel="noopener" class="task-link">${t.url}</a></div>`;
       if (t.due) html += `<div><b>Due:</b> ${formatDate(t.due)}</div>`;
       if (t.wait) html += `<div><b>Wait:</b> ${formatDate(t.wait)}</div>`;
       if (t.recur) html += `<div><b>Recur:</b> ${t.recur}</div>`;
       if (t.end) html += `<div><b>Completed:</b> ${formatDate(t.end)}</div>`;
+      if (t.tags && t.tags.length > 0)
+        html += `<div><b>Tags:</b> ${t.tags.join(" ")}</div>`;
       if (t.annotations && t.annotations.length > 0) {
         html += `<div style="margin-top:5px; border-top:1px dashed var(--base01); padding-top:5px"><b>Annotations:</b></div>`;
         t.annotations.forEach((a, i) => {
           html += `<div style="margin-left:10px; font-size:0.9em; color:var(--base1)"><span style="color:var(--base01)">${i + 1}.</span> ${formatDate(a.entry)}: ${a.description}</div>`;
         });
       }
-      html += `</div>`;
       html += `</div>`;
       print(html, true);
     } else if (
@@ -569,7 +575,10 @@ const execute = async (str) => {
         else if (token.startsWith("wait:"))
           task.wait = parseDate(token.split(":")[1]);
         else if (token.startsWith("recur:")) task.recur = token.split(":")[1];
-        else if (token.startsWith("!")) {
+        else if (token.startsWith("url:")) {
+          const val = token.substring(4);
+          task.url = val || null; // empty url: clears it
+        } else if (token.startsWith("!")) {
           const tag = token.substring(1);
           if (!task.tags) task.tags = [];
           const idx = task.tags.indexOf(tag);
@@ -725,14 +734,13 @@ const execute = async (str) => {
 
       renderProjectsTable(Array.from(projectSet), projectsMeta, taskCounts);
     } else if (cmd === "link") {
-      if (!window.showSaveFilePicker) {
+      if (!window.showOpenFilePicker) {
         return print(
           '<span class="msg-error">File System Access API not supported in this browser.</span>',
         );
       }
       try {
-        const handle = await window.showSaveFilePicker({
-          suggestedName: "tasca-sync.json",
+        const [handle] = await window.showOpenFilePicker({
           types: [
             {
               description: "JSON files",
@@ -742,7 +750,7 @@ const execute = async (str) => {
         });
         await dbOps.setSetting("syncFileHandle", handle);
         print(
-          `<span class="msg-success">Linked to ${handle.name}. Use 'sync' to export.</span>`,
+          `<span class="msg-success">Linked to ${handle.name}. Use 'sync' to pull & push.</span>`,
         );
       } catch (e) {
         if (e.name !== "AbortError") {
@@ -805,6 +813,9 @@ const execute = async (str) => {
       }
       await dbOps.deleteSetting("syncFileHandle");
       print('<span class="msg-success">Unlinked sync file.</span>');
+    } else if (["modify", "mod"].includes(cmd)) {
+      // Catch-all for mod with invalid first arg
+      return print('<span class="msg-error">Invalid ID.</span>');
     } else print(`<span class="msg-error">Unknown: ${cmd}</span>`);
   } catch (err) {
     console.error(err);

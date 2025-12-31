@@ -75,6 +75,7 @@ export const hasVirtualTag = (t, tag, allTasks) => {
 
 export const VALID_COMMANDS = [
   "add",
+  "a",
   "log",
   "list",
   "ls",
@@ -85,7 +86,9 @@ export const VALID_COMMANDS = [
   "modify",
   "mod",
   "export",
+  "exp",
   "import",
+  "imp",
   "help",
   "clear",
   "annotate",

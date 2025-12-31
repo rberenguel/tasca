@@ -239,3 +239,17 @@ td {
   font-size: 0.9em;
   margin-left: 4px;
 }
+.task-link {
+  color: var(--cyan);
+  text-decoration: none;
+  margin-right: 4px;
+}
+.task-link:hover {
+  color: var(--blue);
+}
+.task-info {
+  padding: 10px 0;
+  margin-bottom: 10px;
+  user-select: text;
+  -webkit-user-select: text;
+}

@@ -8,9 +8,9 @@ Tasca runs entirely in the browser using IndexedDB for storage. No server requir
 
 ### Commands
 
-| Command                | Description                 |
-| ---------------------- | --------------------------- |
-| `add <desc> [options]` | Add a task                  |
+| Command                  | Description                 |
+| ------------------------ | --------------------------- |
+| `add` / `a <desc> [opts]` | Add a task                  |
 | `list [filters]`       | List pending tasks          |
 | `next [N]`             | List top N tasks by urgency |
 | `done <ID>`            | Mark task complete          |
@@ -21,8 +21,8 @@ Tasca runs entirely in the browser using IndexedDB for storage. No server requir
 | `info <ID>`            | Show task details           |
 | `chain <ID>`           | Show dependency tree        |
 | `projects`             | List all projects           |
-| `export [filters]`     | Export tasks as JSON        |
-| `import`               | Import tasks from JSON      |
+| `export` / `exp [filters]` | Export tasks as JSON        |
+| `import` / `imp`       | Import tasks from JSON      |
 | `link`                 | Link a sync file (desktop)  |
 | `sync`                 | Export to linked file       |
 | `unlink`               | Remove linked file          |
@@ -38,6 +38,7 @@ Tasca runs entirely in the browser using IndexedDB for storage. No server requir
 | `wait:YYYYMMDD`                     | Hide until date                            |
 | `recur:daily/weekly/monthly/yearly` | Recurrence                                 |
 | `dep:ID,ID`                         | Dependencies (toggles on `mod`)            |
+| `url:URL`                           | Link URL (shown as clickable icon)         |
 | `!tag`                              | Tag (toggles on `mod`)                     |
 
 ### Filters
@@ -84,12 +85,13 @@ Tasks are matched by UUID. Re-importing updates existing tasks.
 
 **Workflow for syncing between desktop and mobile:**
 
-1. Create a sync file in a shared folder (iCloud, Dropbox, etc.)
-2. On desktop Chrome, run `link` once to select the file
+1. Create a sync file: `export` → save to shared folder (iCloud, Dropbox, etc.)
+2. On desktop Chrome, run `link` to select the existing file
 3. Use `sync` to pull changes and push your state back
 
 ```
-link                        # pick sync file in iCloud (once)
+export                      # create initial sync file in iCloud
+link                        # select that file (once)
 sync                        # read → merge → write
 ```
 

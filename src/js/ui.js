@@ -89,12 +89,15 @@ export const renderTable = (tasks, allTasks, displayMapRef, projects = []) => {
     let tagsHtml = "";
     if (t.tags && t.tags.length > 0) {
       t.tags.forEach((tag) => {
-        tagsHtml += ` <span class="tag-pill">+${tag}</span>`;
+        tagsHtml += ` <span class="tag-pill">${tag}</span>`;
       });
     }
 
     // Enrich description with project, priority etc if not simple list
     let metaHtml = "";
+    if (t.url) {
+      metaHtml += ` <a href="${t.url}" target="_blank" rel="noopener" class="task-link"><i class="iconoir-link"></i></a>`;
+    }
     if (t.project) metaHtml += ` ${formatProject(t.project)}`;
     if (t.priority)
       metaHtml += ` <span style="color:${t.priority === "H" ? "var(--red)" : t.priority === "M" ? "var(--yellow)" : "var(--base01)"}; font-weight:bold">pri:${t.priority}</span>`;
