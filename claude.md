@@ -83,7 +83,7 @@ Run tests by opening `tests/index.html` in browser. Tests cover urgency calculat
 
 - No transpilation - write ES6+ that runs directly in modern browsers
 - Module imports use relative paths with `.js` extension
-- PWA version is in `manifest.json` (currently v0.0.31)
+- PWA version is in `manifest.json` (currently v0.0.32)
 - Cache busting: update `sw.js` cache name when deploying
 - Branch `gh-pages` is the deployed branch
 

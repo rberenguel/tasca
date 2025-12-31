@@ -374,6 +374,35 @@ export const execute = async (str) => {
       await dbOps.update(task);
       runList(lastFilterArgs, lastLimit);
     } else if (cmd === "info" || cmd === "i") {
+      // Check if it's a project info request
+      if (
+        args[0] &&
+        (args[0].startsWith("pro:") ||
+          args[0].startsWith("proj:") ||
+          args[0].startsWith("project:"))
+      ) {
+        const projName = args[0].split(":")[1];
+        if (!projName)
+          return print(
+            '<span class="msg-error">No project name specified.</span>',
+          );
+        const projects = await dbOps.getAllProjects();
+        const proj = projects.find((p) => p.name === projName);
+        const all = await dbOps.getAll();
+        const taskCount = all.filter(
+          (t) => t.status === "pending" && t.project === projName,
+        ).length;
+        let html = `<div class="task-info">`;
+        html += `<div style="color:var(--yellow)">Project: ${projName}</div>`;
+        if (proj?.icon)
+          html += `<div><b>Icon:</b> <i class="${proj.icon}" style="margin-right:5px"></i>${proj.icon.replace("iconoir-", "")}</div>`;
+        if (proj?.tags?.length > 0)
+          html += `<div><b>Tags:</b> ${proj.tags.join(" ")}</div>`;
+        html += `<div><b>Pending tasks:</b> ${taskCount}</div>`;
+        html += `</div>`;
+        print(html, true);
+        return;
+      }
       const id = parseInt(args[0] || rawCmd);
       if (!id || !displayMapRef.value[id - 1])
         return print('<span class="msg-error">Invalid ID.</span>');
@@ -648,7 +677,7 @@ export const execute = async (str) => {
           );
         else if (c === "info")
           print(
-            `<div class="msg-help"><span class="msg-hl">info</span> ID<br>Shows full details including annotations and full UUID.</div>`,
+            `<div class="msg-help"><span class="msg-hl">info</span> ID<br>Shows full task details including annotations and UUID.<br><span class="msg-hl">info</span> <span class="msg-arg">pro:Name</span> — show project details (icon, tags).</div>`,
           );
         else if (c === "chain")
           print(
