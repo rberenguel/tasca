@@ -670,6 +670,22 @@ export const execute = async (str) => {
           print(
             `<div class="msg-help"><span class="msg-hl">cal</span> [search] <span class="msg-arg">pro:Project</span> <span class="msg-arg">!tag</span> <span class="msg-arg">lim:N</span><br>Agenda view of dated tasks. Shows <span class="msg-arg">[due]</span> <span class="msg-arg">[sched]</span> <span class="msg-arg">[wait]</span> dates.<br>Includes overdue from past 7 days. <span class="msg-arg">!done</span> shows completed by end date.</div>`,
           );
+        else if (c === "link")
+          print(
+            `<div class="msg-help"><span class="msg-hl">link</span><br>Link a JSON file for sync (desktop Chrome). Use <span class="msg-arg">load</span> to import, <span class="msg-arg">save</span> to export.</div>`,
+          );
+        else if (c === "load")
+          print(
+            `<div class="msg-help"><span class="msg-hl">load</span><br>Import tasks from linked file. Tasks matched by UUID.</div>`,
+          );
+        else if (c === "save")
+          print(
+            `<div class="msg-help"><span class="msg-hl">save</span><br>Export all tasks to linked file (overwrites).</div>`,
+          );
+        else if (c === "unlink")
+          print(
+            `<div class="msg-help"><span class="msg-hl">unlink</span><br>Remove linked file association.</div>`,
+          );
         else
           print(`<span class="msg-error">No specific help for: ${sub}</span>`);
       }
@@ -718,14 +734,53 @@ export const execute = async (str) => {
         });
         await dbOps.setSetting("syncFileHandle", handle);
         print(
-          `<span class="msg-success">Linked to ${handle.name}. Use 'sync' to pull & push.</span>`,
+          `<span class="msg-success">Linked to ${handle.name}. Use 'load' to import, 'save' to export.</span>`,
         );
       } catch (e) {
         if (e.name !== "AbortError") {
           print(`<span class="msg-error">Error: ${e.message}</span>`);
         }
       }
-    } else if (cmd === "sync") {
+    } else if (cmd === "load") {
+      const handle = await dbOps.getSetting("syncFileHandle");
+      if (!handle) {
+        return print(
+          "<span class=\"msg-error\">No file linked. Use 'link' first.</span>",
+        );
+      }
+      try {
+        const options = { mode: "read" };
+        if ((await handle.queryPermission(options)) !== "granted") {
+          if ((await handle.requestPermission(options)) !== "granted") {
+            return print(
+              "<span class=\"msg-error\">Permission denied. Try 'link' again.</span>",
+            );
+          }
+        }
+        let imported = 0;
+        const file = await handle.getFile();
+        const text = await file.text();
+        if (text.trim()) {
+          const data = JSON.parse(text);
+          for (const t of data) {
+            if (t.uuid) {
+              await dbOps.update(t);
+              imported++;
+            }
+          }
+        }
+        print(
+          `<span class="msg-success">Loaded ${imported} tasks from ${handle.name}.</span>`,
+        );
+        if (imported > 0) {
+          const all = await dbOps.getAll();
+          updateCache(all);
+          runList(lastFilterArgs, lastLimit);
+        }
+      } catch (e) {
+        print(`<span class="msg-error">Load failed: ${e.message}</span>`);
+      }
+    } else if (cmd === "save") {
       const handle = await dbOps.getSetting("syncFileHandle");
       if (!handle) {
         return print(
@@ -741,35 +796,15 @@ export const execute = async (str) => {
             );
           }
         }
-        let imported = 0;
-        try {
-          const file = await handle.getFile();
-          const text = await file.text();
-          if (text.trim()) {
-            const data = JSON.parse(text);
-            for (const t of data) {
-              if (t.uuid) {
-                await dbOps.update(t);
-                imported++;
-              }
-            }
-          }
-        } catch (e) {
-          // File might be empty or invalid
-        }
         const all = await dbOps.getAll();
         const writable = await handle.createWritable();
         await writable.write(JSON.stringify(all, null, 2));
         await writable.close();
         print(
-          `<span class="msg-success">Synced with ${handle.name}: ${imported} imported, ${all.length} saved.</span>`,
+          `<span class="msg-success">Saved ${all.length} tasks to ${handle.name}.</span>`,
         );
-        if (imported > 0) {
-          updateCache(all);
-          runList(lastFilterArgs, lastLimit);
-        }
       } catch (e) {
-        print(`<span class="msg-error">Sync failed: ${e.message}</span>`);
+        print(`<span class="msg-error">Save failed: ${e.message}</span>`);
       }
     } else if (cmd === "unlink") {
       const handle = await dbOps.getSetting("syncFileHandle");

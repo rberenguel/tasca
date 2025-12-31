@@ -39,7 +39,7 @@ src/js/
 
 Task commands: `add`, `delete`, `done`, `start`, `stop`, `modify`, `annotate`, `info`, `skip`
 Views: `list`, `next`, `calendar/cal`, `projects`, `chain`
-Data: `export/exp`, `import/imp`, `link`, `sync`, `unlink`
+Data: `export/exp`, `import/imp`, `link`, `load`, `save`, `unlink`
 Context: `context/ctx/c` (GTD persistent filters)
 
 ## Task Options
@@ -83,7 +83,7 @@ Run tests by opening `tests/index.html` in browser. Tests cover urgency calculat
 
 - No transpilation - write ES6+ that runs directly in modern browsers
 - Module imports use relative paths with `.js` extension
-- PWA version is in `manifest.json` (currently v0.0.30)
+- PWA version is in `manifest.json` (currently v0.0.31)
 - Cache busting: update `sw.js` cache name when deploying
 - Branch `gh-pages` is the deployed branch
 

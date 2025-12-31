@@ -28,7 +28,8 @@ Tasca runs entirely in the browser using IndexedDB for storage. No server requir
 | `export` / `exp [filters]`        | Export tasks as JSON                     |
 | `import` / `imp`                  | Import tasks from JSON                   |
 | `link`                            | Link a sync file (desktop)               |
-| `sync`                            | Pull & push to linked file               |
+| `load`                            | Import from linked file                  |
+| `save`                            | Export to linked file                    |
 | `unlink`                          | Remove linked file                       |
 | `about`                           | Show version info                        |
 | `help [cmd]`                      | Show help                                |
@@ -143,20 +144,16 @@ Tasks are matched by UUID. Re-importing updates existing tasks.
 
 1. Create a sync file: `export` → save to shared folder (iCloud, Dropbox, etc.)
 2. On desktop Chrome, run `link` to select the existing file
-3. Use `sync` to pull changes and push your state back
+3. Use `load` to import changes, `save` to export your state
 
 ```
 export                      # create initial sync file in iCloud
 link                        # select that file (once)
-sync                        # read → merge → write
+load                        # import from linked file
+save                        # export to linked file
 ```
 
 On mobile, use `export` → "Save to Files" → overwrite the same file.
-
-The `sync` command is bidirectional:
-
-1. Reads from the linked file (imports any changes from other devices)
-2. Writes all tasks back (so other devices can import)
 
 Use `unlink` to disconnect the linked file.
 
