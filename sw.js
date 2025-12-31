@@ -1,10 +1,15 @@
-const CACHE_NAME = "tasca-cache-v0.0.25";
+const CACHE_NAME = "tasca-cache-v0.0.26";
 const CACHE_FILES = [
   "./index.html",
   "./src/css/style.css",
   "./src/js/app.js",
+  "./src/js/commands.js",
+  "./src/js/context.js",
   "./src/js/db.js",
+  "./src/js/input.js",
+  "./src/js/list.js",
   "./src/js/logic.js",
+  "./src/js/state.js",
   "./src/js/ui.js",
   "./src/js/utils.js",
   "./fonts/monoid-regular.woff2",

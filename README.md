@@ -22,6 +22,7 @@ Tasca runs entirely in the browser using IndexedDB for storage. No server requir
 | `info` / `i <ID>`      | Show task details           |
 | `chain <ID>`           | Show dependency tree        |
 | `projects`             | List all projects           |
+| `context` / `ctx` / `c [filters]` | Set/clear persistent context |
 | `export` / `exp [filters]` | Export tasks as JSON        |
 | `import` / `imp`       | Import tasks from JSON      |
 | `link`                 | Link a sync file (desktop)  |
@@ -56,6 +57,25 @@ Use with `list` or `export`:
 Virtual tags: `!overdue`, `!today`, `!waiting`, `!blocked`, `!active`, `!done`, `!all`
 
 Example: `list !done end:1w` — review tasks completed in the last week.
+
+### Contexts (GTD)
+
+Set a persistent filter context that auto-applies to `list`/`next` and inherits to new tasks:
+
+```
+c pro:Work              # filter by project
+c !urgent               # filter by tag
+c meeting               # text search
+c pro:Work !urgent      # combine filters
+c                       # clear context (no args)
+```
+
+When context is active:
+- `list` and `next` automatically apply the context filters
+- `add` inherits project and tags from context (unless overridden)
+- A banner shows the active context above the task list
+
+Context persists in localStorage across sessions.
 
 ### Project Icons
 

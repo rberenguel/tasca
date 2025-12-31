@@ -108,6 +108,9 @@ export const VALID_COMMANDS = [
   "unlink",
   "start",
   "st",
+  "context",
+  "ctx",
+  "c",
 ];
 
 export const resolveCommand = (str) => {

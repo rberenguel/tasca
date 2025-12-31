@@ -1,4 +1,6 @@
 import { getDaysRemaining } from "./logic.js";
+import { hasContext, formatContextDisplay } from "./context.js";
+
 let projectMetadata = {};
 let cachedProjectCounts = {}; // for projects table
 
@@ -45,10 +47,12 @@ export const formatProject = (proj) => {
 
   const parts = proj.split(".");
   let html = "";
+  // Cycle through solarized colors by depth: yellow, orange, red, magenta, violet, blue
+  const depthClasses = ["row-proj-d0", "row-proj-d1", "row-proj-d2", "row-proj-d3", "row-proj-d4", "row-proj-d5"];
   for (let i = 0; i < parts.length; i++) {
-    const isLeaf = i === parts.length - 1;
-    html += `<span class="${isLeaf ? "row-proj-leaf" : "row-proj-parent"}">${parts[i]}</span>`;
-    if (!isLeaf) html += '<span class="row-proj-parent">.</span>';
+    const depthClass = depthClasses[Math.min(i, depthClasses.length - 1)];
+    html += `<span class="${depthClass}">${parts[i]}</span>`;
+    if (i < parts.length - 1) html += `<span class="${depthClass}">.</span>`;
   }
   return iconHtml + html;
 };
@@ -68,6 +72,10 @@ export const renderTable = (tasks, allTasks, displayMapRef, projects = []) => {
             <tbody></tbody>
         </table></div>`;
     html += `<div style="font-size:0.8em; color:var(--base01)">0 tasks shown.</div>`;
+    if (hasContext()) {
+      const ctxDisplay = formatContextDisplay();
+      html = `<div class="context-banner">Context: ${ctxDisplay}</div>` + html;
+    }
     return print(html, false);
   }
 
@@ -146,8 +154,11 @@ export const renderTable = (tasks, allTasks, displayMapRef, projects = []) => {
   html += `</tbody></table></div>`;
   html += `<div style="font-size:0.8em; color:var(--base01)">${tasks.length} tasks shown.</div>`;
 
-  // renderChain is effectively dead code in this modular version unless imported/refactored,
-  // keeping ui.js consistent with previous file but updated.
+  // Prepend context banner if active
+  if (hasContext()) {
+    const ctxDisplay = formatContextDisplay();
+    html = `<div class="context-banner">Context: ${ctxDisplay}</div>` + html;
+  }
 
   print(html, false);
 };

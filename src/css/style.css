@@ -147,12 +147,24 @@ td {
   font-weight: bold;
   width: 25px;
 }
-.row-proj-parent {
-  color: var(--base01);
-}
-.row-proj-leaf {
+/* Project depth colors - cycle through solarized palette */
+.row-proj-d0 {
   color: var(--yellow);
-  font-weight: bold;
+}
+.row-proj-d1 {
+  color: var(--orange);
+}
+.row-proj-d2 {
+  color: var(--red);
+}
+.row-proj-d3 {
+  color: var(--magenta);
+}
+.row-proj-d4 {
+  color: var(--violet);
+}
+.row-proj-d5 {
+  color: var(--blue);
 }
 .row-desc {
   word-break: break-word;
@@ -256,4 +268,12 @@ td {
 .active-icon {
   color: var(--green);
   font-size: 0.8em;
+}
+.context-banner {
+  background-color: var(--base02);
+  color: var(--cyan);
+  padding: 4px 8px;
+  margin-bottom: 8px;
+  border-left: 3px solid var(--cyan);
+  font-size: 0.9em;
 }

@@ -1,21 +1,6 @@
 # Next Features
 
-## 1. Contexts (GTD)
-
-Commands: `context`, `ctx`, `c`
-
-```
-c work                    # set context with keyword
-c pro:Work                # filter by project
-c !urgent                 # filter by tag
-c meeting                 # filter by text search
-c pro:Work !urgent        # combine filters
-c                         # clear context (no args)
-```
-
-When context is set, all `list`/`next`/`add` commands apply the context filter automatically. New tasks created while in context inherit the filter attributes.
-
-Store in localStorage. Show current context in prompt or output.
+## ~~1. Contexts (GTD)~~ DONE (v0.0.26)
 
 ---
 
