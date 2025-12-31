@@ -114,8 +114,15 @@ export const renderTable = (tasks, allTasks, displayMapRef, projects = []) => {
       metaHtml += ` <a href="${t.url}" target="_blank" rel="noopener" class="task-link"><i class="iconoir-link"></i></a>`;
     }
     if (t.project) metaHtml += ` ${formatProject(t.project)}`;
-    if (t.priority)
-      metaHtml += ` <span style="color:${t.priority === "H" ? "var(--red)" : t.priority === "M" ? "var(--yellow)" : "var(--base01)"}; font-weight:bold">pri:${t.priority}</span>`;
+    if (t.priority) {
+      const priColors = {
+        H: "var(--red)",
+        M: "var(--yellow)",
+        L: "var(--base01)",
+        B: "var(--base01)",
+      };
+      metaHtml += ` <span style="color:${priColors[t.priority] || "var(--base01)"}; font-weight:bold">pri:${t.priority}</span>`;
+    }
 
     if (t.due) {
       const daysCheck = getDaysRemaining(t.due);
@@ -197,8 +204,15 @@ export const renderProjectsTable = (projectNames, projectsMeta, taskCounts) => {
 
   projectNames.sort().forEach((name) => {
     const count = taskCounts[name] || 0;
+    const meta = projectMetadata[name];
+    let tagsHtml = "";
+    if (meta?.tags?.length > 0) {
+      meta.tags.forEach((tag) => {
+        tagsHtml += ` <span class="tag-pill">${tag}</span>`;
+      });
+    }
     html += `<tr>
-            <td>${formatProject(name)}</td>
+            <td>${formatProject(name)}${tagsHtml}</td>
             <td style="text-align:right">${count}</td>
         </tr>`;
   });

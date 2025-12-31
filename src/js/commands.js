@@ -304,19 +304,30 @@ export const execute = async (str) => {
           );
 
         let icon = null;
+        let tagsToToggle = [];
         args.slice(1).forEach((arg) => {
           if (arg.startsWith("icon:")) {
             let val = arg.split(":")[1];
             if (val && !val.startsWith("iconoir-")) val = "iconoir-" + val;
             icon = val;
+          } else if (arg.startsWith("!")) {
+            tagsToToggle.push(arg.substring(1).toLowerCase());
           }
         });
 
-        if (icon) {
+        if (icon || tagsToToggle.length > 0) {
           const projects = await dbOps.getAllProjects();
           let proj = projects.find((p) => p.name === projName);
           if (!proj) proj = { name: projName };
-          proj.icon = icon;
+          if (icon) proj.icon = icon;
+          if (tagsToToggle.length > 0) {
+            if (!proj.tags) proj.tags = [];
+            tagsToToggle.forEach((tag) => {
+              const idx = proj.tags.indexOf(tag);
+              if (idx >= 0) proj.tags.splice(idx, 1);
+              else proj.tags.push(tag);
+            });
+          }
           await dbOps.updateProject(proj);
           print(
             `<span class="msg-success">Project ${projName} updated.</span>`,
@@ -324,7 +335,7 @@ export const execute = async (str) => {
           runList(lastFilterArgs, lastLimit);
         } else {
           print(
-            '<span class="msg-info">No changes (icon not specified).</span>',
+            '<span class="msg-info">No changes (specify icon: or !tag).</span>',
           );
         }
         return;
@@ -414,6 +425,7 @@ export const execute = async (str) => {
         );
 
       let icon = undefined;
+      let tagsToToggle = [];
       args.slice(1).forEach((arg) => {
         if (arg.startsWith("icon:")) {
           let val = arg.split(":")[1];
@@ -423,19 +435,29 @@ export const execute = async (str) => {
             if (!val.startsWith("iconoir-")) val = "iconoir-" + val;
             icon = val;
           }
+        } else if (arg.startsWith("!")) {
+          tagsToToggle.push(arg.substring(1).toLowerCase());
         }
       });
 
-      if (icon === undefined) {
+      if (icon === undefined && tagsToToggle.length === 0) {
         return print(
-          '<span class="msg-info">No changes (specify icon:VALUE or icon: to clear).</span>',
+          '<span class="msg-info">No changes (specify icon: or !tag to toggle).</span>',
         );
       }
 
       const projects = await dbOps.getAllProjects();
       let proj = projects.find((p) => p.name === projName);
       if (!proj) proj = { name: projName };
-      proj.icon = icon;
+      if (icon !== undefined) proj.icon = icon;
+      if (tagsToToggle.length > 0) {
+        if (!proj.tags) proj.tags = [];
+        tagsToToggle.forEach((tag) => {
+          const idx = proj.tags.indexOf(tag);
+          if (idx >= 0) proj.tags.splice(idx, 1);
+          else proj.tags.push(tag);
+        });
+      }
       await dbOps.updateProject(proj);
       print(`<span class="msg-success">Project ${projName} updated.</span>`);
       runList(lastFilterArgs, lastLimit);
@@ -598,15 +620,15 @@ export const execute = async (str) => {
         const c = resolveCommand(sub);
         if (c === "add")
           print(
-            `<div class="msg-help"><span class="msg-hl">add</span> description <span class="msg-arg">pro:Project</span> <span class="msg-arg">pri:H/M/L</span> <span class="msg-arg">due:DATE</span> <span class="msg-arg">wait:DATE</span> <span class="msg-arg">sched:DATE</span> <span class="msg-arg">recur:PERIOD</span> <span class="msg-arg">!tag</span><br>DATE: <span class="msg-arg">YYYYMMDD</span> | <span class="msg-arg">today</span> | <span class="msg-arg">tomorrow</span> | <span class="msg-arg">3d</span> | <span class="msg-arg">2w</span> | <span class="msg-arg">1m</span><br>PERIOD: <span class="msg-arg">1d</span> | <span class="msg-arg">1w</span> | <span class="msg-arg">2w</span> | <span class="msg-arg">1m</span> | <span class="msg-arg">1y</span></div>`,
+            `<div class="msg-help"><span class="msg-hl">add</span> description <span class="msg-arg">pro:Project</span> <span class="msg-arg">pri:H/M/L/B</span> <span class="msg-arg">due:DATE</span> <span class="msg-arg">wait:DATE</span> <span class="msg-arg">sched:DATE</span> <span class="msg-arg">recur:PERIOD</span> <span class="msg-arg">!tag</span><br>DATE: <span class="msg-arg">YYYYMMDD</span> | <span class="msg-arg">today</span> | <span class="msg-arg">tomorrow</span> | <span class="msg-arg">3d</span> | <span class="msg-arg">2w</span> | <span class="msg-arg">1m</span><br>PERIOD: <span class="msg-arg">1d</span> | <span class="msg-arg">1w</span> | <span class="msg-arg">2w</span> | <span class="msg-arg">1m</span> | <span class="msg-arg">1y</span><br>Use <span class="msg-arg">pri:B</span> (backlog) or <span class="msg-arg">!someday</span> to hide from next.</div>`,
           );
         else if (c === "modify")
           print(
-            `<div class="msg-help"><span class="msg-hl">mod</span> ID <span class="msg-arg">pro:P</span> <span class="msg-arg">pri:H</span> <span class="msg-arg">due:Y</span> <span class="msg-arg">wait:Y</span> <span class="msg-arg">sched:Y</span> <span class="msg-arg">recur:P</span> <span class="msg-arg">!tag</span> <span class="msg-arg">dep:ID</span><br><span class="msg-hl">mod</span> <span class="msg-arg">pro:Name</span> <span class="msg-arg">icon:value</span> (set/clear project icon)</div>`,
+            `<div class="msg-help"><span class="msg-hl">mod</span> ID <span class="msg-arg">pro:P</span> <span class="msg-arg">pri:H</span> <span class="msg-arg">due:Y</span> <span class="msg-arg">wait:Y</span> <span class="msg-arg">sched:Y</span> <span class="msg-arg">recur:P</span> <span class="msg-arg">!tag</span> <span class="msg-arg">dep:ID</span><br><span class="msg-hl">mod</span> <span class="msg-arg">pro:Name</span> <span class="msg-arg">icon:value</span> <span class="msg-arg">!tag</span> (project metadata, tags toggle)</div>`,
           );
         else if (c === "list")
           print(
-            `<div class="msg-help"><span class="msg-hl">list</span> [search] <span class="msg-arg">pro:Project</span> <span class="msg-arg">!tag</span> <span class="msg-arg">end:1w</span><br>Virtual: <span class="msg-arg">!overdue</span> <span class="msg-arg">!today</span> <span class="msg-arg">!waiting</span> <span class="msg-arg">!scheduled</span> <span class="msg-arg">!recurring</span> <span class="msg-arg">!blocked</span> <span class="msg-arg">!done</span> <span class="msg-arg">!all</span></div>`,
+            `<div class="msg-help"><span class="msg-hl">list</span> [search] <span class="msg-arg">pro:Project</span> <span class="msg-arg">!tag</span> <span class="msg-arg">end:1w</span><br>Virtual: <span class="msg-arg">!overdue</span> <span class="msg-arg">!today</span> <span class="msg-arg">!waiting</span> <span class="msg-arg">!scheduled</span> <span class="msg-arg">!recurring</span> <span class="msg-arg">!blocked</span> <span class="msg-arg">!someday</span> <span class="msg-arg">!done</span> <span class="msg-arg">!all</span></div>`,
           );
         else if (c === "done")
           print(
@@ -634,7 +656,7 @@ export const execute = async (str) => {
           );
         else if (c === "projects" || c === "proj")
           print(
-            `<div class="msg-help"><span class="msg-hl">projects</span><br>Lists all projects with task counts.</div>`,
+            `<div class="msg-help"><span class="msg-hl">projects</span><br>Lists all projects with task counts and tags.<br>Toggle tags: <span class="msg-arg">mod pro:Name !reference</span> (use again to remove)<br>Projects with <span class="msg-arg">!reference</span> tag are hidden from next.</div>`,
           );
         else if (c === "export")
           print(

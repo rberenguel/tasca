@@ -38,7 +38,7 @@ Tasca runs entirely in the browser using IndexedDB for storage. No server requir
 | Option         | Description                                |
 | -------------- | ------------------------------------------ |
 | `pro:Name`     | Project (hierarchical, e.g. `Work.Client`) |
-| `pri:H/M/L`    | Priority                                   |
+| `pri:H/M/L/B`  | Priority (B=backlog, hidden from next)     |
 | `due:DATE`     | Due date (deadline)                        |
 | `wait:DATE`    | Hide until date                            |
 | `sched:DATE`   | Scheduled date (start working on)          |
@@ -59,7 +59,7 @@ Use with `list` or `export`:
 - `end:1w` — completed in last week (use with `!done`). Supports `d`ays, `w`eeks, `m`onths.
 - `sort:field` — sort by field: `start`, `end`, `pri`, `pro`, `due`, `urg`. Use `-` for reverse (e.g., `sort:-end`). Combine with commas: `sort:pro,pri`.
 
-Virtual tags: `!overdue`, `!today`, `!waiting`, `!scheduled`, `!recurring`, `!blocked`, `!active`, `!done`, `!all`
+Virtual tags: `!overdue`, `!today`, `!waiting`, `!scheduled`, `!recurring`, `!blocked`, `!active`, `!someday`, `!done`, `!all`
 
 Example: `list !done end:1w` — review tasks completed in the last week.
 
@@ -96,15 +96,28 @@ cal !done               # show completed by end date
 
 Shows `[due]`, `[sched]`, `[wait]` labels grouped by date. Includes overdue from past 7 days.
 
-### Project Icons
+### Hiding Tasks from Next
+
+Three ways to keep tasks out of `next` while still tracking them:
 
 ```
-mod pro:Work icon:briefcase
+add Read a good book !someday           # someday tag (urgency -100)
+add Low priority thing pri:B            # backlog priority (urgency -20)
+mod pro:Books !reference                # reference project (all tasks urgency -100)
+```
+
+View hidden tasks with `list !someday` or `list pro:Books`.
+
+### Project Metadata
+
+```
+mod pro:Work icon:briefcase             # set icon
 mod pro:Home icon:home
-mod pro:Work icon:          # clear icon
+mod pro:Work icon:                      # clear icon
+mod pro:Books !reference                # toggle tag (hides from next)
 ```
 
-Icons use [Iconoir](https://iconoir.com/).
+Icons use [Iconoir](https://iconoir.com/). Project tags are shown in `projects` list.
 
 ### Sync Between Devices
 

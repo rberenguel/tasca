@@ -6,13 +6,28 @@ export const C = {
   blocking: 8.0,
   active: 4.0,
   blocked: -5.0,
-  priority: { H: 6.0, M: 3.9, L: 1.8 },
+  priority: { H: 6.0, M: 3.9, L: 1.8, B: -20.0 },
   age: 2.0,
   project: 1.0,
+  someday: -100.0,
+  reference: -100.0,
 };
 
-export const calculateUrgency = (t, allTasks) => {
+export const calculateUrgency = (t, allTasks, projectsMeta = []) => {
   if (t.wait && t.wait > Date.now()) return -10.0;
+  // Someday tag - very low urgency (excluded from next)
+  if (t.tags && t.tags.some((tag) => tag.toLowerCase() === "someday"))
+    return C.someday;
+  // Reference project - very low urgency (excluded from next)
+  if (t.project && projectsMeta.length > 0) {
+    const projMeta = projectsMeta.find((p) => p.name === t.project);
+    if (
+      projMeta?.tags?.some((tag) =>
+        ["reference", "ref"].includes(tag.toLowerCase()),
+      )
+    )
+      return C.reference;
+  }
   let u = 0.0;
   if (t.tags && t.tags.includes("next")) u += C.next;
   if (t.start) u += C.active; // Started tasks get priority
@@ -78,6 +93,8 @@ export const hasVirtualTag = (t, tag, allTasks) => {
     return t.start && t.status === "pending";
   if (tagClean === "RECURRING" || tagClean === "RECUR")
     return !!t.recur && t.status === "pending";
+  if (tagClean === "SOMEDAY")
+    return t.tags?.some((tag) => tag.toLowerCase() === "someday");
   return false;
 };
 

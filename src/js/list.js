@@ -68,7 +68,7 @@ export const runList = async (args, limit = Infinity) => {
     tasks = tasks.filter((t) =>
       search.every((s) => t.description.toLowerCase().includes(s)),
     );
-  tasks.forEach((t) => (t.urgency = calculateUrgency(t, all)));
+  tasks.forEach((t) => (t.urgency = calculateUrgency(t, all, projects)));
 
   // Sorting
   if (sortFields) {
@@ -84,7 +84,7 @@ export const runList = async (args, limit = Infinity) => {
       urg: "urgency",
       urgency: "urgency",
     };
-    const priOrder = { H: 3, M: 2, L: 1 };
+    const priOrder = { H: 4, M: 3, L: 2, B: 1 };
     tasks.sort((a, b) => {
       for (const field of sortFields) {
         const desc = field.startsWith("-");
