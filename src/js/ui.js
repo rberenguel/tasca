@@ -114,14 +114,13 @@ export const renderTable = (tasks, allTasks, displayMapRef, projects = []) => {
       metaHtml += ` <a href="${t.url}" target="_blank" rel="noopener" class="task-link"><i class="iconoir-link"></i></a>`;
     }
     if (t.project) metaHtml += ` ${formatProject(t.project)}`;
-    if (t.priority) {
-      const priColors = {
-        H: "var(--red)",
-        M: "var(--yellow)",
-        L: "var(--base01)",
-        B: "var(--base01)",
-      };
-      metaHtml += ` <span style="color:${priColors[t.priority] || "var(--base01)"}; font-weight:bold">pri:${t.priority}</span>`;
+    if (t.priority != null) {
+      let priColor = "var(--base01)"; // default/low/negative
+      if (typeof t.priority === "number") {
+        if (t.priority >= 50) priColor = "var(--red)";
+        else if (t.priority >= 10) priColor = "var(--yellow)";
+      }
+      metaHtml += ` <span style="color:${priColor}; font-weight:bold">pri:${t.priority}</span>`;
     }
 
     if (t.due) {

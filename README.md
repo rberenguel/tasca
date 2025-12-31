@@ -36,17 +36,17 @@ Tasca runs entirely in the browser using IndexedDB for storage. No server requir
 
 ### Task Options
 
-| Option         | Description                                |
-| -------------- | ------------------------------------------ |
-| `pro:Name`     | Project (hierarchical, e.g. `Work.Client`) |
-| `pri:H/M/L/B`  | Priority (B=backlog, hidden from next)     |
-| `due:DATE`     | Due date (deadline)                        |
-| `wait:DATE`    | Hide until date                            |
-| `sched:DATE`   | Scheduled date (start working on)          |
-| `recur:PERIOD` | Recurrence (`1d`, `1w`, `2w`, `1m`, `1y`)  |
-| `dep:ID,ID`    | Dependencies (toggles on `mod`)            |
-| `url:URL`      | Link URL (shown as clickable icon)         |
-| `!tag`         | Tag (toggles on `mod`)                     |
+| Option         | Description                                         |
+| -------------- | --------------------------------------------------- |
+| `pro:Name`     | Project (hierarchical, e.g. `Work.Client`)          |
+| `pri:N`        | Priority (1=low, 10=med, 50=high, negative=backlog) |
+| `due:DATE`     | Due date (deadline)                                 |
+| `wait:DATE`    | Hide until date                                     |
+| `sched:DATE`   | Scheduled date (start working on)                   |
+| `recur:PERIOD` | Recurrence (`1d`, `1w`, `2w`, `1m`, `1y`)           |
+| `dep:ID,ID`    | Dependencies (toggles on `mod`)                     |
+| `url:URL`      | Link URL (shown as clickable icon)                  |
+| `!tag`         | Tag (toggles on `mod`)                              |
 
 DATE formats: `YYYYMMDD`, `today`, `tomorrow`, `3d` (days), `2w` (weeks), `1m` (months)
 
@@ -103,7 +103,7 @@ Three ways to keep tasks out of `next` while still tracking them:
 
 ```
 add Read a good book !someday           # someday tag (urgency -100)
-add Low priority thing pri:B            # backlog priority (urgency -20)
+add Low priority thing pri:-10          # negative priority (backlog)
 mod pro:Books !reference                # reference project (all tasks urgency -100)
 ```
 

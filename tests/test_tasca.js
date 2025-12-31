@@ -28,7 +28,7 @@ describe("Tasca Logic Tests", function () {
     });
 
     it("should add urgency for priority", function () {
-      const t = { entry: now, priority: "H", tags: [] };
+      const t = { entry: now, priority: 50, tags: [] }; // pri:50 * 0.12 = 6
       const u = calculateUrgency(t, []);
       expect(parseFloat(u)).to.be.closeTo(6.0, 0.1);
     });

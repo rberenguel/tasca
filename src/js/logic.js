@@ -6,7 +6,7 @@ export const C = {
   blocking: 8.0,
   active: 4.0,
   blocked: -5.0,
-  priority: { H: 6.0, M: 3.9, L: 1.8, B: -20.0 },
+  priorityScale: 0.12, // pri:50 → 6 urgency (like old H)
   age: 2.0,
   project: 1.0,
   someday: -100.0,
@@ -31,7 +31,8 @@ export const calculateUrgency = (t, allTasks, projectsMeta = []) => {
   let u = 0.0;
   if (t.tags && t.tags.includes("next")) u += C.next;
   if (t.start) u += C.active; // Started tasks get priority
-  if (t.priority && C.priority[t.priority]) u += C.priority[t.priority];
+  if (t.priority != null && typeof t.priority === "number")
+    u += t.priority * C.priorityScale;
   if (t.project) u += C.project;
   const ageDays = (Date.now() - t.entry) / (1000 * 60 * 60 * 24);
   u += ageDays > 100 ? C.age : (ageDays / 100) * C.age;

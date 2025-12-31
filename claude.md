@@ -47,7 +47,7 @@ Context: `context/ctx/c` (GTD persistent filters)
 - `pro:ProjectName` - Project (hierarchical with dots)
 - `!tag` - Tags (use `!someday` to hide from next)
 - `due:DATE`, `sched:DATE`, `wait:DATE` - Dates
-- `pri:H/M/L/B` - Priority (B=backlog, hides from next)
+- `pri:N` - Priority (1=low, 10=med, 50=high, negative=backlog)
 - `recur:1d/1w/2w/1m/1y` - Recurrence
 - `dep:ID,ID` - Dependencies
 - `url:URL`, `icon:name` - Metadata
@@ -57,7 +57,7 @@ Context: `context/ctx/c` (GTD persistent filters)
 Three ways to hide tasks/projects from the `next` view:
 
 1. **Someday tag**: `add Read a book !someday` - task gets urgency -100
-2. **Backlog priority**: `add Something pri:B` - task gets urgency -20
+2. **Negative priority**: `add Something pri:-10` - scaled negative urgency
 3. **Reference project**: `mod pro:Books !reference` - all tasks in project get urgency -100
 
 View hidden tasks with `list !someday` or `list pro:Books`.
@@ -83,7 +83,7 @@ Run tests by opening `tests/index.html` in browser. Tests cover urgency calculat
 
 - No transpilation - write ES6+ that runs directly in modern browsers
 - Module imports use relative paths with `.js` extension
-- PWA version is in `manifest.json` (currently v0.0.32)
+- PWA version is in `manifest.json` (currently v0.0.33)
 - Cache busting: update `sw.js` cache name when deploying
 - Branch `gh-pages` is the deployed branch
 

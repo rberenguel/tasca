@@ -84,7 +84,6 @@ export const runList = async (args, limit = Infinity) => {
       urg: "urgency",
       urgency: "urgency",
     };
-    const priOrder = { H: 4, M: 3, L: 2, B: 1 };
     tasks.sort((a, b) => {
       for (const field of sortFields) {
         const desc = field.startsWith("-");
@@ -92,12 +91,13 @@ export const runList = async (args, limit = Infinity) => {
         const mapped = fieldMap[key] || key;
         let av = a[mapped],
           bv = b[mapped];
+        // Treat non-numeric priorities as null for sorting
         if (mapped === "priority") {
-          av = priOrder[av] || 0;
-          bv = priOrder[bv] || 0;
+          if (typeof av !== "number") av = null;
+          if (typeof bv !== "number") bv = null;
         }
         const isDate = ["start", "end", "due", "entry"].includes(mapped);
-        const isNum = ["urgency"].includes(mapped) || isDate;
+        const isNum = ["urgency", "priority"].includes(mapped) || isDate;
         let dir = isDate || mapped === "priority" ? -1 : 1;
         if (desc) dir = -dir;
         if (av == null && bv == null) continue;

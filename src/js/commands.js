@@ -133,7 +133,7 @@ export const execute = async (str) => {
     } else if (["add", "a", "log"].includes(cmd)) {
       let desc = [],
         proj = "",
-        priority = "",
+        priority = null,
         tags = [],
         depends = [],
         due = null,
@@ -148,9 +148,10 @@ export const execute = async (str) => {
           token.startsWith("project:")
         )
           proj = token.split(":")[1];
-        else if (token.startsWith("pri:") || token.startsWith("priority:"))
-          priority = token.split(":")[1].toUpperCase();
-        else if (token.startsWith("dep:"))
+        else if (token.startsWith("pri:") || token.startsWith("priority:")) {
+          const val = parseInt(token.split(":")[1], 10);
+          if (!isNaN(val)) priority = val;
+        } else if (token.startsWith("dep:"))
           token
             .split(":")[1]
             .split(",")
@@ -501,9 +502,11 @@ export const execute = async (str) => {
       const task = await dbOps.get(displayMapRef.value[id - 1]);
       const descParts = [];
       tokens.forEach((token) => {
-        if (token.startsWith("pri:"))
-          task.priority = token.split(":")[1].toUpperCase();
-        else if (
+        if (token.startsWith("pri:")) {
+          const val = parseInt(token.split(":")[1], 10);
+          if (!isNaN(val)) task.priority = val;
+          else if (token === "pri:") task.priority = null; // clear priority
+        } else if (
           token.startsWith("pro:") ||
           token.startsWith("proj:") ||
           token.startsWith("project:")
@@ -649,11 +652,11 @@ export const execute = async (str) => {
         const c = resolveCommand(sub);
         if (c === "add")
           print(
-            `<div class="msg-help"><span class="msg-hl">add</span> description <span class="msg-arg">pro:Project</span> <span class="msg-arg">pri:H/M/L/B</span> <span class="msg-arg">due:DATE</span> <span class="msg-arg">wait:DATE</span> <span class="msg-arg">sched:DATE</span> <span class="msg-arg">recur:PERIOD</span> <span class="msg-arg">!tag</span><br>DATE: <span class="msg-arg">YYYYMMDD</span> | <span class="msg-arg">today</span> | <span class="msg-arg">tomorrow</span> | <span class="msg-arg">3d</span> | <span class="msg-arg">2w</span> | <span class="msg-arg">1m</span><br>PERIOD: <span class="msg-arg">1d</span> | <span class="msg-arg">1w</span> | <span class="msg-arg">2w</span> | <span class="msg-arg">1m</span> | <span class="msg-arg">1y</span><br>Use <span class="msg-arg">pri:B</span> (backlog) or <span class="msg-arg">!someday</span> to hide from next.</div>`,
+            `<div class="msg-help"><span class="msg-hl">add</span> description <span class="msg-arg">pro:Project</span> <span class="msg-arg">pri:N</span> <span class="msg-arg">due:DATE</span> <span class="msg-arg">wait:DATE</span> <span class="msg-arg">sched:DATE</span> <span class="msg-arg">recur:PERIOD</span> <span class="msg-arg">!tag</span><br>DATE: <span class="msg-arg">YYYYMMDD</span> | <span class="msg-arg">today</span> | <span class="msg-arg">tomorrow</span> | <span class="msg-arg">3d</span> | <span class="msg-arg">2w</span> | <span class="msg-arg">1m</span><br>PERIOD: <span class="msg-arg">1d</span> | <span class="msg-arg">1w</span> | <span class="msg-arg">2w</span> | <span class="msg-arg">1m</span> | <span class="msg-arg">1y</span><br>Priority: 1=low, 10=medium, 50=high. Negative for backlog. Use <span class="msg-arg">!someday</span> to hide from next.</div>`,
           );
         else if (c === "modify")
           print(
-            `<div class="msg-help"><span class="msg-hl">mod</span> ID <span class="msg-arg">pro:P</span> <span class="msg-arg">pri:H</span> <span class="msg-arg">due:Y</span> <span class="msg-arg">wait:Y</span> <span class="msg-arg">sched:Y</span> <span class="msg-arg">recur:P</span> <span class="msg-arg">!tag</span> <span class="msg-arg">dep:ID</span><br><span class="msg-hl">mod</span> <span class="msg-arg">pro:Name</span> <span class="msg-arg">icon:value</span> <span class="msg-arg">!tag</span> (project metadata, tags toggle)</div>`,
+            `<div class="msg-help"><span class="msg-hl">mod</span> ID <span class="msg-arg">pro:P</span> <span class="msg-arg">pri:N</span> <span class="msg-arg">due:Y</span> <span class="msg-arg">wait:Y</span> <span class="msg-arg">sched:Y</span> <span class="msg-arg">recur:P</span> <span class="msg-arg">!tag</span> <span class="msg-arg">dep:ID</span><br><span class="msg-hl">mod</span> <span class="msg-arg">pro:Name</span> <span class="msg-arg">icon:value</span> <span class="msg-arg">!tag</span> (project metadata, tags toggle)</div>`,
           );
         else if (c === "list")
           print(
