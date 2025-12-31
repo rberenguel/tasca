@@ -50,6 +50,7 @@ Use with `list` or `export`:
 - `!tag` — filter by tag
 - `text` — search in description
 - `end:1w` — completed in last week (use with `!done`). Supports `d`ays, `w`eeks, `m`onths.
+- `sort:field` — sort by field: `start`, `end`, `pri`, `pro`, `due`, `urg`. Use `-` for reverse (e.g., `sort:-end`). Combine with commas: `sort:pro,pri`.
 
 Virtual tags: `!overdue`, `!today`, `!waiting`, `!blocked`, `!active`, `!done`, `!all`
 
@@ -104,10 +105,12 @@ The `sync` command is bidirectional:
 
 Use `unlink` to disconnect the linked file.
 
-### Keyboard Shortcuts
+### Keyboard & Gestures
 
 - **Up/Down arrows**: Navigate command history
+- **Swipe up/down on input**: Navigate history (mobile)
 - **Tab**: Autocomplete commands, projects, and tags
+- **Tap output area**: Toggle keyboard focus (mobile)
 
 ## Installation
 

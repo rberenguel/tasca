@@ -65,7 +65,8 @@ const runList = async (args, limit = Infinity) => {
   let search = [],
     fProj = null,
     fTags = [],
-    endAfter = null;
+    endAfter = null,
+    sortFields = null;
   let showWaiting = false,
     showDone = false;
 
@@ -80,6 +81,8 @@ const runList = async (args, limit = Infinity) => {
       // end:7d, end:1w, end:2m - show tasks completed after this relative time
       const val = token.split(":")[1];
       endAfter = parseRelativeTime(val);
+    } else if (token.startsWith("sort:")) {
+      sortFields = token.split(":")[1].split(",");
     } else if (token.startsWith("!")) {
       const tag = token.substring(1).toUpperCase();
       if (tag === "WAITING" || tag === "ALL") showWaiting = true;
@@ -112,7 +115,55 @@ const runList = async (args, limit = Infinity) => {
       search.every((s) => t.description.toLowerCase().includes(s)),
     );
   tasks.forEach((t) => (t.urgency = calculateUrgency(t, all)));
-  tasks.sort((a, b) => parseFloat(b.urgency) - parseFloat(a.urgency));
+
+  // Sorting
+  if (sortFields) {
+    const fieldMap = {
+      start: "start",
+      st: "start",
+      end: "end",
+      pri: "priority",
+      priority: "priority",
+      pro: "project",
+      project: "project",
+      due: "due",
+      urg: "urgency",
+      urgency: "urgency",
+    };
+    const priOrder = { H: 3, M: 2, L: 1 };
+    tasks.sort((a, b) => {
+      for (const field of sortFields) {
+        const desc = field.startsWith("-");
+        const key = desc ? field.slice(1) : field;
+        const mapped = fieldMap[key] || key;
+        let av = a[mapped],
+          bv = b[mapped];
+        // Handle priority specially
+        if (mapped === "priority") {
+          av = priOrder[av] || 0;
+          bv = priOrder[bv] || 0;
+        }
+        // Default direction: dates desc, text asc
+        const isDate = ["start", "end", "due", "entry"].includes(mapped);
+        const isNum = ["urgency"].includes(mapped) || isDate;
+        let dir = isDate || mapped === "priority" ? -1 : 1; // dates/pri: desc, text: asc
+        if (desc) dir = -dir;
+        if (av == null && bv == null) continue;
+        if (av == null) return 1;
+        if (bv == null) return -1;
+        if (isNum) {
+          const diff = (parseFloat(av) - parseFloat(bv)) * dir;
+          if (diff !== 0) return diff;
+        } else {
+          const cmp = String(av).localeCompare(String(bv)) * dir;
+          if (cmp !== 0) return cmp;
+        }
+      }
+      return 0;
+    });
+  } else {
+    tasks.sort((a, b) => parseFloat(b.urgency) - parseFloat(a.urgency));
+  }
 
   if (limit !== Infinity && limit > 0) {
     tasks = tasks.slice(0, limit);
@@ -968,6 +1019,51 @@ const setupInput = () => {
       if (val) await execute(val);
     }
   });
+
+  // Touch gestures for history navigation on mobile
+  const inputLine = document.querySelector(".input-line");
+  let touchStartY = null;
+  inputLine.addEventListener(
+    "touchstart",
+    (e) => {
+      touchStartY = e.touches[0].clientY;
+    },
+    { passive: true },
+  );
+  inputLine.addEventListener(
+    "touchend",
+    (e) => {
+      if (touchStartY === null) return;
+      const touchEndY = e.changedTouches[0].clientY;
+      const diff = touchStartY - touchEndY;
+      touchStartY = null;
+      if (Math.abs(diff) < 30) return; // too short
+      if (diff > 0) {
+        // Swipe up - previous command
+        if (cmdHistory.length === 0) return;
+        if (historyIndex === -1) {
+          historyTemp = input.value;
+          historyIndex = cmdHistory.length - 1;
+        } else if (historyIndex > 0) {
+          historyIndex--;
+        }
+        input.value = cmdHistory[historyIndex];
+        ghost.innerHTML = "";
+      } else {
+        // Swipe down - next command
+        if (historyIndex === -1) return;
+        if (historyIndex < cmdHistory.length - 1) {
+          historyIndex++;
+          input.value = cmdHistory[historyIndex];
+        } else {
+          historyIndex = -1;
+          input.value = historyTemp;
+        }
+        ghost.innerHTML = "";
+      }
+    },
+    { passive: true },
+  );
 };
 
 initDB().then(async () => {
