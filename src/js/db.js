@@ -141,4 +141,14 @@ export const dbOps = {
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
     }),
+  purgeAll: () =>
+    new Promise((resolve, reject) => {
+      const tx = db.transaction([STORE_NAME, PROJ_STORE_NAME], "readwrite");
+      const tasksStore = tx.objectStore(STORE_NAME);
+      const projStore = tx.objectStore(PROJ_STORE_NAME);
+      tasksStore.clear();
+      projStore.clear();
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    }),
 };

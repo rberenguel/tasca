@@ -146,6 +146,20 @@ describe("Tasca Logic Tests", function () {
       const t = { entry: now, status: "pending", tags: [] };
       expect(hasVirtualTag(t, "+RECURRING", [])).to.be.false;
     });
+
+    it("should identify +REFERENCE for tasks in reference project", function () {
+      const projectsMeta = [{ name: "Books", tags: ["reference"] }];
+      const t = { entry: now, project: "Books", status: "pending", tags: [] };
+      expect(hasVirtualTag(t, "+REFERENCE", [], projectsMeta)).to.be.true;
+      expect(hasVirtualTag(t, "+REF", [], projectsMeta)).to.be.true;
+      expect(hasVirtualTag(t, "!refs", [], projectsMeta)).to.be.true;
+    });
+
+    it("should NOT identify +REFERENCE for tasks not in reference project", function () {
+      const projectsMeta = [{ name: "Work", tags: [] }];
+      const t = { entry: now, project: "Work", status: "pending", tags: [] };
+      expect(hasVirtualTag(t, "+REFERENCE", [], projectsMeta)).to.be.false;
+    });
   });
 
   describe("Days Remaining", function () {

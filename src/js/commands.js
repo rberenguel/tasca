@@ -33,7 +33,9 @@ export const execute = async (str) => {
     let targetId = rawCmd.match(/^\d+$/) ? parseInt(rawCmd) : null;
 
     if (cmd === "export" || cmd === "exp") {
+      await dbOps.cleanupOrphanProjects();
       const all = await dbOps.getAll();
+      const projectsMeta = await dbOps.getAllProjects();
       let filtered = all;
 
       if (args.length > 0) {
@@ -60,7 +62,7 @@ export const execute = async (str) => {
               const tag = ft.substring(1).toLowerCase();
               if (t.tags && t.tags.some((tt) => tt.toLowerCase() === tag))
                 return true;
-              if (hasVirtualTag(t, ft, all)) return true;
+              if (hasVirtualTag(t, ft, all, projectsMeta)) return true;
               return false;
             }),
           );
@@ -71,9 +73,7 @@ export const execute = async (str) => {
           );
       }
 
-      await dbOps.cleanupOrphanProjects();
-      const projects = await dbOps.getAllProjects();
-      const exportData = { tasks: filtered, projects };
+      const exportData = { tasks: filtered, projects: projectsMeta };
       const dataStr = JSON.stringify(exportData, null, 2);
       const blob = new Blob([dataStr], { type: "application/json" });
       const filename =
@@ -133,6 +133,11 @@ export const execute = async (str) => {
     else if (cmd === "clear") {
       document.getElementById("terminal-output").innerHTML = "";
       execute("next");
+    } else if (rawCmd === "42clear") {
+      await dbOps.purgeAll();
+      updateCache([]);
+      document.getElementById("terminal-output").innerHTML = "";
+      print('<span class="msg-success">Database purged. Reload to start fresh.</span>');
     } else if (["add", "a", "log"].includes(cmd)) {
       let desc = [],
         proj = "",
@@ -931,7 +936,7 @@ export const execute = async (str) => {
             const tag = ft.substring(1).toLowerCase();
             if (t.tags && t.tags.some((tt) => tt.toLowerCase() === tag))
               return true;
-            if (hasVirtualTag(t, ft, all)) return true;
+            if (hasVirtualTag(t, ft, all, projects)) return true;
             return false;
           }),
         );

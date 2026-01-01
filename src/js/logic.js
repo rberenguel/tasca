@@ -76,7 +76,7 @@ export const matchesProject = (taskProj, filterProj) => {
   return taskProj.startsWith(filterProj + ".");
 };
 
-export const hasVirtualTag = (t, tag, allTasks) => {
+export const hasVirtualTag = (t, tag, allTasks, projectsMeta = []) => {
   const now = Date.now();
   const tagClean = tag.replace(/^[!+]/, "").toUpperCase();
   if (tagClean === "OVERDUE")
@@ -102,6 +102,13 @@ export const hasVirtualTag = (t, tag, allTasks) => {
     return !!t.recur && t.status === "pending";
   if (tagClean === "SOMEDAY")
     return t.tags?.some((tag) => tag.toLowerCase() === "someday");
+  if (["REF", "REFS", "REFERENCE", "REFERENCES"].includes(tagClean)) {
+    if (!t.project || projectsMeta.length === 0) return false;
+    const projMeta = projectsMeta.find((p) => p.name === t.project);
+    return projMeta?.tags?.some((tag) =>
+      ["reference", "ref"].includes(tag.toLowerCase())
+    ) ?? false;
+  }
   return false;
 };
 

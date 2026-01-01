@@ -59,7 +59,7 @@ export const runList = async (args, limit = Infinity) => {
         const tag = ft.substring(1).toLowerCase();
         if (t.tags && t.tags.some((tt) => tt.toLowerCase() === tag))
           return true;
-        if (hasVirtualTag(t, ft, all)) return true;
+        if (hasVirtualTag(t, ft, all, projects)) return true;
         return false;
       }),
     );
@@ -83,6 +83,9 @@ export const runList = async (args, limit = Infinity) => {
       due: "due",
       urg: "urgency",
       urgency: "urgency",
+      desc: "description",
+      description: "description",
+      alpha: "description",
     };
     tasks.sort((a, b) => {
       for (const field of sortFields) {
