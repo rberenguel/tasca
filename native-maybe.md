@@ -53,24 +53,76 @@ This document outlines a plan to create native Mac and iOS apps for Tasca using 
 
 ### Phase 2: Storage Abstraction
 
-Create a storage abstraction layer so we can swap IndexedDB for iCloud.
+Create a storage abstraction layer so we can swap IndexedDB for iCloud **while keeping the web app fully functional**.
+
+**Goal:** Same codebase, different storage backends:
+- **Web/PWA (Android, desktop browsers, restricted systems):** IndexedDB (unchanged)
+- **Native iOS/macOS app:** iCloud Documents or CloudKit
 
 1. **Create `src/js/storage.js`** - Abstract interface
    ```javascript
-   // Storage interface that db.js will use
-   // Initially wraps IndexedDB, later swapped for Capacitor plugin
+   // Storage backend factory
+   // Detects environment and returns appropriate implementation
 
    export const createStorage = async () => {
+     // Native app (Capacitor) → iCloud
      if (window.Capacitor?.isNativePlatform()) {
-       return createICloudStorage();
+       const { ICloudStorage } = await import('./storage-icloud.js');
+       return new ICloudStorage();
      }
-     return createIndexedDBStorage();
+     // Web/PWA → IndexedDB (existing behavior)
+     const { IndexedDBStorage } = await import('./storage-indexeddb.js');
+     return new IndexedDBStorage();
    };
    ```
 
-2. **Modify `db.js`** to use the abstraction
-   - Keep IndexedDB as fallback for web
-   - Use Capacitor plugin when running native
+2. **Extract current IndexedDB logic to `src/js/storage-indexeddb.js`**
+   ```javascript
+   // This is essentially the current db.js, wrapped in a class
+   export class IndexedDBStorage {
+     async init() { /* existing initDB */ }
+     async getAll() { /* existing dbOps.getAll */ }
+     async add(task) { /* existing dbOps.add */ }
+     async update(task) { /* existing dbOps.update */ }
+     async delete(uuid) { /* existing dbOps.delete */ }
+     // ... etc
+   }
+   ```
+
+3. **Create `src/js/storage-icloud.js`** (native only)
+   ```javascript
+   // Calls Capacitor plugin for iCloud storage
+   export class ICloudStorage {
+     async init() { /* init iCloud plugin */ }
+     async getAll() { /* load from iCloud */ }
+     async add(task) { /* save to iCloud */ }
+     // ... same interface as IndexedDBStorage
+   }
+   ```
+
+4. **Modify `db.js`** to use the abstraction
+   ```javascript
+   import { createStorage } from './storage.js';
+
+   let storage = null;
+
+   export const initDB = async () => {
+     storage = await createStorage();
+     return storage.init();
+   };
+
+   export const dbOps = {
+     getAll: () => storage.getAll(),
+     add: (task) => storage.add(task),
+     // ... delegate all methods to storage backend
+   };
+   ```
+
+**Result:**
+- Web users see no change (IndexedDB still works)
+- Native app users get iCloud sync
+- Same UI, same commands, same experience
+- No feature flags or build-time switches needed
 
 ### Phase 3: iCloud Plugin
 
