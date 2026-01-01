@@ -116,9 +116,20 @@ export const renderTable = (tasks, allTasks, displayMapRef, projects = []) => {
     if (t.project) metaHtml += ` ${formatProject(t.project)}`;
     if (t.priority != null) {
       let priColor = "var(--base01)"; // default/low/negative
-      if (typeof t.priority === "number") {
-        if (t.priority >= 50) priColor = "var(--red)";
-        else if (t.priority >= 10) priColor = "var(--yellow)";
+      if (typeof t.priority === "number" && t.priority >= 10) {
+        // Smooth gradient: green(10) → yellow(25) → red(50+)
+        // HSL hue: green=120, yellow=60, red=0
+        let hue;
+        if (t.priority >= 50) {
+          hue = 0; // red
+        } else if (t.priority >= 25) {
+          // yellow(60) to red(0) as priority goes 25→50
+          hue = 60 - ((t.priority - 25) / 25) * 60;
+        } else {
+          // green(120) to yellow(60) as priority goes 10→25
+          hue = 120 - ((t.priority - 10) / 15) * 60;
+        }
+        priColor = `hsl(${hue}, 70%, 45%)`;
       }
       metaHtml += ` <span style="color:${priColor}; font-weight:bold">pri:${t.priority}</span>`;
     }

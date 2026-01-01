@@ -1,4 +1,4 @@
-const CACHE_NAME = "tasca-cache-v0.1.3";
+const CACHE_NAME = "tasca-cache-v0.1.5";
 const CACHE_FILES = [
   "./index.html",
   "./src/css/style.css",
@@ -12,6 +12,7 @@ const CACHE_FILES = [
   "./src/js/state.js",
   "./src/js/ui.js",
   "./src/js/utils.js",
+  "./fonts/iconoir/iconoir.css",
   "./fonts/monoid-regular.woff2",
   "./fonts/monoid-bold.woff2",
   "./manifest.json",
@@ -21,7 +22,10 @@ const CACHE_FILES = [
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(CACHE_FILES);
+      return cache.addAll(CACHE_FILES).then(() => {
+        // Activate immediately, don't wait for tabs to close
+        return self.skipWaiting();
+      });
     }),
   );
 });
@@ -41,7 +45,10 @@ self.addEventListener("activate", (event) => {
         cacheNames.map((name) => {
           if (name !== CACHE_NAME) return caches.delete(name);
         }),
-      );
+      ).then(() => {
+        // Take control of all pages immediately
+        return self.clients.claim();
+      });
     }),
   );
 });
