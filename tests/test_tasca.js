@@ -50,6 +50,34 @@ describe("Tasca Logic Tests", function () {
       const u = calculateUrgency(t, []);
       expect(parseFloat(u)).to.be.closeTo(4.0, 0.1);
     });
+
+    it("should give someday tasks low urgency with priority layered", function () {
+      const t1 = { entry: now, tags: ["someday"] };
+      const t2 = { entry: now, tags: ["someday"], priority: 50 };
+      const u1 = parseFloat(calculateUrgency(t1, []));
+      const u2 = parseFloat(calculateUrgency(t2, []));
+      expect(u1).to.be.closeTo(-100.0, 0.1);
+      expect(u2).to.be.closeTo(-94.0, 0.1); // -100 + 50*0.12 = -94
+      expect(u2).to.be.greaterThan(u1);
+    });
+
+    it("should give reference project tasks low urgency with priority layered", function () {
+      const projectsMeta = [{ name: "Books", tags: ["reference"] }];
+      const t1 = { entry: now, project: "Books", tags: [] };
+      const t2 = { entry: now, project: "Books", priority: 50, tags: [] };
+      const u1 = parseFloat(calculateUrgency(t1, [], projectsMeta));
+      const u2 = parseFloat(calculateUrgency(t2, [], projectsMeta));
+      expect(u1).to.be.closeTo(-100.0, 0.1);
+      expect(u2).to.be.closeTo(-94.0, 0.1); // -100 + 50*0.12 = -94
+      expect(u2).to.be.greaterThan(u1);
+    });
+
+    it("should recognize ref as alias for reference tag", function () {
+      const projectsMeta = [{ name: "Books", tags: ["ref"] }];
+      const t = { entry: now, project: "Books", priority: 50, tags: [] };
+      const u = parseFloat(calculateUrgency(t, [], projectsMeta));
+      expect(u).to.be.closeTo(-94.0, 0.1);
+    });
   });
 
   describe("Project Filtering", function () {

@@ -71,7 +71,10 @@ export const execute = async (str) => {
           );
       }
 
-      const dataStr = JSON.stringify(filtered, null, 2);
+      await dbOps.cleanupOrphanProjects();
+      const projects = await dbOps.getAllProjects();
+      const exportData = { tasks: filtered, projects };
+      const dataStr = JSON.stringify(exportData, null, 2);
       const blob = new Blob([dataStr], { type: "application/json" });
       const filename =
         args.length > 0
@@ -732,6 +735,7 @@ export const execute = async (str) => {
         `<div style="color:var(--base1)">Tasca v${version}<br>PWA task manager inspired by Taskwarrior.<br>Ruben Berenguel, 2025 with the help of Claude and Gemini.</div>`,
       );
     } else if (["projects", "proj"].includes(cmd)) {
+      await dbOps.cleanupOrphanProjects();
       const all = await dbOps.getAll();
       const projectsMeta = await dbOps.getAllProjects();
 
@@ -745,8 +749,6 @@ export const execute = async (str) => {
             taskCounts[t.project] = (taskCounts[t.project] || 0) + 1;
           }
         });
-
-      projectsMeta.forEach((p) => projectSet.add(p.name));
 
       renderProjectsTable(Array.from(projectSet), projectsMeta, taskCounts);
     } else if (cmd === "link") {
@@ -790,19 +792,30 @@ export const execute = async (str) => {
           }
         }
         let imported = 0;
+        let importedProjects = 0;
         const file = await handle.getFile();
         const text = await file.text();
         if (text.trim()) {
           const data = JSON.parse(text);
-          for (const t of data) {
+          // Handle both old format (array) and new format (object with tasks/projects)
+          const tasks = Array.isArray(data) ? data : (data.tasks || []);
+          const projects = Array.isArray(data) ? [] : (data.projects || []);
+          for (const t of tasks) {
             if (t.uuid) {
               await dbOps.update(t);
               imported++;
             }
           }
+          for (const p of projects) {
+            if (p.name) {
+              await dbOps.updateProject(p);
+              importedProjects++;
+            }
+          }
         }
+        const projMsg = importedProjects ? ` and ${importedProjects} projects` : "";
         print(
-          `<span class="msg-success">Loaded ${imported} tasks from ${handle.name}.</span>`,
+          `<span class="msg-success">Loaded ${imported} tasks${projMsg} from ${handle.name}.</span>`,
         );
         if (imported > 0) {
           const all = await dbOps.getAll();
@@ -828,9 +841,12 @@ export const execute = async (str) => {
             );
           }
         }
+        await dbOps.cleanupOrphanProjects();
         const all = await dbOps.getAll();
+        const projects = await dbOps.getAllProjects();
+        const saveData = { tasks: all, projects };
         const writable = await handle.createWritable();
-        await writable.write(JSON.stringify(all, null, 2));
+        await writable.write(JSON.stringify(saveData, null, 2));
         await writable.close();
         print(
           `<span class="msg-success">Saved ${all.length} tasks to ${handle.name}.</span>`,

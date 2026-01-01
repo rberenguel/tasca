@@ -15,10 +15,16 @@ export const C = {
 
 export const calculateUrgency = (t, allTasks, projectsMeta = []) => {
   if (t.wait && t.wait > Date.now()) return -10.0;
-  // Someday tag - very low urgency (excluded from next)
+
+  // Priority contribution (used for sorting within low-urgency categories)
+  const priorityContrib = (t.priority != null && typeof t.priority === "number")
+    ? t.priority * C.priorityScale
+    : 0;
+
+  // Someday tag - very low urgency (excluded from next), but priority still affects sort
   if (t.tags && t.tags.some((tag) => tag.toLowerCase() === "someday"))
-    return C.someday;
-  // Reference project - very low urgency (excluded from next)
+    return (C.someday + priorityContrib).toFixed(1);
+  // Reference project - very low urgency (excluded from next), but priority still affects sort
   if (t.project && projectsMeta.length > 0) {
     const projMeta = projectsMeta.find((p) => p.name === t.project);
     if (
@@ -26,7 +32,7 @@ export const calculateUrgency = (t, allTasks, projectsMeta = []) => {
         ["reference", "ref"].includes(tag.toLowerCase()),
       )
     )
-      return C.reference;
+      return (C.reference + priorityContrib).toFixed(1);
   }
   let u = 0.0;
   if (t.tags && t.tags.includes("next")) u += C.next;

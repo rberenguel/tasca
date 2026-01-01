@@ -95,6 +95,24 @@ export const dbOps = {
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
     }),
+  deleteProject: (name) =>
+    new Promise((resolve, reject) => {
+      const tx = db.transaction(PROJ_STORE_NAME, "readwrite");
+      const store = tx.objectStore(PROJ_STORE_NAME);
+      const req = store.delete(name);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    }),
+  cleanupOrphanProjects: async () => {
+    const tasks = await dbOps.getAll();
+    const projects = await dbOps.getAllProjects();
+    const usedProjects = new Set(tasks.filter(t => t.project).map(t => t.project));
+    for (const p of projects) {
+      if (!usedProjects.has(p.name)) {
+        await dbOps.deleteProject(p.name);
+      }
+    }
+  },
   // Settings Operations
   getSetting: (key) =>
     new Promise((resolve, reject) => {

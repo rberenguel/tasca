@@ -14,8 +14,13 @@ initDB().then(async () => {
     reader.onload = async (ev) => {
       try {
         const data = JSON.parse(ev.target.result);
-        for (const t of data) if (t.uuid) await dbOps.update(t);
-        print(`<span class="msg-success">Imported tasks.</span>`);
+        // Handle both old format (array) and new format (object with tasks/projects)
+        const tasks = Array.isArray(data) ? data : (data.tasks || []);
+        const projects = Array.isArray(data) ? [] : (data.projects || []);
+        for (const t of tasks) if (t.uuid) await dbOps.update(t);
+        for (const p of projects) if (p.name) await dbOps.updateProject(p);
+        const projMsg = projects.length ? ` and ${projects.length} projects` : "";
+        print(`<span class="msg-success">Imported ${tasks.length} tasks${projMsg}.</span>`);
         runList(lastFilterArgs);
       } catch (err) {
         print(`<span class="msg-error">Error: ${err.message}</span>`);
