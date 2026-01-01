@@ -127,45 +127,42 @@ export const setupInput = (execute) => {
   // Touch gestures for history navigation on mobile
   const inputLine = document.querySelector(".input-line");
   let touchStartY = null;
-  inputLine.addEventListener(
-    "touchstart",
-    (e) => {
-      touchStartY = e.touches[0].clientY;
-    },
-    { passive: true },
-  );
-  inputLine.addEventListener(
-    "touchend",
-    (e) => {
-      if (touchStartY === null) return;
-      const touchEndY = e.changedTouches[0].clientY;
-      const diff = touchStartY - touchEndY;
-      touchStartY = null;
-      if (Math.abs(diff) < 30) return;
-      if (diff > 0) {
-        // Swipe up - previous command
-        if (historyState.cmdHistory.length === 0) return;
-        if (historyState.historyIndex === -1) {
-          historyState.historyTemp = input.value;
-          historyState.historyIndex = historyState.cmdHistory.length - 1;
-        } else if (historyState.historyIndex > 0) {
-          historyState.historyIndex--;
-        }
-        input.value = historyState.cmdHistory[historyState.historyIndex];
-        ghost.innerHTML = "";
-      } else {
-        // Swipe down - next command
-        if (historyState.historyIndex === -1) return;
-        if (historyState.historyIndex < historyState.cmdHistory.length - 1) {
-          historyState.historyIndex++;
-          input.value = historyState.cmdHistory[historyState.historyIndex];
-        } else {
-          historyState.historyIndex = -1;
-          input.value = historyState.historyTemp;
-        }
-        ghost.innerHTML = "";
+  inputLine.addEventListener("touchstart", (e) => {
+    touchStartY = e.touches[0].clientY;
+  });
+  inputLine.addEventListener("touchmove", (e) => {
+    if (touchStartY !== null) {
+      e.preventDefault();
+    }
+  }, { passive: false });
+  inputLine.addEventListener("touchend", (e) => {
+    if (touchStartY === null) return;
+    const touchEndY = e.changedTouches[0].clientY;
+    const diff = touchStartY - touchEndY;
+    touchStartY = null;
+    if (Math.abs(diff) < 30) return;
+    if (diff > 0) {
+      // Swipe up - previous command
+      if (historyState.cmdHistory.length === 0) return;
+      if (historyState.historyIndex === -1) {
+        historyState.historyTemp = input.value;
+        historyState.historyIndex = historyState.cmdHistory.length - 1;
+      } else if (historyState.historyIndex > 0) {
+        historyState.historyIndex--;
       }
-    },
-    { passive: true },
-  );
+      input.value = historyState.cmdHistory[historyState.historyIndex];
+      ghost.innerHTML = "";
+    } else {
+      // Swipe down - next command
+      if (historyState.historyIndex === -1) return;
+      if (historyState.historyIndex < historyState.cmdHistory.length - 1) {
+        historyState.historyIndex++;
+        input.value = historyState.cmdHistory[historyState.historyIndex];
+      } else {
+        historyState.historyIndex = -1;
+        input.value = historyState.historyTemp;
+      }
+      ghost.innerHTML = "";
+    }
+  });
 };
