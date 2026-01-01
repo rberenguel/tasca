@@ -1,4 +1,4 @@
-const CACHE_NAME = "tasca-cache-v0.0.33";
+const CACHE_NAME = "tasca-cache-v0.1.0";
 const CACHE_FILES = [
   "./index.html",
   "./src/css/style.css",
