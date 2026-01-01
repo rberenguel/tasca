@@ -5,6 +5,52 @@ import { setupInput } from "./input.js";
 import { execute } from "./commands.js";
 import { runList } from "./list.js";
 
+const emptyDbExamples = [
+  "add Buy Milk p:home !errand",
+  "add Conquer the galaxy p:world-domination pri:50",
+  "add Feed the cat p:home icon:cat",
+  "add Learn Klingon p:self-improvement !someday",
+];
+
+const examples = [
+  "list p:work",
+  "list !overdue",
+  "list sort:alpha",
+  "ctx p:home",
+  "1 mod pri:50",
+  "1 mod icon:star",
+  "add Defeat nemesis p:world-domination pri:99",
+  "add Calibrate the flux capacitor p:lab due:tomorrow",
+  "add Tea, Earl Grey, hot p:replicator icon:coffee",
+  "add Find the droids p:tatooine !urgent",
+  "add Update Captain's log p:enterprise recur:1d",
+  "add Towel p:travel pri:42 !no-panic",
+  "add Avoid red shirts p:starfleet !survival",
+  "add Plan heist p:schemes icon:lock wait:1w",
+  "list !ref sort:pri",
+  "add Organize sock drawer p:home pri:-10",
+  "add Build death ray p:lab !someday icon:flash",
+  "cal p:work",
+  "projects",
+  "chain 1",
+];
+
+let placeholderInterval = null;
+
+const setupPlaceholderRotation = (isEmpty) => {
+  const input = document.getElementById("cmd-input");
+  const list = isEmpty ? emptyDbExamples : examples;
+  let index = Math.floor(Math.random() * list.length);
+
+  input.placeholder = list[index];
+
+  if (placeholderInterval) clearInterval(placeholderInterval);
+  placeholderInterval = setInterval(() => {
+    index = (index + 1) % list.length;
+    input.placeholder = list[index];
+  }, 10000);
+};
+
 initDB().then(async () => {
   // Import file picker handler
   document.getElementById("import-picker").addEventListener("change", (e) => {
@@ -51,6 +97,8 @@ initDB().then(async () => {
   try {
     const tasks = await dbOps.getAll();
     updateCache(tasks);
+    const pendingTasks = tasks.filter(t => t.status === "pending");
+    setupPlaceholderRotation(pendingTasks.length === 0);
     execute("next");
   } catch (e) {}
 });
