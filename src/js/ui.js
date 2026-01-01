@@ -18,7 +18,7 @@ export const print = (html, append = true) => {
   div.style.marginBottom = "8px";
   div.innerHTML = html;
   term.appendChild(div);
-  term.scrollTop = term.scrollHeight;
+  term.scrollTop = append ? term.scrollHeight : 0;
 };
 
 export const formatProject = (proj) => {
