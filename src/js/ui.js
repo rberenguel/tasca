@@ -157,9 +157,10 @@ export const renderTable = (tasks, allTasks, displayMapRef, projects = []) => {
       metaHtml += ` <span style="color:var(--green)">done:${dateStr} ${timeStr}</span>`;
     }
 
+    const taskIcon = t.icon ? `<i class="${t.icon}" style="margin-right:5px"></i>` : "";
     html += `<tr>
             <td class="row-id">${index + 1}</td>
-            <td class="row-desc">${desc}${metaHtml}${tagsHtml}</td>
+            <td class="row-desc">${taskIcon}${desc}${metaHtml}${tagsHtml}</td>
             <td class="row-urgency">${t.urgency}</td>
         </tr>`;
   });

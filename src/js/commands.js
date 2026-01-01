@@ -148,7 +148,8 @@ export const execute = async (str) => {
         wait = null,
         sched = null,
         recur = null,
-        url = null;
+        url = null,
+        icon = null;
       for (let token of args) {
         if (
           token.startsWith("pro:") ||
@@ -174,6 +175,11 @@ export const execute = async (str) => {
           sched = parseDate(token.split(":")[1]);
         else if (token.startsWith("recur:")) recur = token.split(":")[1];
         else if (token.startsWith("url:")) url = token.substring(4);
+        else if (token.startsWith("icon:")) {
+          let val = token.split(":")[1];
+          if (val && !val.startsWith("iconoir-")) val = "iconoir-" + val;
+          icon = val || null;
+        }
         else if (token.startsWith("!")) tags.push(token.substring(1));
         else desc.push(token);
       }
@@ -197,6 +203,7 @@ export const execute = async (str) => {
         sched,
         recur,
         url,
+        icon,
         annotations: [],
         status: "pending",
         entry: Date.now(),
@@ -430,6 +437,8 @@ export const execute = async (str) => {
       }
       if (t.url)
         html += `<div><b>URL:</b> <a href="${t.url}" target="_blank" rel="noopener" class="task-link">${t.url}</a></div>`;
+      if (t.icon)
+        html += `<div><b>Icon:</b> <i class="${t.icon}"></i> ${t.icon}</div>`;
       if (t.due) html += `<div><b>Due:</b> ${formatDate(t.due)}</div>`;
       if (t.wait) html += `<div><b>Wait:</b> ${formatDate(t.wait)}</div>`;
       if (t.sched)
@@ -530,6 +539,10 @@ export const execute = async (str) => {
         else if (token.startsWith("url:")) {
           const val = token.substring(4);
           task.url = val || null;
+        } else if (token.startsWith("icon:")) {
+          let val = token.split(":")[1];
+          if (val && !val.startsWith("iconoir-")) val = "iconoir-" + val;
+          task.icon = val || null;
         } else if (token.startsWith("!")) {
           const tag = token.substring(1);
           if (!task.tags) task.tags = [];
