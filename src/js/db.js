@@ -106,7 +106,9 @@ export const dbOps = {
   cleanupOrphanProjects: async () => {
     const tasks = await dbOps.getAll();
     const projects = await dbOps.getAllProjects();
-    const usedProjects = new Set(tasks.filter(t => t.project).map(t => t.project));
+    const usedProjects = new Set(
+      tasks.filter((t) => t.project).map((t) => t.project),
+    );
     for (const p of projects) {
       if (!usedProjects.has(p.name)) {
         await dbOps.deleteProject(p.name);

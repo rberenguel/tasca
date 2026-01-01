@@ -61,12 +61,16 @@ initDB().then(async () => {
       try {
         const data = JSON.parse(ev.target.result);
         // Handle both old format (array) and new format (object with tasks/projects)
-        const tasks = Array.isArray(data) ? data : (data.tasks || []);
-        const projects = Array.isArray(data) ? [] : (data.projects || []);
+        const tasks = Array.isArray(data) ? data : data.tasks || [];
+        const projects = Array.isArray(data) ? [] : data.projects || [];
         for (const t of tasks) if (t.uuid) await dbOps.update(t);
         for (const p of projects) if (p.name) await dbOps.updateProject(p);
-        const projMsg = projects.length ? ` and ${projects.length} projects` : "";
-        print(`<span class="msg-success">Imported ${tasks.length} tasks${projMsg}.</span>`);
+        const projMsg = projects.length
+          ? ` and ${projects.length} projects`
+          : "";
+        print(
+          `<span class="msg-success">Imported ${tasks.length} tasks${projMsg}.</span>`,
+        );
         runList(lastFilterArgs);
       } catch (err) {
         print(`<span class="msg-error">Error: ${err.message}</span>`);
@@ -97,7 +101,7 @@ initDB().then(async () => {
   try {
     const tasks = await dbOps.getAll();
     updateCache(tasks);
-    const pendingTasks = tasks.filter(t => t.status === "pending");
+    const pendingTasks = tasks.filter((t) => t.status === "pending");
     setupPlaceholderRotation(pendingTasks.length === 0);
     execute("next");
   } catch (e) {}

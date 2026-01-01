@@ -19,7 +19,8 @@ import { setContext, getInheritedAttributes } from "./context.js";
 // Merge tokens like "pro:" + "value" into "pro:value"
 const normalizeArgs = (parts) => {
   const result = [];
-  const colonPrefixes = /^(p|pro|proj|project|pri|priority|due|wait|sched|scheduled|recur|url|icon|dep|sort|lim|l|end):$/i;
+  const colonPrefixes =
+    /^(p|pro|proj|project|pri|priority|due|wait|sched|scheduled|recur|url|icon|dep|sort|lim|l|end):$/i;
   for (let i = 0; i < parts.length; i++) {
     if (colonPrefixes.test(parts[i]) && i + 1 < parts.length) {
       result.push(parts[i] + parts[i + 1]);
@@ -154,7 +155,9 @@ export const execute = async (str) => {
       await dbOps.purgeAll();
       updateCache([]);
       document.getElementById("terminal-output").innerHTML = "";
-      print('<span class="msg-success">Database purged. Reload to start fresh.</span>');
+      print(
+        '<span class="msg-success">Database purged. Reload to start fresh.</span>',
+      );
     } else if (["add", "a", "log"].includes(cmd)) {
       let desc = [],
         proj = "",
@@ -197,8 +200,7 @@ export const execute = async (str) => {
           let val = token.split(":")[1];
           if (val && !val.startsWith("iconoir-")) val = "iconoir-" + val;
           icon = val || null;
-        }
-        else if (token.startsWith("!")) tags.push(token.substring(1));
+        } else if (token.startsWith("!")) tags.push(token.substring(1));
         else desc.push(token);
       }
       if (desc.length === 0)
@@ -835,8 +837,8 @@ export const execute = async (str) => {
         if (text.trim()) {
           const data = JSON.parse(text);
           // Handle both old format (array) and new format (object with tasks/projects)
-          const tasks = Array.isArray(data) ? data : (data.tasks || []);
-          const projects = Array.isArray(data) ? [] : (data.projects || []);
+          const tasks = Array.isArray(data) ? data : data.tasks || [];
+          const projects = Array.isArray(data) ? [] : data.projects || [];
           for (const t of tasks) {
             if (t.uuid) {
               await dbOps.update(t);
@@ -850,7 +852,9 @@ export const execute = async (str) => {
             }
           }
         }
-        const projMsg = importedProjects ? ` and ${importedProjects} projects` : "";
+        const projMsg = importedProjects
+          ? ` and ${importedProjects} projects`
+          : "";
         print(
           `<span class="msg-success">Loaded ${imported} tasks${projMsg} from ${handle.name}.</span>`,
         );

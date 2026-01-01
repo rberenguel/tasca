@@ -141,6 +141,15 @@ td {
   vertical-align: top;
   border-bottom: 1px solid #07364240;
 }
+td:first-child {
+  border-left: 2px solid transparent;
+}
+tr.row-active td:first-child {
+  border-left-color: var(--base1);
+}
+tr.row-active .row-desc {
+  font-style: italic;
+}
 
 .row-id {
   color: var(--base01);

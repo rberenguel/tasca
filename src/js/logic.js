@@ -17,9 +17,10 @@ export const calculateUrgency = (t, allTasks, projectsMeta = []) => {
   if (t.wait && t.wait > Date.now()) return -10.0;
 
   // Priority contribution (used for sorting within low-urgency categories)
-  const priorityContrib = (t.priority != null && typeof t.priority === "number")
-    ? t.priority * C.priorityScale
-    : 0;
+  const priorityContrib =
+    t.priority != null && typeof t.priority === "number"
+      ? t.priority * C.priorityScale
+      : 0;
 
   // Someday tag - very low urgency (excluded from next), but priority still affects sort
   if (t.tags && t.tags.some((tag) => tag.toLowerCase() === "someday"))
@@ -105,9 +106,11 @@ export const hasVirtualTag = (t, tag, allTasks, projectsMeta = []) => {
   if (["REF", "REFS", "REFERENCE", "REFERENCES"].includes(tagClean)) {
     if (!t.project || projectsMeta.length === 0) return false;
     const projMeta = projectsMeta.find((p) => p.name === t.project);
-    return projMeta?.tags?.some((tag) =>
-      ["reference", "ref"].includes(tag.toLowerCase())
-    ) ?? false;
+    return (
+      projMeta?.tags?.some((tag) =>
+        ["reference", "ref"].includes(tag.toLowerCase()),
+      ) ?? false
+    );
   }
   return false;
 };

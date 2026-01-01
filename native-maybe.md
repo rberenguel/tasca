@@ -34,6 +34,7 @@ This document outlines a plan to create native Mac and iOS apps for Tasca using 
 ### Phase 1: Basic Capacitor Setup
 
 1. **Install Capacitor in the project**
+
    ```bash
    npm init -y  # if no package.json
    npm install @capacitor/core @capacitor/cli @capacitor/ios
@@ -41,6 +42,7 @@ This document outlines a plan to create native Mac and iOS apps for Tasca using 
    ```
 
 2. **Add iOS platform**
+
    ```bash
    npx cap add ios
    ```
@@ -56,10 +58,12 @@ This document outlines a plan to create native Mac and iOS apps for Tasca using 
 Create a storage abstraction layer so we can swap IndexedDB for iCloud **while keeping the web app fully functional**.
 
 **Goal:** Same codebase, different storage backends:
+
 - **Web/PWA (Android, desktop browsers, restricted systems):** IndexedDB (unchanged)
 - **Native iOS/macOS app:** iCloud Documents or CloudKit
 
 1. **Create `src/js/storage.js`** - Abstract interface
+
    ```javascript
    // Storage backend factory
    // Detects environment and returns appropriate implementation
@@ -67,42 +71,61 @@ Create a storage abstraction layer so we can swap IndexedDB for iCloud **while k
    export const createStorage = async () => {
      // Native app (Capacitor) → iCloud
      if (window.Capacitor?.isNativePlatform()) {
-       const { ICloudStorage } = await import('./storage-icloud.js');
+       const { ICloudStorage } = await import("./storage-icloud.js");
        return new ICloudStorage();
      }
      // Web/PWA → IndexedDB (existing behavior)
-     const { IndexedDBStorage } = await import('./storage-indexeddb.js');
+     const { IndexedDBStorage } = await import("./storage-indexeddb.js");
      return new IndexedDBStorage();
    };
    ```
 
 2. **Extract current IndexedDB logic to `src/js/storage-indexeddb.js`**
+
    ```javascript
    // This is essentially the current db.js, wrapped in a class
    export class IndexedDBStorage {
-     async init() { /* existing initDB */ }
-     async getAll() { /* existing dbOps.getAll */ }
-     async add(task) { /* existing dbOps.add */ }
-     async update(task) { /* existing dbOps.update */ }
-     async delete(uuid) { /* existing dbOps.delete */ }
+     async init() {
+       /* existing initDB */
+     }
+     async getAll() {
+       /* existing dbOps.getAll */
+     }
+     async add(task) {
+       /* existing dbOps.add */
+     }
+     async update(task) {
+       /* existing dbOps.update */
+     }
+     async delete(uuid) {
+       /* existing dbOps.delete */
+     }
      // ... etc
    }
    ```
 
 3. **Create `src/js/storage-icloud.js`** (native only)
+
    ```javascript
    // Calls Capacitor plugin for iCloud storage
    export class ICloudStorage {
-     async init() { /* init iCloud plugin */ }
-     async getAll() { /* load from iCloud */ }
-     async add(task) { /* save to iCloud */ }
+     async init() {
+       /* init iCloud plugin */
+     }
+     async getAll() {
+       /* load from iCloud */
+     }
+     async add(task) {
+       /* save to iCloud */
+     }
      // ... same interface as IndexedDBStorage
    }
    ```
 
 4. **Modify `db.js`** to use the abstraction
+
    ```javascript
-   import { createStorage } from './storage.js';
+   import { createStorage } from "./storage.js";
 
    let storage = null;
 
@@ -119,6 +142,7 @@ Create a storage abstraction layer so we can swap IndexedDB for iCloud **while k
    ```
 
 **Result:**
+
 - Web users see no change (IndexedDB still works)
 - Native app users get iCloud sync
 - Same UI, same commands, same experience
@@ -129,6 +153,7 @@ Create a storage abstraction layer so we can swap IndexedDB for iCloud **while k
 **Option A: Use existing plugin**
 
 There's `capacitor-icloud-documents` or similar community plugins:
+
 ```bash
 npm install capacitor-icloud-documents
 npx cap sync
@@ -139,6 +164,7 @@ npx cap sync
 This requires some Swift, but it's mostly boilerplate. AI can help generate it.
 
 Basic structure:
+
 ```
 ios/App/App/plugins/
 └── ICloudStoragePlugin/
@@ -147,6 +173,7 @@ ios/App/App/plugins/
 ```
 
 The plugin would expose methods like:
+
 - `saveData(key: string, data: string)`
 - `loadData(key: string) -> string`
 - `deleteData(key: string)`
@@ -157,6 +184,7 @@ The plugin would expose methods like:
 1. **Apple Developer Account** required ($99/year)
 
 2. **Enable iCloud capability in Xcode**
+
    - Open `ios/App/App.xcworkspace`
    - Select App target → Signing & Capabilities
    - Add "iCloud" capability
@@ -169,6 +197,7 @@ The plugin would expose methods like:
 ### Phase 5: Data Sync Strategy
 
 **Simple approach: JSON file in iCloud Documents**
+
 ```
 iCloud Drive/
 └── Tasca/
@@ -177,15 +206,18 @@ iCloud Drive/
 ```
 
 Pros:
+
 - Simple to implement
 - Human-readable backup
 - Works offline, syncs when online
 
 Cons:
+
 - Full file sync (not granular)
 - Potential conflicts if editing on multiple devices simultaneously
 
 **Conflict resolution:**
+
 - Last-write-wins (simple)
 - Or merge by UUID + modified timestamp (more robust)
 
@@ -194,6 +226,7 @@ Cons:
 Two options:
 
 1. **Mac Catalyst** (easier)
+
    - Check "Mac" in Xcode deployment targets
    - iOS app runs on Mac with minimal changes
 
@@ -205,12 +238,12 @@ Two options:
 
 ## File Changes Summary
 
-| File | Changes |
-|------|---------|
-| `db.js` | Add Capacitor detection, use plugin when native |
-| `package.json` | New file, Capacitor dependencies |
-| `capacitor.config.ts` | New file, Capacitor configuration |
-| `ios/` | New directory, Xcode project |
+| File                  | Changes                                         |
+| --------------------- | ----------------------------------------------- |
+| `db.js`               | Add Capacitor detection, use plugin when native |
+| `package.json`        | New file, Capacitor dependencies                |
+| `capacitor.config.ts` | New file, Capacitor configuration               |
+| `ios/`                | New directory, Xcode project                    |
 
 ## Alternative: Simpler iCloud Sync
 
@@ -225,15 +258,15 @@ This already mostly works with the current `link`/`save`/`load` commands!
 
 ## Development Timeline Estimate
 
-| Phase | Effort |
-|-------|--------|
-| Phase 1: Capacitor setup | 1-2 hours |
-| Phase 2: Storage abstraction | 2-4 hours |
-| Phase 3: iCloud plugin | 4-8 hours (depending on existing plugins) |
-| Phase 4: iCloud configuration | 1-2 hours |
-| Phase 5: Sync strategy | 2-4 hours |
-| Phase 6: macOS | 2-4 hours |
-| Testing & debugging | 4-8 hours |
+| Phase                         | Effort                                    |
+| ----------------------------- | ----------------------------------------- |
+| Phase 1: Capacitor setup      | 1-2 hours                                 |
+| Phase 2: Storage abstraction  | 2-4 hours                                 |
+| Phase 3: iCloud plugin        | 4-8 hours (depending on existing plugins) |
+| Phase 4: iCloud configuration | 1-2 hours                                 |
+| Phase 5: Sync strategy        | 2-4 hours                                 |
+| Phase 6: macOS                | 2-4 hours                                 |
+| Testing & debugging           | 4-8 hours                                 |
 
 **Total: 2-4 days of focused work**
 
@@ -247,14 +280,17 @@ This already mostly works with the current `link`/`save`/`load` commands!
 ## Questions to Decide
 
 1. **iCloud Documents vs CloudKit?**
+
    - Documents: Simpler, file-based, user-visible in iCloud Drive
    - CloudKit: More powerful, database-like, invisible to user
 
 2. **Conflict resolution strategy?**
+
    - Last-write-wins (simple but can lose data)
    - Merge by task UUID (more complex but safer)
 
 3. **Offline-first or sync-first?**
+
    - Offline-first: Always works, syncs in background (recommended)
    - Sync-first: Requires connectivity
 

@@ -121,6 +121,11 @@ export const runList = async (args, limit = Infinity) => {
     tasks.sort((a, b) => parseFloat(b.urgency) - parseFloat(a.urgency));
   }
 
+  // In "next" view (limit !== Infinity), hide tasks with negative urgency
+  if (limit !== Infinity) {
+    tasks = tasks.filter((t) => parseFloat(t.urgency) >= 0);
+  }
+
   if (limit !== Infinity && limit > 0) {
     tasks = tasks.slice(0, limit);
   }

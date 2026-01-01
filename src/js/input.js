@@ -130,11 +130,15 @@ export const setupInput = (execute) => {
   inputLine.addEventListener("touchstart", (e) => {
     touchStartY = e.touches[0].clientY;
   });
-  inputLine.addEventListener("touchmove", (e) => {
-    if (touchStartY !== null) {
-      e.preventDefault();
-    }
-  }, { passive: false });
+  inputLine.addEventListener(
+    "touchmove",
+    (e) => {
+      if (touchStartY !== null) {
+        e.preventDefault();
+      }
+    },
+    { passive: false },
+  );
   inputLine.addEventListener("touchend", (e) => {
     if (touchStartY === null) return;
     const touchEndY = e.changedTouches[0].clientY;
