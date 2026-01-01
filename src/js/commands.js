@@ -16,13 +16,29 @@ import {
 } from "./state.js";
 import { setContext, getInheritedAttributes } from "./context.js";
 
+// Merge tokens like "pro:" + "value" into "pro:value"
+const normalizeArgs = (parts) => {
+  const result = [];
+  const colonPrefixes = /^(p|pro|proj|project|pri|priority|due|wait|sched|scheduled|recur|url|icon|dep|sort|lim|l|end):$/i;
+  for (let i = 0; i < parts.length; i++) {
+    if (colonPrefixes.test(parts[i]) && i + 1 < parts.length) {
+      result.push(parts[i] + parts[i + 1]);
+      i++;
+    } else {
+      result.push(parts[i]);
+    }
+  }
+  return result;
+};
+
 export const execute = async (str) => {
   dbOps.check();
 
   try {
-    const parts = str.trim().split(/\s+/);
+    let parts = str.trim().split(/\s+/);
     if (!parts.length || parts[0] === "") return;
     if (parts[0] === "task") parts.shift();
+    parts = normalizeArgs(parts);
 
     let rawCmd = parts[0];
     let cmd = resolveCommand(rawCmd);
@@ -44,6 +60,7 @@ export const execute = async (str) => {
           search = [];
         for (let token of args) {
           if (
+            token.startsWith("p:") ||
             token.startsWith("pro:") ||
             token.startsWith("proj:") ||
             token.startsWith("project:")
@@ -152,6 +169,7 @@ export const execute = async (str) => {
         icon = null;
       for (let token of args) {
         if (
+          token.startsWith("p:") ||
           token.startsWith("pro:") ||
           token.startsWith("proj:") ||
           token.startsWith("project:")
@@ -524,6 +542,7 @@ export const execute = async (str) => {
           if (!isNaN(val)) task.priority = val;
           else if (token === "pri:") task.priority = null; // clear priority
         } else if (
+          token.startsWith("p:") ||
           token.startsWith("pro:") ||
           token.startsWith("proj:") ||
           token.startsWith("project:")
@@ -927,6 +946,7 @@ export const execute = async (str) => {
         search = [];
       for (let token of filterArgs) {
         if (
+          token.startsWith("p:") ||
           token.startsWith("pro:") ||
           token.startsWith("proj:") ||
           token.startsWith("project:")

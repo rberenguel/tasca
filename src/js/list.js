@@ -22,6 +22,7 @@ export const runList = async (args, limit = Infinity) => {
 
   for (let token of effectiveArgs) {
     if (
+      token.startsWith("p:") ||
       token.startsWith("pro:") ||
       token.startsWith("proj:") ||
       token.startsWith("project:")

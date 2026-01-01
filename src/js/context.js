@@ -22,6 +22,7 @@ const parseContextArgs = (args) => {
   const ctx = { raw: args.join(" "), project: null, tags: [], search: [] };
   for (const token of args) {
     if (
+      token.startsWith("p:") ||
       token.startsWith("pro:") ||
       token.startsWith("proj:") ||
       token.startsWith("project:")
