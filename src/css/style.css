@@ -120,6 +120,27 @@ input::placeholder {
   -webkit-overflow-scrolling: touch;
 }
 
+/* Custom scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--base02);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--base01);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--base00);
+}
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--base01) var(--base02);
+}
+
 .table-wrapper {
   overflow-x: auto;
   margin-bottom: 15px;

@@ -3,7 +3,7 @@ import { calculateUrgency, hasVirtualTag, matchesProject } from "./logic.js";
 import { renderTable } from "./ui.js";
 import { parseRelativeTime } from "./utils.js";
 import { displayMapRef, setLastFilterArgs, setLastLimit } from "./state.js";
-import { mergeFilters } from "./context.js";
+import { mergeFilters, hasContext } from "./context.js";
 
 export const runList = async (args, limit = Infinity) => {
   // Apply context filters
@@ -122,7 +122,8 @@ export const runList = async (args, limit = Infinity) => {
   }
 
   // In "next" view (limit !== Infinity), hide tasks with negative urgency
-  if (limit !== Infinity) {
+  // But show all tasks when a context is set
+  if (limit !== Infinity && !hasContext()) {
     tasks = tasks.filter((t) => parseFloat(t.urgency) >= 0);
   }
 
