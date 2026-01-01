@@ -875,7 +875,7 @@ export const execute = async (str) => {
       } else {
         print(`<span class="msg-info">Context cleared.</span>`);
       }
-      runList([], lastLimit);
+      execute("next");
     } else if (["calendar", "cal"].includes(cmd)) {
       const { mergeFilters } = await import("./context.js");
       const effectiveArgs = mergeFilters(args);
