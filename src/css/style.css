@@ -276,4 +276,7 @@ td {
   margin-bottom: 8px;
   border-left: 3px solid var(--cyan);
   font-size: 0.9em;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
