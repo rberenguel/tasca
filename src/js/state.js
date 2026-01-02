@@ -39,12 +39,12 @@ export const updateCache = (tasks) => {
 // Fetch available icons from CSS
 export const fetchIcons = async () => {
   try {
-    const response = await fetch("fonts/iconoir/iconoir.css");
+    const response = await fetch("fonts/phosphor/phosphor.css");
     const text = await response.text();
-    const regex = /\.iconoir-([a-zA-Z0-9-]+)::before/g;
+    const regex = /\.ph-light\.ph-([a-zA-Z0-9-]+):before/g;
     let match;
     while ((match = regex.exec(text)) !== null) {
-      knownIcons.add("iconoir-" + match[1]);
+      knownIcons.add(match[1]);
     }
   } catch (e) {
     console.error("Failed to load icons", e);

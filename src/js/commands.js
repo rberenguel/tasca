@@ -203,7 +203,7 @@ export const execute = async (str) => {
         else if (token.startsWith("url:")) url = token.substring(4);
         else if (token.startsWith("icon:")) {
           let val = token.split(":")[1];
-          if (val && !val.startsWith("iconoir-")) val = "iconoir-" + val;
+          if (val && !val.startsWith("ph-light")) val = "ph-light ph-" + val;
           icon = val || null;
         } else if (token.startsWith("!")) tags.push(token.substring(1));
         else desc.push(token);
@@ -350,7 +350,7 @@ export const execute = async (str) => {
         args.slice(1).forEach((arg) => {
           if (arg.startsWith("icon:")) {
             let val = arg.split(":")[1];
-            if (val && !val.startsWith("iconoir-")) val = "iconoir-" + val;
+            if (val && !val.startsWith("ph-light")) val = "ph-light ph-" + val;
             icon = val;
           } else if (arg.startsWith("!")) {
             tagsToToggle.push(arg.substring(1).toLowerCase());
@@ -437,7 +437,7 @@ export const execute = async (str) => {
         let html = `<div class="task-info">`;
         html += `<div style="color:var(--yellow)">Project: ${projName}</div>`;
         if (proj?.icon)
-          html += `<div><b>Icon:</b> <i class="${proj.icon}" style="margin-right:5px"></i>${proj.icon.replace("iconoir-", "")}</div>`;
+          html += `<div><b>Icon:</b> <i class="${proj.icon}" style="margin-right:5px"></i>${proj.icon.replace("ph-light ph-", "")}</div>`;
         if (proj?.tags?.length > 0)
           html += `<div><b>Tags:</b> ${proj.tags.join(" ")}</div>`;
         html += `<div><b>Pending tasks:</b> ${taskCount}</div>`;
@@ -505,7 +505,7 @@ export const execute = async (str) => {
           if (!val || val === "") {
             icon = null;
           } else {
-            if (!val.startsWith("iconoir-")) val = "iconoir-" + val;
+            if (!val.startsWith("ph-light")) val = "ph-light ph-" + val;
             icon = val;
           }
         } else if (arg.startsWith("!")) {
@@ -570,7 +570,7 @@ export const execute = async (str) => {
           task.url = val || null;
         } else if (token.startsWith("icon:")) {
           let val = token.split(":")[1];
-          if (val && !val.startsWith("iconoir-")) val = "iconoir-" + val;
+          if (val && !val.startsWith("ph-light")) val = "ph-light ph-" + val;
           task.icon = val || null;
         } else if (token.startsWith("!")) {
           const tag = token.substring(1);

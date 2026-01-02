@@ -47,15 +47,6 @@ export const setupInput = (execute) => {
             break;
           }
         }
-        if (!suggestion) {
-          const search = "iconoir-" + prefix;
-          for (let i of knownIcons) {
-            if (i.startsWith(search)) {
-              suggestion = i.substring(search.length);
-              break;
-            }
-          }
-        }
       }
     }
 

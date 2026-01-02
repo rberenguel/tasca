@@ -118,7 +118,7 @@ mod pro:Work icon:                      # clear icon
 mod pro:Books !reference                # toggle tag (hides from next)
 ```
 
-Icons use [Iconoir](https://iconoir.com/). Project tags are shown in `projects` list.
+Icons use [Phosphor](https://phosphoricons.com/). Project tags are shown in `projects` list.
 
 ### Sync Between Devices
 

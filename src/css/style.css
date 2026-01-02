@@ -12,6 +12,10 @@
   font-style: normal;
 }
 
+.ph-light {
+  filter: brightness(1.2);
+}
+
 :root {
   /* Solarized Dark Palette */
   --base03: #001015;

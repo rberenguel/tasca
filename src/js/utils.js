@@ -182,14 +182,25 @@ export const addMonths = (ts, months) => {
 
 // Parse relative time like "7d", "1w", "2m" and return timestamp for (now - duration)
 export const parseRelativeTime = (str) => {
+  // Handle "today" explicitly
+  if (str.toLowerCase() === "today") {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  }
+
   const match = str.match(/^(\d+)([dwm])$/i);
   if (!match) return null;
   const n = parseInt(match[1]);
   const unit = match[2].toLowerCase();
-  const now = Date.now();
-  if (unit === "d") return now - n * 24 * 60 * 60 * 1000;
-  if (unit === "w") return now - n * 7 * 24 * 60 * 60 * 1000;
-  if (unit === "m") return now - n * 30 * 24 * 60 * 60 * 1000; // approximate month
+
+  // Use start-of-day boundaries for cleaner semantics
+  // 0d = start of today, 1d = start of yesterday, etc.
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  if (unit === "d") return d.getTime() - n * 24 * 60 * 60 * 1000;
+  if (unit === "w") return d.getTime() - n * 7 * 24 * 60 * 60 * 1000;
+  if (unit === "m") return d.getTime() - n * 30 * 24 * 60 * 60 * 1000; // approximate month
   return null;
 };
 

@@ -112,7 +112,7 @@ export const renderTable = (tasks, allTasks, displayMapRef, projects = []) => {
     // Enrich description with project, priority etc if not simple list
     let metaHtml = "";
     if (t.url) {
-      metaHtml += ` <a href="${t.url}" target="_blank" rel="noopener" class="task-link"><i class="iconoir-link"></i></a>`;
+      metaHtml += ` <a href="${t.url}" target="_blank" rel="noopener" class="task-link"><i class="ph-light ph-link"></i></a>`;
     }
     if (t.project) metaHtml += ` ${formatProject(t.project)}`;
     if (t.priority != null) {
