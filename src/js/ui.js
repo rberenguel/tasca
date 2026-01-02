@@ -1,4 +1,5 @@
 import { getDaysRemaining } from "./logic.js";
+import { formatDateHtml } from "./utils.js";
 import { hasContext, formatContextDisplay } from "./context.js";
 
 let projectMetadata = {};
@@ -142,7 +143,7 @@ export const renderTable = (tasks, allTasks, displayMapRef, projects = []) => {
       metaHtml += ` <span class="date-pill ${cls}">(${daysCheck}d)</span>`;
     }
     if (t.wait && t.wait > Date.now()) {
-      metaHtml += ` <span class="date-pill date-wait">wait:${new Date(t.wait).toISOString().slice(0, 10).replace(/-/g, "")}</span>`;
+      metaHtml += ` <span class="date-pill date-wait">wait:${formatDateHtml(t.wait)}</span>`;
     }
     if (t.recur) {
       metaHtml += ` <span class="recur-icon">↻${t.recur}</span>`;

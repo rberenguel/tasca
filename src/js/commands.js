@@ -1,7 +1,9 @@
 import {
   generateUUID,
   parseDate,
+  parseWaitTime,
   formatDate,
+  formatDateHtml,
   calculateNextRecurrence,
 } from "./utils.js";
 import { dbOps } from "./db.js";
@@ -166,6 +168,7 @@ export const execute = async (str) => {
         depends = [],
         due = null,
         wait = null,
+        waitTime = null,
         sched = null,
         recur = null,
         url = null,
@@ -190,9 +193,11 @@ export const execute = async (str) => {
                 depends.push(displayMapRef.value[id - 1]);
             });
         else if (token.startsWith("due:")) due = parseDate(token.split(":")[1]);
-        else if (token.startsWith("wait:"))
-          wait = parseDate(token.split(":")[1]);
-        else if (token.startsWith("sched:") || token.startsWith("scheduled:"))
+        else if (token.startsWith("wait:")) {
+          const waitStr = token.split(":").slice(1).join(":");
+          wait = parseDate(waitStr);
+          waitTime = parseWaitTime(waitStr);
+        } else if (token.startsWith("sched:") || token.startsWith("scheduled:"))
           sched = parseDate(token.split(":")[1]);
         else if (token.startsWith("recur:")) recur = token.split(":")[1];
         else if (token.startsWith("url:")) url = token.substring(4);
@@ -220,6 +225,7 @@ export const execute = async (str) => {
         depends,
         due,
         wait,
+        waitTime,
         sched,
         recur,
         url,
@@ -459,8 +465,8 @@ export const execute = async (str) => {
         html += `<div><b>URL:</b> <a href="${t.url}" target="_blank" rel="noopener" class="task-link">${t.url}</a></div>`;
       if (t.icon)
         html += `<div><b>Icon:</b> <i class="${t.icon}"></i> ${t.icon}</div>`;
-      if (t.due) html += `<div><b>Due:</b> ${formatDate(t.due)}</div>`;
-      if (t.wait) html += `<div><b>Wait:</b> ${formatDate(t.wait)}</div>`;
+      if (t.due) html += `<div><b>Due:</b> ${formatDateHtml(t.due)}</div>`;
+      if (t.wait) html += `<div><b>Wait:</b> ${formatDateHtml(t.wait)}</div>`;
       if (t.sched)
         html += `<div><b>Scheduled:</b> ${formatDate(t.sched)}</div>`;
       if (t.recur) html += `<div><b>Recur:</b> ${t.recur}</div>`;
@@ -552,9 +558,11 @@ export const execute = async (str) => {
           task.project = token.split(":")[1];
         else if (token.startsWith("due:"))
           task.due = parseDate(token.split(":")[1]);
-        else if (token.startsWith("wait:"))
-          task.wait = parseDate(token.split(":")[1]);
-        else if (token.startsWith("sched:") || token.startsWith("scheduled:"))
+        else if (token.startsWith("wait:")) {
+          const waitStr = token.split(":").slice(1).join(":");
+          task.wait = parseDate(waitStr);
+          task.waitTime = parseWaitTime(waitStr);
+        } else if (token.startsWith("sched:") || token.startsWith("scheduled:"))
           task.sched = parseDate(token.split(":")[1]);
         else if (token.startsWith("recur:")) task.recur = token.split(":")[1];
         else if (token.startsWith("url:")) {
@@ -624,6 +632,7 @@ export const execute = async (str) => {
             status: "pending",
             due: recurrence.nextDue,
             wait: recurrence.nextWait || null,
+            waitTime: recurrence.waitTime || task.waitTime || null,
             sched: recurrence.nextSched || null,
             entry: Date.now(),
             annotations: [],
@@ -671,6 +680,7 @@ export const execute = async (str) => {
         status: "pending",
         due: recurrence.nextDue,
         wait: recurrence.nextWait || null,
+        waitTime: recurrence.waitTime || task.waitTime || null,
         sched: recurrence.nextSched || null,
         entry: Date.now(),
         annotations: [],

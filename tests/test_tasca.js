@@ -14,6 +14,9 @@ import {
   addMonths,
   calculateNextRecurrence,
   parseDate,
+  parseWaitTime,
+  formatDate,
+  formatDateOnly,
 } from "../src/js/utils.js";
 
 describe("Tasca Logic Tests", function () {
@@ -77,6 +80,20 @@ describe("Tasca Logic Tests", function () {
       const t = { entry: now, project: "Books", priority: 50, tags: [] };
       const u = parseFloat(calculateUrgency(t, [], projectsMeta));
       expect(u).to.be.closeTo(-94.0, 0.1);
+    });
+
+    it("should reduce urgency by 10 for routine tag", function () {
+      const t1 = { entry: now, tags: [] };
+      const t2 = { entry: now, tags: ["routine"] };
+      const u1 = parseFloat(calculateUrgency(t1, []));
+      const u2 = parseFloat(calculateUrgency(t2, []));
+      expect(u2).to.be.closeTo(u1 - 10, 0.1);
+    });
+
+    it("should stack routine with other urgency factors", function () {
+      const t = { entry: now, priority: 50, tags: ["routine"] }; // 50*0.12 - 10 = -4
+      const u = parseFloat(calculateUrgency(t, []));
+      expect(u).to.be.closeTo(-4.0, 0.1);
     });
   });
 
@@ -159,6 +176,17 @@ describe("Tasca Logic Tests", function () {
       const projectsMeta = [{ name: "Work", tags: [] }];
       const t = { entry: now, project: "Work", status: "pending", tags: [] };
       expect(hasVirtualTag(t, "+REFERENCE", [], projectsMeta)).to.be.false;
+    });
+
+    it("should identify +ROUTINE for tasks with routine tag", function () {
+      const t = { entry: now, status: "pending", tags: ["routine"] };
+      expect(hasVirtualTag(t, "+ROUTINE", [])).to.be.true;
+      expect(hasVirtualTag(t, "!routine", [])).to.be.true;
+    });
+
+    it("should NOT identify +ROUTINE for tasks without routine tag", function () {
+      const t = { entry: now, status: "pending", tags: [] };
+      expect(hasVirtualTag(t, "+ROUTINE", [])).to.be.false;
     });
   });
 
@@ -268,6 +296,119 @@ describe("Utils Tests", function () {
       const d = new Date(result);
       expect(d.getHours()).to.equal(23);
       expect(d.getMinutes()).to.equal(59);
+    });
+
+    it("should parse Nh (hours)", function () {
+      const before = Date.now();
+      const result = parseDate("3h");
+      const after = Date.now();
+      // Should be approximately 3 hours from now
+      const expected = before + 3 * 60 * 60 * 1000;
+      expect(result).to.be.at.least(expected - 1000);
+      expect(result).to.be.at.most(after + 3 * 60 * 60 * 1000);
+    });
+
+    it("should parse HH:MM time-only format", function () {
+      const result = parseDate("14:30");
+      const d = new Date(result);
+      expect(d.getHours()).to.equal(14);
+      expect(d.getMinutes()).to.equal(30);
+      expect(d.getSeconds()).to.equal(0);
+    });
+
+    it("should use tomorrow for HH:MM if time has passed", function () {
+      // Use 00:01 which has almost certainly passed
+      const result = parseDate("00:01");
+      const d = new Date(result);
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      expect(d.getDate()).to.equal(tomorrow.getDate());
+      expect(d.getHours()).to.equal(0);
+      expect(d.getMinutes()).to.equal(1);
+    });
+
+    it("should parse date@HH:MM format", function () {
+      const result = parseDate("tomorrow@09:30");
+      const d = new Date(result);
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      expect(d.getDate()).to.equal(tomorrow.getDate());
+      expect(d.getHours()).to.equal(9);
+      expect(d.getMinutes()).to.equal(30);
+    });
+
+    it("should parse YYYYMMDD@HH:MM format", function () {
+      const result = parseDate("20250615@18:00");
+      const d = new Date(result);
+      expect(d.getFullYear()).to.equal(2025);
+      expect(d.getMonth()).to.equal(5); // June
+      expect(d.getDate()).to.equal(15);
+      expect(d.getHours()).to.equal(18);
+      expect(d.getMinutes()).to.equal(0);
+    });
+
+    it("should parse relative day with time", function () {
+      const result = parseDate("3d@14:00");
+      const d = new Date(result);
+      const expected = new Date();
+      expected.setDate(expected.getDate() + 3);
+      expect(d.getDate()).to.equal(expected.getDate());
+      expect(d.getHours()).to.equal(14);
+      expect(d.getMinutes()).to.equal(0);
+    });
+  });
+
+  describe("parseWaitTime", function () {
+    it("should extract hours and minutes from HH:MM", function () {
+      const result = parseWaitTime("18:30");
+      expect(result).to.not.be.null;
+      expect(result.hours).to.equal(18);
+      expect(result.minutes).to.equal(30);
+    });
+
+    it("should handle single digit hours", function () {
+      const result = parseWaitTime("9:00");
+      expect(result).to.not.be.null;
+      expect(result.hours).to.equal(9);
+      expect(result.minutes).to.equal(0);
+    });
+
+    it("should return null for non-time patterns", function () {
+      expect(parseWaitTime("3d")).to.be.null;
+      expect(parseWaitTime("tomorrow")).to.be.null;
+      expect(parseWaitTime("20250115")).to.be.null;
+      expect(parseWaitTime("3h")).to.be.null;
+    });
+
+    it("should return null for invalid times", function () {
+      expect(parseWaitTime("25:00")).to.be.null;
+      expect(parseWaitTime("12:60")).to.be.null;
+    });
+  });
+
+  describe("formatDate", function () {
+    it("should format end-of-day as date only", function () {
+      const ts = new Date(2025, 0, 15, 23, 59, 59, 999).getTime();
+      expect(formatDate(ts)).to.equal("20250115");
+    });
+
+    it("should include time when not end-of-day", function () {
+      const ts = new Date(2025, 0, 15, 14, 30, 0).getTime();
+      expect(formatDate(ts)).to.equal("20250115@14:30");
+    });
+
+    it("should show midnight as time", function () {
+      const ts = new Date(2025, 0, 15, 0, 0, 0).getTime();
+      expect(formatDate(ts)).to.equal("20250115@00:00");
+    });
+  });
+
+  describe("formatDateOnly", function () {
+    it("should always return date only", function () {
+      const ts1 = new Date(2025, 0, 15, 23, 59, 59).getTime();
+      const ts2 = new Date(2025, 0, 15, 14, 30, 0).getTime();
+      expect(formatDateOnly(ts1)).to.equal("20250115");
+      expect(formatDateOnly(ts2)).to.equal("20250115");
     });
   });
 
@@ -472,6 +613,44 @@ describe("Recurrence Tests", function () {
       };
       const result = calculateNextRecurrence(task);
       expect(result.nextWait).to.be.undefined;
+    });
+
+    it("should preserve waitTime for time-only waits", function () {
+      // Task due Jan 20, waitTime 18:00 (time-only)
+      const task = {
+        due: new Date(2025, 0, 20, 23, 59, 59).getTime(),
+        wait: new Date(2025, 0, 20, 18, 0, 0).getTime(),
+        waitTime: { hours: 18, minutes: 0 },
+        recur: "daily",
+      };
+      const result = calculateNextRecurrence(task);
+      expect(result).to.not.be.null;
+      expect(result.nextWait).to.not.be.undefined;
+      expect(result.waitTime).to.deep.equal({ hours: 18, minutes: 0 });
+
+      // Next due is Jan 21, wait should be Jan 21 at 18:00
+      const nextWait = new Date(result.nextWait);
+      expect(nextWait.getDate()).to.equal(21);
+      expect(nextWait.getHours()).to.equal(18);
+      expect(nextWait.getMinutes()).to.equal(0);
+    });
+
+    it("should use waitTime over offset when both present", function () {
+      // waitTime should take precedence
+      const task = {
+        due: new Date(2025, 0, 20, 23, 59, 59).getTime(),
+        wait: new Date(2025, 0, 19, 14, 30, 0).getTime(), // day before at 14:30
+        waitTime: { hours: 14, minutes: 30 },
+        recur: "weekly",
+      };
+      const result = calculateNextRecurrence(task);
+      expect(result).to.not.be.null;
+
+      // Next due is Jan 27, wait should be Jan 27 at 14:30 (not Jan 26)
+      const nextWait = new Date(result.nextWait);
+      expect(nextWait.getDate()).to.equal(27);
+      expect(nextWait.getHours()).to.equal(14);
+      expect(nextWait.getMinutes()).to.equal(30);
     });
   });
 

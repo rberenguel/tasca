@@ -1,4 +1,4 @@
-import { formatDate } from "./utils.js";
+import { formatDateOnly } from "./utils.js";
 
 export const C = {
   next: 15.0,
@@ -11,6 +11,7 @@ export const C = {
   project: 1.0,
   someday: -100.0,
   reference: -100.0,
+  routine: -10.0,
 };
 
 export const calculateUrgency = (t, allTasks, projectsMeta = []) => {
@@ -63,6 +64,11 @@ export const calculateUrgency = (t, allTasks, projectsMeta = []) => {
     )
       u += C.blocked;
   }
+
+  // Routine tag reduces urgency but doesn't hide from next
+  if (t.tags && t.tags.some((tag) => tag.toLowerCase() === "routine"))
+    u += C.routine;
+
   return u.toFixed(1);
 };
 
@@ -83,7 +89,7 @@ export const hasVirtualTag = (t, tag, allTasks, projectsMeta = []) => {
   if (tagClean === "OVERDUE")
     return t.due && t.due < now && t.status === "pending";
   if (tagClean === "TODAY")
-    return t.due && formatDate(t.due) === formatDate(now);
+    return t.due && formatDateOnly(t.due) === formatDateOnly(now);
   if (tagClean === "WAITING")
     return t.wait && t.wait > now && t.status === "pending";
   if (tagClean === "SCHEDULED")
@@ -103,6 +109,8 @@ export const hasVirtualTag = (t, tag, allTasks, projectsMeta = []) => {
     return !!t.recur && t.status === "pending";
   if (tagClean === "SOMEDAY")
     return t.tags?.some((tag) => tag.toLowerCase() === "someday");
+  if (tagClean === "ROUTINE")
+    return t.tags?.some((tag) => tag.toLowerCase() === "routine");
   if (["REF", "REFS", "REFERENCE", "REFERENCES"].includes(tagClean)) {
     if (!t.project || projectsMeta.length === 0) return false;
     const projMeta = projectsMeta.find((p) => p.name === t.project);
