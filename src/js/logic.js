@@ -184,6 +184,8 @@ export const VALID_COMMANDS = [
   "calendar",
   "cal",
   "skip",
+  "report",
+  "rep",
 ];
 
 export const resolveCommand = (str) => {

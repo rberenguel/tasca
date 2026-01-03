@@ -8,6 +8,8 @@ import {
   matchesProject,
   getDaysRemaining,
   expandVirtualTagShorthand,
+  resolveCommand,
+  VALID_COMMANDS,
 } from "../src/js/logic.js";
 import {
   generateUUID,
@@ -289,6 +291,36 @@ describe("Tasca Logic Tests", function () {
     it("should return correct days for future", function () {
       const n = Date.now();
       expect(getDaysRemaining(n + 86400000 * 5, n)).to.equal(5);
+    });
+  });
+
+  describe("Command Resolution", function () {
+    it("should include report command in VALID_COMMANDS", function () {
+      expect(VALID_COMMANDS).to.include("report");
+      expect(VALID_COMMANDS).to.include("rep");
+    });
+
+    it("should resolve unambiguous commands", function () {
+      expect(resolveCommand("report")).to.equal("report");
+      expect(resolveCommand("add")).to.equal("add");
+      expect(resolveCommand("list")).to.equal("list");
+      expect(resolveCommand("done")).to.equal("done");
+      expect(resolveCommand("calendar")).to.equal("calendar");
+      expect(resolveCommand("ski")).to.equal("skip");
+    });
+
+    it("should return null for ambiguous prefixes", function () {
+      // 'rep' matches both 'rep' and 'report'
+      expect(resolveCommand("rep")).to.be.null;
+      // 'cal' matches both 'cal' and 'calendar'
+      expect(resolveCommand("cal")).to.be.null;
+      // 'c' matches 'c', 'calendar', 'cal', 'chain', 'clear', 'context', 'ctx'
+      expect(resolveCommand("c")).to.be.null;
+    });
+
+    it("should return null for unknown commands", function () {
+      expect(resolveCommand("foobar")).to.be.null;
+      expect(resolveCommand("xyz")).to.be.null;
     });
   });
 });

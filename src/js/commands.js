@@ -5,6 +5,7 @@ import {
   formatDate,
   formatDateHtml,
   calculateNextRecurrence,
+  parseRelativeTime,
 } from "./utils.js";
 import { dbOps } from "./db.js";
 import { resolveCommand, matchesProject, hasVirtualTag, expandVirtualTagShorthand } from "./logic.js";
@@ -699,7 +700,7 @@ export const execute = async (str) => {
       const sub = args[0];
       if (!sub) {
         print(
-          `<span style="color:var(--yellow)">Commands:</span> add, list, done, skip, delete, modify, annotate, info, chain, projects, context, calendar, export, import. Type <span class="msg-hl">help [cmd]</span> for details.`,
+          `<span style="color:var(--yellow)">Commands:</span> add, list, done, skip, delete, modify, annotate, info, chain, projects, context, calendar, report, export, import. Type <span class="msg-hl">help [cmd]</span> for details.`,
         );
       } else {
         const c = resolveCommand(sub);
@@ -770,6 +771,10 @@ export const execute = async (str) => {
         else if (c === "unlink")
           print(
             `<div class="msg-help"><span class="msg-hl">unlink</span><br>Remove linked file association.</div>`,
+          );
+        else if (c === "report" || c === "rep")
+          print(
+            `<div class="msg-help"><span class="msg-hl">report</span> <span class="msg-arg">stale</span> | <span class="msg-arg">rot [N]</span> | <span class="msg-arg">done [period] [by:project|tag]</span><br><span class="msg-arg">stale</span> — projects by staleness (days since activity)<br><span class="msg-arg">rot [N]</span> — oldest N pending tasks (default 10)<br><span class="msg-arg">done [1w] [by:tag]</span> — completed tasks grouped by project or tag</div>`,
           );
         else
           print(`<span class="msg-error">No specific help for: ${sub}</span>`);
@@ -1093,6 +1098,219 @@ export const execute = async (str) => {
         }
         html += "</div>";
         print(html, true);
+      }
+    } else if (cmd === "report" || cmd === "rep") {
+      const subCmd = args[0]?.toLowerCase();
+      const subArgs = args.slice(1);
+
+      if (!subCmd || subCmd === "help") {
+        print(`<b>Report Commands:</b>
+  <span class="cmd">report stale</span> - Project staleness (days since last activity)
+  <span class="cmd">report rot [N]</span> - Oldest pending tasks (default: 10)
+  <span class="cmd">report done [period] [by:project|tag]</span> - Completed tasks grouped (default: 1w, by:project)`);
+      } else if (subCmd === "stale") {
+        const all = await dbOps.getAll();
+        const projects = await dbOps.getAllProjects();
+
+        // Get reference project names to exclude
+        const refProjects = new Set(
+          projects
+            .filter((p) =>
+              p.tags?.some((tag) =>
+                ["reference", "ref"].includes(tag.toLowerCase()),
+              ),
+            )
+            .map((p) => p.name),
+        );
+
+        // Build project activity map
+        const projectActivity = {};
+        for (const t of all) {
+          if (!t.project || refProjects.has(t.project)) continue;
+          const current = projectActivity[t.project] || { lastActivity: 0, activityType: null };
+
+          // Check entry date (task added)
+          if (t.entry && t.entry > current.lastActivity) {
+            current.lastActivity = t.entry;
+            current.activityType = "added";
+          }
+          // Check end date (task completed)
+          if (t.end && t.end > current.lastActivity) {
+            current.lastActivity = t.end;
+            current.activityType = "completed";
+          }
+          // Check start date (task started)
+          if (t.start && t.start > current.lastActivity) {
+            current.lastActivity = t.start;
+            current.activityType = "started";
+          }
+          projectActivity[t.project] = current;
+        }
+
+        // Sort by staleness (oldest first)
+        const sorted = Object.entries(projectActivity)
+          .map(([name, data]) => ({
+            name,
+            lastActivity: data.lastActivity,
+            activityType: data.activityType,
+            daysSince: Math.floor((Date.now() - data.lastActivity) / 86400000),
+          }))
+          .sort((a, b) => a.lastActivity - b.lastActivity);
+
+        if (sorted.length === 0) {
+          print('<span class="msg-warning">No projects with activity found.</span>');
+        } else {
+          let html = '<div class="table-wrapper"><table><thead><tr>';
+          html += "<th>Days</th><th>Project</th><th>Last Activity</th>";
+          html += "</tr></thead><tbody>";
+
+          for (const p of sorted) {
+            const pMeta = projects.find((pm) => pm.name === p.name);
+            const icon = pMeta?.icon
+              ? `<i class="${pMeta.icon}" style="margin-right:4px"></i>`
+              : "";
+            const dateStr = new Date(p.lastActivity).toLocaleDateString();
+            const staleClass = p.daysSince > 30 ? "style=\"color:var(--red)\"" : p.daysSince > 14 ? "style=\"color:var(--yellow)\"" : "";
+            html += `<tr>`;
+            html += `<td ${staleClass}>${p.daysSince}d</td>`;
+            html += `<td>${icon}${p.name}</td>`;
+            html += `<td>${p.activityType} ${dateStr}</td>`;
+            html += `</tr>`;
+          }
+          html += "</tbody></table></div>";
+          print(html, false);
+        }
+      } else if (subCmd === "rot") {
+        const limit = parseInt(subArgs[0]) || 10;
+        const all = await dbOps.getAll();
+        const projects = await dbOps.getAllProjects();
+
+        // Get pending tasks sorted by age (oldest first)
+        const pending = all
+          .filter((t) => t.status === "pending")
+          .map((t) => ({
+            ...t,
+            ageDays: Math.floor((Date.now() - t.entry) / 86400000),
+          }))
+          .sort((a, b) => a.entry - b.entry)
+          .slice(0, limit);
+
+        if (pending.length === 0) {
+          print('<span class="msg-success">No pending tasks!</span>');
+        } else {
+          // Age distribution
+          const dist = { week: 0, month: 0, quarter: 0, older: 0 };
+          for (const t of all.filter((t) => t.status === "pending")) {
+            const age = Math.floor((Date.now() - t.entry) / 86400000);
+            if (age < 7) dist.week++;
+            else if (age < 30) dist.month++;
+            else if (age < 90) dist.quarter++;
+            else dist.older++;
+          }
+          let html = `<div style="margin-bottom:8px;color:var(--base01)">Age: <span style="color:var(--green)">&lt;1w:${dist.week}</span> | <span style="color:var(--cyan)">1-4w:${dist.month}</span> | <span style="color:var(--yellow)">1-3m:${dist.quarter}</span> | <span style="color:var(--red)">3m+:${dist.older}</span></div>`;
+
+          html += '<div class="table-wrapper"><table><thead><tr>';
+          html += "<th>Age</th><th>Task</th><th>Project</th>";
+          html += "</tr></thead><tbody>";
+
+          for (const t of pending) {
+            const pMeta = projects.find((p) => p.name === t.project);
+            const icon = pMeta?.icon
+              ? `<i class="${pMeta.icon}" style="margin-right:4px"></i>`
+              : "";
+            const proj = t.project ? `${icon}${t.project}` : "-";
+            const ageClass = t.ageDays > 90 ? "style=\"color:var(--red)\"" : t.ageDays > 30 ? "style=\"color:var(--yellow)\"" : "";
+            html += `<tr>`;
+            html += `<td ${ageClass}>${t.ageDays}d</td>`;
+            html += `<td>${t.description}</td>`;
+            html += `<td>${proj}</td>`;
+            html += `</tr>`;
+          }
+          html += "</tbody></table></div>";
+          print(html, false);
+        }
+      } else if (subCmd === "done") {
+        // Parse options: period (1w, 2w, etc.) and grouping (by:tag or by:project)
+        let periodArg = "1w";
+        let groupBy = "project";
+        for (const arg of subArgs) {
+          if (arg.startsWith("by:")) {
+            groupBy = arg.split(":")[1].toLowerCase();
+          } else {
+            periodArg = arg;
+          }
+        }
+
+        const periodMs = parseRelativeTime(periodArg);
+        const cutoff = periodMs || Date.now() - 7 * 86400000;
+
+        const all = await dbOps.getAll();
+        const projects = await dbOps.getAllProjects();
+
+        // Get completed tasks in period
+        const completed = all
+          .filter((t) => t.status === "completed" && t.end && t.end >= cutoff)
+          .sort((a, b) => b.end - a.end);
+
+        if (completed.length === 0) {
+          print(`<span class="msg-warning">No tasks completed in the last ${periodArg}.</span>`);
+        } else if (groupBy === "tag") {
+          // Group by tag (tasks with multiple tags appear in each)
+          const byTag = {};
+          for (const t of completed) {
+            const tags = t.tags?.length > 0 ? t.tags : ["(no tag)"];
+            for (const tag of tags) {
+              if (!byTag[tag]) byTag[tag] = [];
+              byTag[tag].push(t);
+            }
+          }
+
+          // Sort tags by task count descending
+          const sortedTags = Object.entries(byTag)
+            .sort((a, b) => b[1].length - a[1].length);
+
+          let html = `<div style="margin-bottom:8px;color:var(--base01)">Completed in last ${periodArg}: <span style="color:var(--green)">${completed.length} tasks</span> across <span style="color:var(--cyan)">${sortedTags.length} tags</span></div>`;
+
+          for (const [tagName, tasks] of sortedTags) {
+            html += `<div style="color:var(--magenta); margin-top:8px; border-bottom:1px solid var(--base01)">!${tagName} (${tasks.length})</div>`;
+
+            for (const t of tasks) {
+              const dateStr = new Date(t.end).toLocaleDateString();
+              html += `<div style="margin-left:12px"><span style="color:var(--green)">✓</span> ${t.description} <span style="color:var(--base01)">${dateStr}</span></div>`;
+            }
+          }
+          print(html, false);
+        } else {
+          // Group by project (default)
+          const byProject = {};
+          for (const t of completed) {
+            const proj = t.project || "(no project)";
+            if (!byProject[proj]) byProject[proj] = [];
+            byProject[proj].push(t);
+          }
+
+          // Sort projects by task count descending
+          const sortedProjects = Object.entries(byProject)
+            .sort((a, b) => b[1].length - a[1].length);
+
+          let html = `<div style="margin-bottom:8px;color:var(--base01)">Completed in last ${periodArg}: <span style="color:var(--green)">${completed.length} tasks</span> across <span style="color:var(--cyan)">${sortedProjects.length} projects</span></div>`;
+
+          for (const [projName, tasks] of sortedProjects) {
+            const pMeta = projects.find((p) => p.name === projName);
+            const icon = pMeta?.icon
+              ? `<i class="${pMeta.icon}" style="margin-right:4px"></i>`
+              : "";
+            html += `<div style="color:var(--yellow); margin-top:8px; border-bottom:1px solid var(--base01)">${icon}${projName} (${tasks.length})</div>`;
+
+            for (const t of tasks) {
+              const dateStr = new Date(t.end).toLocaleDateString();
+              html += `<div style="margin-left:12px"><span style="color:var(--green)">✓</span> ${t.description} <span style="color:var(--base01)">${dateStr}</span></div>`;
+            }
+          }
+          print(html, false);
+        }
+      } else {
+        print(`<span class="msg-error">Unknown report: ${subCmd}. Try: stale, rot, done</span>`);
       }
     } else print(`<span class="msg-error">Unknown: ${cmd}</span>`);
   } catch (err) {

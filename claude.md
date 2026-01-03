@@ -41,6 +41,17 @@ Task commands: `add`, `delete`, `done`, `start`, `stop`, `modify`, `annotate`, `
 Views: `list`, `next`, `calendar/cal`, `projects`, `chain`
 Data: `export/exp`, `import/imp`, `link`, `load`, `save`, `unlink`
 Context: `context/ctx/c` (GTD persistent filters)
+Reports: `report/rep` with subcommands (for GTD weekly reviews)
+
+## Report Command
+
+`report` (or `rep`) provides GTD weekly review reports:
+
+- **`report stale`** - Projects sorted by staleness (days since last activity: task added, completed, or started). Reference projects excluded. Color-coded: >30d red, >14d yellow.
+
+- **`report rot [N]`** - Top N oldest pending tasks (default 10). Shows age distribution summary. Color-coded: >90d red, >30d yellow.
+
+- **`report done [period] [by:project|tag]`** - Completed tasks grouped by project (default) or tag. Period default `1w`. Tasks with multiple tags appear in each group when using `by:tag`.
 
 ## Task Options
 

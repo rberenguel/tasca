@@ -25,6 +25,7 @@ Tasca runs entirely in the browser using IndexedDB for storage. No server requir
 | `projects`                        | List all projects                        |
 | `context` / `ctx` / `c [filters]` | Set/clear persistent context             |
 | `calendar` / `cal [filters]`      | Agenda view of dated tasks               |
+| `report` / `rep <subcommand>`     | GTD weekly review reports                |
 | `export` / `exp [filters]`        | Export tasks as JSON                     |
 | `import` / `imp`                  | Import tasks from JSON                   |
 | `link`                            | Link a sync file (desktop)               |
@@ -96,6 +97,28 @@ cal !done               # show completed by end date
 ```
 
 Shows `[due]`, `[sched]`, `[wait]` labels grouped by date. Includes overdue from past 7 days.
+
+### Reports (GTD Weekly Review)
+
+Reports help with GTD weekly reviews:
+
+```
+report stale              # projects by staleness (oldest first)
+report rot                # top 10 oldest pending tasks
+report rot 20             # top 20 oldest pending tasks
+report done               # completed tasks in last week, by project
+report done 2w            # completed in last 2 weeks
+report done by:tag        # completed tasks grouped by tag
+report done 2w by:tag     # combine period and grouping
+```
+
+| Subcommand                  | Description                                          |
+| --------------------------- | ---------------------------------------------------- |
+| `stale`                     | Projects sorted by days since last activity          |
+| `rot [N]`                   | Oldest N pending tasks (default 10) with age summary |
+| `done [period] [by:tag]`    | Completed tasks grouped by project or tag (default 1w, by project) |
+
+Activity for staleness: task added, completed, or started. Reference projects excluded.
 
 ### Hiding Tasks from Next
 
