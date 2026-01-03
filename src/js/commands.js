@@ -7,7 +7,7 @@ import {
   calculateNextRecurrence,
 } from "./utils.js";
 import { dbOps } from "./db.js";
-import { resolveCommand, matchesProject, hasVirtualTag } from "./logic.js";
+import { resolveCommand, matchesProject, hasVirtualTag, expandVirtualTagShorthand } from "./logic.js";
 import { print, renderProjectsTable, formatProject } from "./ui.js";
 import { runList } from "./list.js";
 import {
@@ -70,8 +70,9 @@ export const execute = async (str) => {
           )
             fProj = token.split(":")[1];
           else if (token.startsWith("!")) {
-            const tag = token.substring(1).toUpperCase();
-            if (tag !== "ALL") fTags.push(token);
+            const expanded = expandVirtualTagShorthand(token);
+            const tag = expanded.substring(1).toUpperCase();
+            if (tag !== "ALL") fTags.push(expanded);
           } else search.push(token.toLowerCase());
         }
         if (fProj)
@@ -938,9 +939,10 @@ export const execute = async (str) => {
           limit = parseInt(token.split(":")[1]) || 14;
           localStorage.setItem("tasca_cal_limit", limit);
         } else {
-          filterArgs.push(token);
-          const tag = token.startsWith("!")
-            ? token.substring(1).toUpperCase()
+          const expanded = token.startsWith("!") ? expandVirtualTagShorthand(token) : token;
+          filterArgs.push(expanded);
+          const tag = expanded.startsWith("!")
+            ? expanded.substring(1).toUpperCase()
             : "";
           if (tag === "DONE" || tag === "COMPLETED") showDone = true;
         }

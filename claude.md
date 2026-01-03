@@ -79,13 +79,42 @@ Projects can have icons and tags:
 
 Run tests by opening `tests/index.html` in browser. Tests cover urgency calculation, filtering, virtual tags, date handling, and recurrence.
 
+**Important**: When adding new logic (especially in `logic.js`, `utils.js`), add corresponding tests in `tests/test_tasca.js`. Export new functions and import them in the test file.
+
+## Virtual Tags
+
+Virtual tags are computed filters (not stored on tasks). Used in `list`, `context`, `calendar`, `export`.
+
+| Tag | Shorthands | Matches |
+|-----|------------|---------|
+| `!overdue` | `!o`, `!od`, `!over` | Tasks past due date |
+| `!today` | `!t`, `!tod` | Tasks due today |
+| `!waiting` | `!w`, `!wait` | Tasks with future wait date |
+| `!scheduled` | `!s`, `!sch`, `!sched` | Tasks with future sched date |
+| `!blocked` | `!b`, `!blk`, `!block` | Tasks with pending dependencies |
+| `!done` | `!d` | Completed tasks |
+| `!active` | `!a`, `!act` | Started tasks |
+| `!recurring` | `!r`, `!rec`, `!recur` | Tasks with recurrence |
+| `!someday` | `!sd` | Tasks tagged someday |
+| `!routine` | `!rt` | Tasks tagged routine |
+| `!reference` | `!ref`, `!refs` | Tasks in reference projects |
+
+**Implementation**: Shorthands are expanded via `expandVirtualTagShorthand()` in `logic.js` at filter parse time (in `list.js`, `commands.js`). The `hasVirtualTag()` function only understands full names. This keeps shorthands for filtering only - they don't affect `add`/`modify`.
+
 ## Development Notes
 
 - No transpilation - write ES6+ that runs directly in modern browsers
 - Module imports use relative paths with `.js` extension
-- PWA version is in `manifest.json` (currently v0.0.33)
-- Cache busting: update `sw.js` cache name when deploying
 - Branch `gh-pages` is the deployed branch
+
+## Version Management
+
+**When bumping versions, update ALL THREE files:**
+1. `pwa-manifest.json` - PWA manifest
+2. `manifest.json` - Chrome extension manifest
+3. `sw.js` - Service worker cache name (`CACHE_NAME`)
+
+The app has dual manifests: `pwa-manifest.json` for PWA install, `manifest.json` for Chrome extension. The `index.html` references `pwa-manifest.json` via `<link rel="manifest">`. Chrome extensions require `manifest.json` specifically.
 
 ## Code Style
 

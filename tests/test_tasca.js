@@ -7,6 +7,7 @@ import {
   hasVirtualTag,
   matchesProject,
   getDaysRemaining,
+  expandVirtualTagShorthand,
 } from "../src/js/logic.js";
 import {
   generateUUID,
@@ -187,6 +188,85 @@ describe("Tasca Logic Tests", function () {
     it("should NOT identify +ROUTINE for tasks without routine tag", function () {
       const t = { entry: now, status: "pending", tags: [] };
       expect(hasVirtualTag(t, "+ROUTINE", [])).to.be.false;
+    });
+  });
+
+  describe("Virtual Tag Shorthands", function () {
+    it("should expand overdue shorthands", function () {
+      expect(expandVirtualTagShorthand("!o")).to.equal("!overdue");
+      expect(expandVirtualTagShorthand("!od")).to.equal("!overdue");
+      expect(expandVirtualTagShorthand("!over")).to.equal("!overdue");
+      expect(expandVirtualTagShorthand("!overdue")).to.equal("!overdue");
+    });
+
+    it("should expand today shorthands", function () {
+      expect(expandVirtualTagShorthand("!t")).to.equal("!today");
+      expect(expandVirtualTagShorthand("!tod")).to.equal("!today");
+      expect(expandVirtualTagShorthand("!today")).to.equal("!today");
+    });
+
+    it("should expand waiting shorthands", function () {
+      expect(expandVirtualTagShorthand("!w")).to.equal("!waiting");
+      expect(expandVirtualTagShorthand("!wait")).to.equal("!waiting");
+      expect(expandVirtualTagShorthand("!waiting")).to.equal("!waiting");
+    });
+
+    it("should expand scheduled shorthands", function () {
+      expect(expandVirtualTagShorthand("!s")).to.equal("!scheduled");
+      expect(expandVirtualTagShorthand("!sch")).to.equal("!scheduled");
+      expect(expandVirtualTagShorthand("!sched")).to.equal("!scheduled");
+      expect(expandVirtualTagShorthand("!scheduled")).to.equal("!scheduled");
+    });
+
+    it("should expand blocked shorthands", function () {
+      expect(expandVirtualTagShorthand("!b")).to.equal("!blocked");
+      expect(expandVirtualTagShorthand("!blk")).to.equal("!blocked");
+      expect(expandVirtualTagShorthand("!block")).to.equal("!blocked");
+      expect(expandVirtualTagShorthand("!blocked")).to.equal("!blocked");
+    });
+
+    it("should expand done shorthands", function () {
+      expect(expandVirtualTagShorthand("!d")).to.equal("!done");
+      expect(expandVirtualTagShorthand("!done")).to.equal("!done");
+    });
+
+    it("should expand active shorthands", function () {
+      expect(expandVirtualTagShorthand("!a")).to.equal("!active");
+      expect(expandVirtualTagShorthand("!act")).to.equal("!active");
+      expect(expandVirtualTagShorthand("!active")).to.equal("!active");
+    });
+
+    it("should expand recurring shorthands", function () {
+      expect(expandVirtualTagShorthand("!r")).to.equal("!recurring");
+      expect(expandVirtualTagShorthand("!rec")).to.equal("!recurring");
+      expect(expandVirtualTagShorthand("!recur")).to.equal("!recurring");
+      expect(expandVirtualTagShorthand("!recurring")).to.equal("!recurring");
+    });
+
+    it("should expand someday shorthands", function () {
+      expect(expandVirtualTagShorthand("!sd")).to.equal("!someday");
+      expect(expandVirtualTagShorthand("!someday")).to.equal("!someday");
+    });
+
+    it("should expand routine shorthands", function () {
+      expect(expandVirtualTagShorthand("!rt")).to.equal("!routine");
+      expect(expandVirtualTagShorthand("!routine")).to.equal("!routine");
+    });
+
+    it("should preserve + prefix", function () {
+      expect(expandVirtualTagShorthand("+w")).to.equal("+waiting");
+      expect(expandVirtualTagShorthand("+rt")).to.equal("+routine");
+    });
+
+    it("should not expand unknown tags", function () {
+      expect(expandVirtualTagShorthand("!errand")).to.equal("!errand");
+      expect(expandVirtualTagShorthand("!foo")).to.equal("!foo");
+    });
+
+    it("should be case insensitive for shorthands", function () {
+      expect(expandVirtualTagShorthand("!W")).to.equal("!waiting");
+      expect(expandVirtualTagShorthand("!RT")).to.equal("!routine");
+      expect(expandVirtualTagShorthand("!OD")).to.equal("!overdue");
     });
   });
 

@@ -1,5 +1,5 @@
 import { dbOps } from "./db.js";
-import { calculateUrgency, hasVirtualTag, matchesProject } from "./logic.js";
+import { calculateUrgency, hasVirtualTag, matchesProject, expandVirtualTagShorthand } from "./logic.js";
 import { renderTable } from "./ui.js";
 import { parseRelativeTime } from "./utils.js";
 import { displayMapRef, setLastFilterArgs, setLastLimit } from "./state.js";
@@ -34,11 +34,12 @@ export const runList = async (args, limit = Infinity) => {
     } else if (token.startsWith("sort:")) {
       sortFields = token.split(":")[1].split(",");
     } else if (token.startsWith("!")) {
-      const tag = token.substring(1).toUpperCase();
-      if (tag === "WAITING" || tag === "SCHEDULED" || tag === "ALL")
+      const expanded = expandVirtualTagShorthand(token);
+      const tag = expanded.substring(1).toUpperCase();
+      if (["WAITING", "SCHEDULED", "RECURRING", "ALL"].includes(tag))
         showWaiting = true;
-      if (tag === "DONE" || tag === "COMPLETED") showDone = true;
-      if (tag !== "ALL") fTags.push(token);
+      if (["DONE", "COMPLETED"].includes(tag)) showDone = true;
+      if (tag !== "ALL") fTags.push(expanded);
     } else search.push(token.toLowerCase());
   }
 

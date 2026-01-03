@@ -83,34 +83,57 @@ export const matchesProject = (taskProj, filterProj) => {
   return taskProj.startsWith(filterProj + ".");
 };
 
+const VIRTUAL_TAG_SHORTHANDS = {
+  O: "OVERDUE", OD: "OVERDUE", OVER: "OVERDUE",
+  T: "TODAY", TOD: "TODAY",
+  W: "WAITING", WAIT: "WAITING",
+  S: "SCHEDULED", SCH: "SCHEDULED", SCHED: "SCHEDULED",
+  B: "BLOCKED", BLK: "BLOCKED", BLOCK: "BLOCKED",
+  D: "DONE",
+  A: "ACTIVE", ACT: "ACTIVE",
+  R: "RECURRING", REC: "RECURRING", RECUR: "RECURRING",
+  SD: "SOMEDAY",
+  RT: "ROUTINE",
+};
+
+export const expandVirtualTagShorthand = (tag) => {
+  const clean = tag.replace(/^[!+]/, "").toUpperCase();
+  const expanded = VIRTUAL_TAG_SHORTHANDS[clean];
+  if (expanded) {
+    const prefix = tag.startsWith("!") ? "!" : tag.startsWith("+") ? "+" : "";
+    return prefix + expanded.toLowerCase();
+  }
+  return tag;
+};
+
 export const hasVirtualTag = (t, tag, allTasks, projectsMeta = []) => {
   const now = Date.now();
   const tagClean = tag.replace(/^[!+]/, "").toUpperCase();
-  if (["O", "OD", "OVER", "OVERDUE"].includes(tagClean))
+  if (tagClean === "OVERDUE")
     return t.due && t.due < now && t.status === "pending";
-  if (["T", "TOD", "TODAY"].includes(tagClean))
+  if (tagClean === "TODAY")
     return t.due && formatDateOnly(t.due) === formatDateOnly(now);
-  if (["W", "WAIT", "WAITING"].includes(tagClean))
+  if (tagClean === "WAITING")
     return t.wait && t.wait > now && t.status === "pending";
-  if (["S", "SCH", "SCHED", "SCHEDULED"].includes(tagClean))
+  if (tagClean === "SCHEDULED")
     return t.sched && t.sched > now && t.status === "pending";
-  if (["B", "BLK", "BLOCK", "BLOCKED"].includes(tagClean))
+  if (tagClean === "BLOCKED")
     return (
       t.depends?.length > 0 &&
       allTasks
         .filter((d) => t.depends.includes(d.uuid))
         .some((d) => d.status === "pending")
     );
-  if (["D", "DONE", "COMPLETED"].includes(tagClean))
+  if (tagClean === "DONE" || tagClean === "COMPLETED")
     return t.status === "completed";
-  if (["A", "ACT", "ACTIVE", "STARTED"].includes(tagClean))
+  if (tagClean === "ACTIVE" || tagClean === "STARTED")
     return t.start && t.status === "pending";
-  if (["R", "REC", "RECUR", "RECURRING"].includes(tagClean))
+  if (tagClean === "RECURRING" || tagClean === "RECUR")
     return !!t.recur && t.status === "pending";
-  if (["SD", "SOMEDAY"].includes(tagClean))
-    return t.tags?.some((tag) => tag.toLowerCase() === "someday");
-  if (["RT", "ROUTINE"].includes(tagClean))
-    return t.tags?.some((tag) => tag.toLowerCase() === "routine");
+  if (tagClean === "SOMEDAY")
+    return t.tags?.some((tg) => tg.toLowerCase() === "someday");
+  if (tagClean === "ROUTINE")
+    return t.tags?.some((tg) => tg.toLowerCase() === "routine");
   if (["REF", "REFS", "REFERENCE", "REFERENCES"].includes(tagClean)) {
     if (!t.project || projectsMeta.length === 0) return false;
     const projMeta = projectsMeta.find((p) => p.name === t.project);
