@@ -3,6 +3,7 @@
   "name": "Tasca",
   "version": "0.2.2",
   "description": "A minimal text-based task manager.",
+  "permissions": ["tabs"],
   "action": {
     "default_icon": "icon.png"
   },
@@ -15,7 +16,7 @@
   "commands": {
     "_execute_action": {
       "suggested_key": {
-        "default": "Alt+T"
+        "default": "Ctrl+T"
       },
       "description": "Open Tasca"
     }
