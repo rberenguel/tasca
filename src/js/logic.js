@@ -199,6 +199,8 @@ export const VALID_COMMANDS = [
   "rep",
   "dependencies",
   "tree",
+  "copy",
+  "cp",
 ];
 
 export const resolveCommand = (str) => {

@@ -28,6 +28,7 @@ Tasca runs entirely in the browser using IndexedDB for storage. No server requir
 | `report` / `rep <subcommand>`     | GTD weekly review reports                |
 | `export` / `exp [filters]`        | Export tasks as JSON                     |
 | `import` / `imp`                  | Import tasks from JSON                   |
+| `copy` / `cp`                     | Copy current view to clipboard           |
 | `link`                            | Link a sync file (desktop)               |
 | `load`                            | Import from linked file                  |
 | `save`                            | Export to linked file                    |

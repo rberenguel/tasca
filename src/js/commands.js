@@ -781,8 +781,45 @@ export const execute = async (str) => {
           print(
             `<div class="msg-help"><span class="msg-hl">report</span> <span class="msg-arg">stale</span> | <span class="msg-arg">rot [N]</span> | <span class="msg-arg">done [period] [by:project|tag]</span><br><span class="msg-arg">stale</span> — projects by staleness (days since activity)<br><span class="msg-arg">rot [N]</span> — oldest N pending tasks (default 10)<br><span class="msg-arg">done [1w] [by:tag]</span> — completed tasks grouped by project or tag</div>`,
           );
+        else if (c === "copy" || c === "cp")
+          print(
+            `<div class="msg-help"><span class="msg-hl">copy</span> (alias <span class="msg-hl">cp</span>)<br>Copies the currently displayed task list to clipboard (description, project, tags).</div>`,
+          );
         else
           print(`<span class="msg-error">No specific help for: ${sub}</span>`);
+      }
+    } else if (cmd === "copy" || cmd === "cp") {
+      const all = await dbOps.getAll();
+      const output = [];
+      for (const uuid of displayMapRef.value) {
+        const task = all.find((t) => t.uuid === uuid);
+        if (task) {
+          let line = task.description;
+          if (task.url) line += ` url:${task.url}`;
+          if (task.project) line += ` p:${task.project}`;
+          if (task.tags && task.tags.length > 0)
+            line += ` ${task.tags.map((t) => "!" + t).join(" ")}`;
+          if (task.priority != null) line += ` pri:${task.priority}`;
+          if (task.due) line += ` due:${formatDate(task.due)}`;
+          if (task.wait) line += ` wait:${formatDate(task.wait)}`;
+          if (task.sched) line += ` sched:${formatDate(task.sched)}`;
+          if (task.recur) line += ` recur:${task.recur}`;
+          output.push(line);
+        }
+      }
+
+      if (output.length === 0) {
+        print('<span class="msg-info">Nothing to copy.</span>');
+      } else {
+        const text = output.join("\n");
+        try {
+          await navigator.clipboard.writeText(text);
+          print(
+            `<span class="msg-success">Copied ${output.length} tasks to clipboard.</span>`,
+          );
+        } catch (err) {
+          print(`<span class="msg-error">Failed to copy: ${err.message}</span>`);
+        }
       }
     } else if (cmd === "about") {
       let version = "unknown";
