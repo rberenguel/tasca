@@ -15,6 +15,7 @@ export const setupInput = (execute) => {
       const match = resolveCommand(val);
       if (match && match !== val) suggestion = match.substring(val.length);
     } else if (
+      last.startsWith("p:") ||
       last.startsWith("pro:") ||
       last.startsWith("proj:") ||
       last.startsWith("project:")
@@ -23,7 +24,13 @@ export const setupInput = (execute) => {
       if (prefix) {
         for (let p of knownProjects) {
           if (p.startsWith(prefix) && p !== prefix) {
-            suggestion = p.substring(prefix.length);
+            const remainder = p.substring(prefix.length);
+            const nextDot = remainder.indexOf(".", 1);
+            if (nextDot !== -1) {
+              suggestion = remainder.substring(0, nextDot);
+            } else {
+              suggestion = remainder;
+            }
             break;
           }
         }
@@ -65,6 +72,7 @@ export const setupInput = (execute) => {
       if (gText) {
         input.value += gText.substring(input.value.length);
         ghost.innerHTML = "";
+        input.dispatchEvent(new Event("input"));
       }
     }
     if (e.key === "ArrowUp") {

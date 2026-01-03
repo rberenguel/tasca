@@ -67,6 +67,7 @@ export const mergeFilters = (cmdArgs) => {
     currentContext.project &&
     !cmdArgs.some(
       (a) =>
+        a.startsWith("p:") ||
         a.startsWith("pro:") ||
         a.startsWith("proj:") ||
         a.startsWith("project:"),

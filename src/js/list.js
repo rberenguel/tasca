@@ -7,7 +7,7 @@ import {
 } from "./logic.js";
 import { renderTable } from "./ui.js";
 import { parseRelativeTime } from "./utils.js";
-import { displayMapRef, setLastFilterArgs, setLastLimit } from "./state.js";
+import { displayMapRef, setLastFilterArgs, setLastLimit, updateCache } from "./state.js";
 import { mergeFilters, hasContext } from "./context.js";
 
 export const runList = async (args, limit = Infinity) => {
@@ -16,6 +16,7 @@ export const runList = async (args, limit = Infinity) => {
   setLastFilterArgs(effectiveArgs);
   setLastLimit(limit);
   const all = await dbOps.getAll();
+  updateCache(all);
   const projects = await dbOps.getAllProjects();
   let search = [],
     fProj = null,
