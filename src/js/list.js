@@ -1,5 +1,10 @@
 import { dbOps } from "./db.js";
-import { calculateUrgency, hasVirtualTag, matchesProject, expandVirtualTagShorthand } from "./logic.js";
+import {
+  calculateUrgency,
+  hasVirtualTag,
+  matchesProject,
+  expandVirtualTagShorthand,
+} from "./logic.js";
 import { renderTable } from "./ui.js";
 import { parseRelativeTime } from "./utils.js";
 import { displayMapRef, setLastFilterArgs, setLastLimit } from "./state.js";

@@ -30,7 +30,7 @@ export const formatProject = (proj) => {
   // Check exact match or parent match if we want inheritance, but let's stick to simple lookup first.
   // If strict match:
   if (projectMetadata[proj] && projectMetadata[proj].icon) {
-    iconHtml = `<i class="${projectMetadata[proj].icon}" style="margin-right:4px;"></i>`;
+    iconHtml = `<i class="${projectMetadata[proj].icon}" style="margin-right:4px; color:var(--yellow)"></i>`;
   }
   // If we wanted inheritance (e.g. Work.Project gets Work icon), we'd split and loop.
   // Let's support simple inheritance: check 'Work.Project', then 'Work'.
@@ -39,7 +39,7 @@ export const formatProject = (proj) => {
     while (parts.length > 0) {
       const p = parts.join(".");
       if (projectMetadata[p] && projectMetadata[p].icon) {
-        iconHtml = `<i class="${projectMetadata[p].icon}" style="margin-right:4px;"></i>`;
+        iconHtml = `<i class="${projectMetadata[p].icon}" style="margin-right:4px; color:var(--yellow)"></i>`;
         break;
       }
       parts.pop();

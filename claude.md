@@ -96,19 +96,19 @@ Run tests by opening `tests/index.html` in browser. Tests cover urgency calculat
 
 Virtual tags are computed filters (not stored on tasks). Used in `list`, `context`, `calendar`, `export`.
 
-| Tag | Shorthands | Matches |
-|-----|------------|---------|
-| `!overdue` | `!o`, `!od`, `!over` | Tasks past due date |
-| `!today` | `!t`, `!tod` | Tasks due today |
-| `!waiting` | `!w`, `!wait` | Tasks with future wait date |
-| `!scheduled` | `!s`, `!sch`, `!sched` | Tasks with future sched date |
-| `!blocked` | `!b`, `!blk`, `!block` | Tasks with pending dependencies |
-| `!done` | `!d` | Completed tasks |
-| `!active` | `!a`, `!act` | Started tasks |
-| `!recurring` | `!r`, `!rec`, `!recur` | Tasks with recurrence |
-| `!someday` | `!sd` | Tasks tagged someday |
-| `!routine` | `!rt` | Tasks tagged routine |
-| `!reference` | `!ref`, `!refs` | Tasks in reference projects |
+| Tag          | Shorthands             | Matches                         |
+| ------------ | ---------------------- | ------------------------------- |
+| `!overdue`   | `!o`, `!od`, `!over`   | Tasks past due date             |
+| `!today`     | `!t`, `!tod`           | Tasks due today                 |
+| `!waiting`   | `!w`, `!wait`          | Tasks with future wait date     |
+| `!scheduled` | `!s`, `!sch`, `!sched` | Tasks with future sched date    |
+| `!blocked`   | `!b`, `!blk`, `!block` | Tasks with pending dependencies |
+| `!done`      | `!d`                   | Completed tasks                 |
+| `!active`    | `!a`, `!act`           | Started tasks                   |
+| `!recurring` | `!r`, `!rec`, `!recur` | Tasks with recurrence           |
+| `!someday`   | `!sd`                  | Tasks tagged someday            |
+| `!routine`   | `!rt`                  | Tasks tagged routine            |
+| `!reference` | `!ref`, `!refs`        | Tasks in reference projects     |
 
 **Implementation**: Shorthands are expanded via `expandVirtualTagShorthand()` in `logic.js` at filter parse time (in `list.js`, `commands.js`). The `hasVirtualTag()` function only understands full names. This keeps shorthands for filtering only - they don't affect `add`/`modify`.
 
@@ -121,6 +121,7 @@ Virtual tags are computed filters (not stored on tasks). Used in `list`, `contex
 ## Version Management
 
 **When bumping versions, update ALL THREE files:**
+
 1. `pwa-manifest.json` - PWA manifest
 2. `manifest.json` - Chrome extension manifest
 3. `sw.js` - Service worker cache name (`CACHE_NAME`)

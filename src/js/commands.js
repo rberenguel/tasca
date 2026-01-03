@@ -8,7 +8,12 @@ import {
   parseRelativeTime,
 } from "./utils.js";
 import { dbOps } from "./db.js";
-import { resolveCommand, matchesProject, hasVirtualTag, expandVirtualTagShorthand } from "./logic.js";
+import {
+  resolveCommand,
+  matchesProject,
+  hasVirtualTag,
+  expandVirtualTagShorthand,
+} from "./logic.js";
 import { print, renderProjectsTable, formatProject } from "./ui.js";
 import { runList } from "./list.js";
 import {
@@ -944,7 +949,9 @@ export const execute = async (str) => {
           limit = parseInt(token.split(":")[1]) || 14;
           localStorage.setItem("tasca_cal_limit", limit);
         } else {
-          const expanded = token.startsWith("!") ? expandVirtualTagShorthand(token) : token;
+          const expanded = token.startsWith("!")
+            ? expandVirtualTagShorthand(token)
+            : token;
           filterArgs.push(expanded);
           const tag = expanded.startsWith("!")
             ? expanded.substring(1).toUpperCase()
@@ -1127,7 +1134,10 @@ export const execute = async (str) => {
         const projectActivity = {};
         for (const t of all) {
           if (!t.project || refProjects.has(t.project)) continue;
-          const current = projectActivity[t.project] || { lastActivity: 0, activityType: null };
+          const current = projectActivity[t.project] || {
+            lastActivity: 0,
+            activityType: null,
+          };
 
           // Check entry date (task added)
           if (t.entry && t.entry > current.lastActivity) {
@@ -1158,7 +1168,9 @@ export const execute = async (str) => {
           .sort((a, b) => a.lastActivity - b.lastActivity);
 
         if (sorted.length === 0) {
-          print('<span class="msg-warning">No projects with activity found.</span>');
+          print(
+            '<span class="msg-warning">No projects with activity found.</span>',
+          );
         } else {
           let html = '<div class="table-wrapper"><table><thead><tr>';
           html += "<th>Days</th><th>Project</th><th>Last Activity</th>";
@@ -1170,7 +1182,12 @@ export const execute = async (str) => {
               ? `<i class="${pMeta.icon}" style="margin-right:4px"></i>`
               : "";
             const dateStr = new Date(p.lastActivity).toLocaleDateString();
-            const staleClass = p.daysSince > 30 ? "style=\"color:var(--red)\"" : p.daysSince > 14 ? "style=\"color:var(--yellow)\"" : "";
+            const staleClass =
+              p.daysSince > 30
+                ? 'style="color:var(--red)"'
+                : p.daysSince > 14
+                  ? 'style="color:var(--yellow)"'
+                  : "";
             html += `<tr>`;
             html += `<td ${staleClass}>${p.daysSince}d</td>`;
             html += `<td>${icon}${p.name}</td>`;
@@ -1198,6 +1215,9 @@ export const execute = async (str) => {
         if (pending.length === 0) {
           print('<span class="msg-success">No pending tasks!</span>');
         } else {
+          // Update display map for task references
+          displayMapRef.value = pending.map((t) => t.uuid);
+
           // Age distribution
           const dist = { week: 0, month: 0, quarter: 0, older: 0 };
           for (const t of all.filter((t) => t.status === "pending")) {
@@ -1210,20 +1230,21 @@ export const execute = async (str) => {
           let html = `<div style="margin-bottom:8px;color:var(--base01)">Age: <span style="color:var(--green)">&lt;1w:${dist.week}</span> | <span style="color:var(--cyan)">1-4w:${dist.month}</span> | <span style="color:var(--yellow)">1-3m:${dist.quarter}</span> | <span style="color:var(--red)">3m+:${dist.older}</span></div>`;
 
           html += '<div class="table-wrapper"><table><thead><tr>';
-          html += "<th>Age</th><th>Task</th><th>Project</th>";
+          html += '<th style="width:25px">ID</th><th>Description</th>';
           html += "</tr></thead><tbody>";
 
+          let idx = 1;
           for (const t of pending) {
-            const pMeta = projects.find((p) => p.name === t.project);
-            const icon = pMeta?.icon
-              ? `<i class="${pMeta.icon}" style="margin-right:4px"></i>`
-              : "";
-            const proj = t.project ? `${icon}${t.project}` : "-";
-            const ageClass = t.ageDays > 90 ? "style=\"color:var(--red)\"" : t.ageDays > 30 ? "style=\"color:var(--yellow)\"" : "";
+            const proj = t.project ? formatProject(t.project) : "";
+            const ageColor =
+              t.ageDays > 90
+                ? "var(--red)"
+                : t.ageDays > 30
+                  ? "var(--yellow)"
+                  : "var(--cyan)";
             html += `<tr>`;
-            html += `<td ${ageClass}>${t.ageDays}d</td>`;
-            html += `<td>${t.description}</td>`;
-            html += `<td>${proj}</td>`;
+            html += `<td>${idx++}</td>`;
+            html += `<td>${t.description} ${proj} <span style="color:${ageColor}">${t.ageDays}d</span></td>`;
             html += `</tr>`;
           }
           html += "</tbody></table></div>";
@@ -1253,7 +1274,9 @@ export const execute = async (str) => {
           .sort((a, b) => b.end - a.end);
 
         if (completed.length === 0) {
-          print(`<span class="msg-warning">No tasks completed in the last ${periodArg}.</span>`);
+          print(
+            `<span class="msg-warning">No tasks completed in the last ${periodArg}.</span>`,
+          );
         } else if (groupBy === "tag") {
           // Group by tag (tasks with multiple tags appear in each)
           const byTag = {};
@@ -1266,8 +1289,9 @@ export const execute = async (str) => {
           }
 
           // Sort tags by task count descending
-          const sortedTags = Object.entries(byTag)
-            .sort((a, b) => b[1].length - a[1].length);
+          const sortedTags = Object.entries(byTag).sort(
+            (a, b) => b[1].length - a[1].length,
+          );
 
           let html = `<div style="margin-bottom:8px;color:var(--base01)">Completed in last ${periodArg}: <span style="color:var(--green)">${completed.length} tasks</span> across <span style="color:var(--cyan)">${sortedTags.length} tags</span></div>`;
 
@@ -1290,8 +1314,9 @@ export const execute = async (str) => {
           }
 
           // Sort projects by task count descending
-          const sortedProjects = Object.entries(byProject)
-            .sort((a, b) => b[1].length - a[1].length);
+          const sortedProjects = Object.entries(byProject).sort(
+            (a, b) => b[1].length - a[1].length,
+          );
 
           let html = `<div style="margin-bottom:8px;color:var(--base01)">Completed in last ${periodArg}: <span style="color:var(--green)">${completed.length} tasks</span> across <span style="color:var(--cyan)">${sortedProjects.length} projects</span></div>`;
 
@@ -1310,7 +1335,9 @@ export const execute = async (str) => {
           print(html, false);
         }
       } else {
-        print(`<span class="msg-error">Unknown report: ${subCmd}. Try: stale, rot, done</span>`);
+        print(
+          `<span class="msg-error">Unknown report: ${subCmd}. Try: stale, rot, done</span>`,
+        );
       }
     } else print(`<span class="msg-error">Unknown: ${cmd}</span>`);
   } catch (err) {

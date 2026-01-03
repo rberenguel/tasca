@@ -112,11 +112,11 @@ report done by:tag        # completed tasks grouped by tag
 report done 2w by:tag     # combine period and grouping
 ```
 
-| Subcommand                  | Description                                          |
-| --------------------------- | ---------------------------------------------------- |
-| `stale`                     | Projects sorted by days since last activity          |
-| `rot [N]`                   | Oldest N pending tasks (default 10) with age summary |
-| `done [period] [by:tag]`    | Completed tasks grouped by project or tag (default 1w, by project) |
+| Subcommand               | Description                                                        |
+| ------------------------ | ------------------------------------------------------------------ |
+| `stale`                  | Projects sorted by days since last activity                        |
+| `rot [N]`                | Oldest N pending tasks (default 10) with age summary               |
+| `done [period] [by:tag]` | Completed tasks grouped by project or tag (default 1w, by project) |
 
 Activity for staleness: task added, completed, or started. Reference projects excluded.
 
