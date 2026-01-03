@@ -201,6 +201,7 @@ export const VALID_COMMANDS = [
   "tree",
   "copy",
   "cp",
+  "paste",
 ];
 
 export const resolveCommand = (str) => {

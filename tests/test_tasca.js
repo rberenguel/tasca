@@ -105,7 +105,7 @@ describe("Tasca Logic Tests", function () {
         entry: now,
         priority: null,
       };
-      
+
       const blockedTask = {
         entry: now,
         depends: ["u1"],
@@ -116,7 +116,7 @@ describe("Tasca Logic Tests", function () {
 
       const allTasks = [depTask, blockedTask];
       const u = parseFloat(calculateUrgency(blockedTask, allTasks));
-      
+
       expect(u).to.be.lessThan(0);
     });
 
@@ -124,22 +124,22 @@ describe("Tasca Logic Tests", function () {
       const depTask = {
         uuid: "u1",
         status: "pending",
-        entry: now
+        entry: now,
       };
-      
+
       const blockedTask = {
         entry: now,
         depends: ["u1"],
         status: "pending",
         tags: [],
-        priority: 50 
+        priority: 50,
       };
 
       const allTasks = [depTask, blockedTask];
       console.log("Checking blocked task urgency logic...");
       const u = parseFloat(calculateUrgency(blockedTask, allTasks));
       console.log("Calculated urgency:", u);
-      
+
       expect(u).to.be.lessThan(0);
     });
   });

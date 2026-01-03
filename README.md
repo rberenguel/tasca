@@ -21,7 +21,7 @@ Tasca runs entirely in the browser using IndexedDB for storage. No server requir
 | `annotate <ID> <note>`            | Add note to task                         |
 | `annotate <ID> -N`                | Remove annotation by index               |
 | `info` / `i <ID>`                 | Show task details                        |
-| `chain` / `tree` / `deps` <ID>      | Show dependency tree                     |
+| `chain` / `tree` / `deps` <ID>    | Show dependency tree                     |
 | `projects`                        | List all projects                        |
 | `context` / `ctx` / `c [filters]` | Set/clear persistent context             |
 | `calendar` / `cal [filters]`      | Agenda view of dated tasks               |
@@ -29,6 +29,7 @@ Tasca runs entirely in the browser using IndexedDB for storage. No server requir
 | `export` / `exp [filters]`        | Export tasks as JSON                     |
 | `import` / `imp`                  | Import tasks from JSON                   |
 | `copy` / `cp`                     | Copy current view to clipboard           |
+| `paste`                           | Import tasks from clipboard              |
 | `link`                            | Link a sync file (desktop)               |
 | `load`                            | Import from linked file                  |
 | `save`                            | Export to linked file                    |

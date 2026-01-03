@@ -1,4 +1,3 @@
-
 import { calculateUrgency } from "../src/js/logic.js";
 
 // Mock C constant to verify values if needed, but we import from logic.js
@@ -16,14 +15,14 @@ const runTest = () => {
     status: "pending",
     entry: now - 100000,
     depends: ["t2"],
-    project: "TestProj" // +1.0
+    project: "TestProj", // +1.0
   };
 
   const taskBlocker = {
     uuid: "t2",
     description: "Blocker Task",
     status: "pending",
-    entry: now
+    entry: now,
   };
 
   const allTasks = [taskBlocked, taskBlocker];

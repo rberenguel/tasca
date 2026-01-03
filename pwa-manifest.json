@@ -1,7 +1,7 @@
 {
   "name": "Tasca",
   "short_name": "Tasca",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#001015",

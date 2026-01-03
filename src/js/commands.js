@@ -40,6 +40,70 @@ const normalizeArgs = (parts) => {
   return result;
 };
 
+const createTaskObject = (args) => {
+  let desc = [],
+    proj = "",
+    priority = null,
+    tags = [],
+    depends = [],
+    due = null,
+    wait = null,
+    waitTime = null,
+    sched = null,
+    recur = null,
+    url = null,
+    icon = null;
+  for (let token of args) {
+    if (
+      token.startsWith("p:") ||
+      token.startsWith("pro:") ||
+      token.startsWith("proj:") ||
+      token.startsWith("project:")
+    )
+      proj = token.split(":")[1];
+    else if (token.startsWith("pri:") || token.startsWith("priority:")) {
+      const val = parseInt(token.split(":")[1], 10);
+      if (!isNaN(val)) priority = val;
+    } else if (token.startsWith("dep:"))
+      token
+        .split(":")[1]
+        .split(",")
+        .forEach((id) => {
+          if (displayMapRef.value[id - 1])
+            depends.push(displayMapRef.value[id - 1]);
+        });
+    else if (token.startsWith("due:")) due = parseDate(token.split(":")[1]);
+    else if (token.startsWith("wait:")) {
+      const waitStr = token.split(":").slice(1).join(":");
+      wait = parseDate(waitStr);
+      waitTime = parseWaitTime(waitStr);
+    } else if (token.startsWith("sched:") || token.startsWith("scheduled:"))
+      sched = parseDate(token.split(":")[1]);
+    else if (token.startsWith("recur:")) recur = token.split(":")[1];
+    else if (token.startsWith("url:")) url = token.substring(4);
+    else if (token.startsWith("icon:")) {
+      let val = token.split(":")[1];
+      if (val && !val.startsWith("ph-light")) val = "ph-light ph-" + val;
+      icon = val || null;
+    } else if (token.startsWith("!")) tags.push(token.substring(1));
+    else desc.push(token);
+  }
+  return {
+    desc: desc.join(" "),
+    proj,
+    priority,
+    tags,
+    depends,
+    due,
+    wait,
+    waitTime,
+    sched,
+    recur,
+    url,
+    icon,
+  };
+};
+
 export const execute = async (str) => {
   dbOps.check();
 
@@ -168,75 +232,31 @@ export const execute = async (str) => {
         '<span class="msg-success">Database purged. Reload to start fresh.</span>',
       );
     } else if (["add", "a", "log"].includes(cmd)) {
-      let desc = [],
-        proj = "",
-        priority = null,
-        tags = [],
-        depends = [],
-        due = null,
-        wait = null,
-        waitTime = null,
-        sched = null,
-        recur = null,
-        url = null,
-        icon = null;
-      for (let token of args) {
-        if (
-          token.startsWith("p:") ||
-          token.startsWith("pro:") ||
-          token.startsWith("proj:") ||
-          token.startsWith("project:")
-        )
-          proj = token.split(":")[1];
-        else if (token.startsWith("pri:") || token.startsWith("priority:")) {
-          const val = parseInt(token.split(":")[1], 10);
-          if (!isNaN(val)) priority = val;
-        } else if (token.startsWith("dep:"))
-          token
-            .split(":")[1]
-            .split(",")
-            .forEach((id) => {
-              if (displayMapRef.value[id - 1])
-                depends.push(displayMapRef.value[id - 1]);
-            });
-        else if (token.startsWith("due:")) due = parseDate(token.split(":")[1]);
-        else if (token.startsWith("wait:")) {
-          const waitStr = token.split(":").slice(1).join(":");
-          wait = parseDate(waitStr);
-          waitTime = parseWaitTime(waitStr);
-        } else if (token.startsWith("sched:") || token.startsWith("scheduled:"))
-          sched = parseDate(token.split(":")[1]);
-        else if (token.startsWith("recur:")) recur = token.split(":")[1];
-        else if (token.startsWith("url:")) url = token.substring(4);
-        else if (token.startsWith("icon:")) {
-          let val = token.split(":")[1];
-          if (val && !val.startsWith("ph-light")) val = "ph-light ph-" + val;
-          icon = val || null;
-        } else if (token.startsWith("!")) tags.push(token.substring(1));
-        else desc.push(token);
-      }
-      if (desc.length === 0)
+      const tObj = createTaskObject(args);
+      if (tObj.desc.length === 0)
         return print('<span class="msg-error">No description.</span>');
 
       // Inherit context attributes if not explicitly specified
       const inherited = getInheritedAttributes();
+      let proj = tObj.proj;
+      let tags = tObj.tags;
       if (!proj && inherited.project) proj = inherited.project;
       if (tags.length === 0 && inherited.tags) tags = [...inherited.tags];
 
       await dbOps.add({
         uuid: generateUUID(),
-        description: desc.join(" "),
+        description: tObj.desc,
         project: proj,
-        priority,
-        tags,
-        depends,
-        due,
-        wait,
-        waitTime,
-        sched,
-        recur,
-        url,
-        icon,
+        priority: tObj.priority,
+        tags: tags,
+        depends: tObj.depends,
+        due: tObj.due,
+        wait: tObj.wait,
+        waitTime: tObj.waitTime,
+        sched: tObj.sched,
+        recur: tObj.recur,
+        url: tObj.url,
+        icon: tObj.icon,
         annotations: [],
         status: "pending",
         entry: Date.now(),
@@ -785,6 +805,10 @@ export const execute = async (str) => {
           print(
             `<div class="msg-help"><span class="msg-hl">copy</span> (alias <span class="msg-hl">cp</span>)<br>Copies the currently displayed task list to clipboard (description, project, tags).</div>`,
           );
+        else if (c === "paste")
+          print(
+            `<div class="msg-help"><span class="msg-hl">paste</span><br>Imports tasks from clipboard. Expects one task per line (same format as add command).</div>`,
+          );
         else
           print(`<span class="msg-error">No specific help for: ${sub}</span>`);
       }
@@ -818,8 +842,61 @@ export const execute = async (str) => {
             `<span class="msg-success">Copied ${output.length} tasks to clipboard.</span>`,
           );
         } catch (err) {
-          print(`<span class="msg-error">Failed to copy: ${err.message}</span>`);
+          print(
+            `<span class="msg-error">Failed to copy: ${err.message}</span>`,
+          );
         }
+      }
+    } else if (cmd === "paste") {
+      try {
+        const text = await navigator.clipboard.readText();
+        const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+        if (lines.length === 0) {
+          print('<span class="msg-info">Clipboard is empty.</span>');
+        } else {
+          let count = 0;
+          for (const line of lines) {
+            let parts = line.trim().split(/\s+/);
+            if (parts.length === 0) continue;
+            parts = normalizeArgs(parts);
+            const tObj = createTaskObject(parts);
+            if (tObj.desc.length === 0) continue;
+
+            const inherited = getInheritedAttributes();
+            let proj = tObj.proj;
+            let tags = tObj.tags;
+            if (!proj && inherited.project) proj = inherited.project;
+            if (tags.length === 0 && inherited.tags) tags = [...inherited.tags];
+
+            await dbOps.add({
+              uuid: generateUUID(),
+              description: tObj.desc,
+              project: proj,
+              priority: tObj.priority,
+              tags: tags,
+              depends: tObj.depends,
+              due: tObj.due,
+              wait: tObj.wait,
+              waitTime: tObj.waitTime,
+              sched: tObj.sched,
+              recur: tObj.recur,
+              url: tObj.url,
+              icon: tObj.icon,
+              annotations: [],
+              status: "pending",
+              entry: Date.now(),
+            });
+            count++;
+          }
+          print(
+            `<span class="msg-success">Imported ${count} tasks from clipboard.</span>`,
+          );
+          await runList(lastFilterArgs, lastLimit);
+        }
+      } catch (err) {
+        print(
+          `<span class="msg-error">Failed to read clipboard: ${err.message}. ensure you grant permission.</span>`,
+        );
       }
     } else if (cmd === "about") {
       let version = "unknown";

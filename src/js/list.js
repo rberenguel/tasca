@@ -7,7 +7,12 @@ import {
 } from "./logic.js";
 import { renderTable } from "./ui.js";
 import { parseRelativeTime } from "./utils.js";
-import { displayMapRef, setLastFilterArgs, setLastLimit, updateCache } from "./state.js";
+import {
+  displayMapRef,
+  setLastFilterArgs,
+  setLastLimit,
+  updateCache,
+} from "./state.js";
 import { mergeFilters, hasContext } from "./context.js";
 
 export const runList = async (args, limit = Infinity) => {
