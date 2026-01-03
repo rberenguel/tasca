@@ -115,10 +115,12 @@ export const setupInput = (execute) => {
     }
   });
 
-  // Touch gestures for history navigation on mobile
+  // Touch gestures for history navigation and autocomplete on mobile
   const inputLine = document.querySelector(".input-line");
+  let touchStartX = null;
   let touchStartY = null;
   inputLine.addEventListener("touchstart", (e) => {
+    touchStartX = e.touches[0].clientX;
     touchStartY = e.touches[0].clientY;
   });
   inputLine.addEventListener(
@@ -131,12 +133,28 @@ export const setupInput = (execute) => {
     { passive: false },
   );
   inputLine.addEventListener("touchend", (e) => {
-    if (touchStartY === null) return;
+    if (touchStartX === null || touchStartY === null) return;
+    const touchEndX = e.changedTouches[0].clientX;
     const touchEndY = e.changedTouches[0].clientY;
-    const diff = touchStartY - touchEndY;
+    const diffX = touchEndX - touchStartX;
+    const diffY = touchStartY - touchEndY;
+    touchStartX = null;
     touchStartY = null;
-    if (Math.abs(diff) < 30) return;
-    if (diff > 0) {
+
+    // Determine if swipe is primarily horizontal or vertical
+    if (Math.abs(diffX) > Math.abs(diffY) && diffX > 30) {
+      // Swipe right - accept autocomplete
+      const gText = ghost.textContent;
+      if (gText) {
+        input.value += gText.substring(input.value.length);
+        ghost.innerHTML = "";
+        input.dispatchEvent(new Event("input"));
+      }
+      return;
+    }
+
+    if (Math.abs(diffY) < 30) return;
+    if (diffY > 0) {
       // Swipe up - previous command
       if (historyState.cmdHistory.length === 0) return;
       if (historyState.historyIndex === -1) {

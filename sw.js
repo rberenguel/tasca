@@ -16,7 +16,7 @@ const CACHE_FILES = [
   "./fonts/phosphor/Phosphor-Light.woff2",
   "./fonts/monoid-regular.woff2",
   "./fonts/monoid-bold.woff2",
-  "./manifest.json",
+  "./pwa-manifest.json",
   "./icon.png",
 ];
 
