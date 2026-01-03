@@ -24,6 +24,10 @@ import {
 } from "./state.js";
 import { setContext, getInheritedAttributes } from "./context.js";
 
+const isIOS =
+  /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (navigator.userAgent.includes("Mac") && navigator.maxTouchPoints > 1);
+
 // Merge tokens like "pro:" + "value" into "pro:value"
 const normalizeArgs = (parts) => {
   const result = [];
@@ -836,20 +840,48 @@ export const execute = async (str) => {
         print('<span class="msg-info">Nothing to copy.</span>');
       } else {
         const text = output.join("\n");
-        try {
-          await navigator.clipboard.writeText(text);
+        if (isIOS) {
+          const btnId = "ios-copy-btn-" + Date.now();
           print(
-            `<span class="msg-success">Copied ${output.length} tasks to clipboard.</span>`,
+            `<button id="${btnId}" class="ios-btn" style="background:var(--yellow); color:var(--base03); border:none; padding:8px 12px; border-radius:4px; font-family:inherit; cursor:pointer; margin-top:5px;">Tap to Copy ${output.length} Tasks</button>`,
           );
-        } catch (err) {
-          print(
-            `<span class="msg-error">Failed to copy: ${err.message}</span>`,
-          );
+          const btn = document.getElementById(btnId);
+          if (btn) {
+            btn.onclick = () => {
+              navigator.clipboard
+                .writeText(text)
+                .then(() => {
+                  btn.textContent = "Copied!";
+                  btn.style.background = "var(--green)";
+                  setTimeout(() => btn.remove(), 2000);
+                  print(
+                    `<span class="msg-success">Copied ${output.length} tasks to clipboard.</span>`,
+                  );
+                })
+                .catch((err) => {
+                  btn.textContent = "Error";
+                  btn.style.background = "var(--red)";
+                  print(
+                    `<span class="msg-error">Failed to copy: ${err.message}</span>`,
+                  );
+                });
+            };
+          }
+        } else {
+          try {
+            await navigator.clipboard.writeText(text);
+            print(
+              `<span class="msg-success">Copied ${output.length} tasks to clipboard.</span>`,
+            );
+          } catch (err) {
+            print(
+              `<span class="msg-error">Failed to copy: ${err.message}</span>`,
+            );
+          }
         }
       }
     } else if (cmd === "paste") {
-      try {
-        const text = await navigator.clipboard.readText();
+      const processPaste = async (text) => {
         const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
         if (lines.length === 0) {
           print('<span class="msg-info">Clipboard is empty.</span>');
@@ -893,10 +925,39 @@ export const execute = async (str) => {
           );
           await runList(lastFilterArgs, lastLimit);
         }
-      } catch (err) {
+      };
+
+      if (isIOS) {
+        const btnId = "ios-paste-btn-" + Date.now();
         print(
-          `<span class="msg-error">Failed to read clipboard: ${err.message}. ensure you grant permission.</span>`,
+          `<button id="${btnId}" class="ios-btn" style="background:var(--cyan); color:var(--base03); border:none; padding:8px 12px; border-radius:4px; font-family:inherit; cursor:pointer; margin-top:5px;">Tap to Paste & Import</button>`,
         );
+        const btn = document.getElementById(btnId);
+        if (btn) {
+          btn.onclick = async () => {
+            try {
+              const text = await navigator.clipboard.readText();
+              btn.textContent = "Importing...";
+              await processPaste(text);
+              btn.remove();
+            } catch (err) {
+              btn.textContent = "Error";
+              btn.style.background = "var(--red)";
+              print(
+                `<span class="msg-error">Failed to read clipboard: ${err.message}. Ensure you grant permission.</span>`,
+              );
+            }
+          };
+        }
+      } else {
+        try {
+          const text = await navigator.clipboard.readText();
+          await processPaste(text);
+        } catch (err) {
+          print(
+            `<span class="msg-error">Failed to read clipboard: ${err.message}. ensure you grant permission.</span>`,
+          );
+        }
       }
     } else if (cmd === "about") {
       let version = "unknown";
