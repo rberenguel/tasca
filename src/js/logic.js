@@ -86,30 +86,30 @@ export const matchesProject = (taskProj, filterProj) => {
 export const hasVirtualTag = (t, tag, allTasks, projectsMeta = []) => {
   const now = Date.now();
   const tagClean = tag.replace(/^[!+]/, "").toUpperCase();
-  if (tagClean === "OVERDUE")
+  if (["O", "OD", "OVER", "OVERDUE"].includes(tagClean))
     return t.due && t.due < now && t.status === "pending";
-  if (tagClean === "TODAY")
+  if (["T", "TOD", "TODAY"].includes(tagClean))
     return t.due && formatDateOnly(t.due) === formatDateOnly(now);
-  if (tagClean === "WAITING")
+  if (["W", "WAIT", "WAITING"].includes(tagClean))
     return t.wait && t.wait > now && t.status === "pending";
-  if (tagClean === "SCHEDULED")
+  if (["S", "SCH", "SCHED", "SCHEDULED"].includes(tagClean))
     return t.sched && t.sched > now && t.status === "pending";
-  if (tagClean === "BLOCKED")
+  if (["B", "BLK", "BLOCK", "BLOCKED"].includes(tagClean))
     return (
       t.depends?.length > 0 &&
       allTasks
         .filter((d) => t.depends.includes(d.uuid))
         .some((d) => d.status === "pending")
     );
-  if (tagClean === "DONE" || tagClean === "COMPLETED")
+  if (["D", "DONE", "COMPLETED"].includes(tagClean))
     return t.status === "completed";
-  if (tagClean === "ACTIVE" || tagClean === "STARTED")
+  if (["A", "ACT", "ACTIVE", "STARTED"].includes(tagClean))
     return t.start && t.status === "pending";
-  if (tagClean === "RECURRING" || tagClean === "RECUR")
+  if (["R", "REC", "RECUR", "RECURRING"].includes(tagClean))
     return !!t.recur && t.status === "pending";
-  if (tagClean === "SOMEDAY")
+  if (["SD", "SOMEDAY"].includes(tagClean))
     return t.tags?.some((tag) => tag.toLowerCase() === "someday");
-  if (tagClean === "ROUTINE")
+  if (["RT", "ROUTINE"].includes(tagClean))
     return t.tags?.some((tag) => tag.toLowerCase() === "routine");
   if (["REF", "REFS", "REFERENCE", "REFERENCES"].includes(tagClean)) {
     if (!t.project || projectsMeta.length === 0) return false;
