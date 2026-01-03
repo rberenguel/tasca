@@ -98,6 +98,50 @@ describe("Tasca Logic Tests", function () {
       const u = parseFloat(calculateUrgency(t, []));
       expect(u).to.be.closeTo(-4.0, 0.1);
     });
+    it("should impose a negative penalty for tasks with pending dependencies", function () {
+      const depTask = {
+        uuid: "u1",
+        status: "pending",
+        entry: now,
+        priority: null,
+      };
+      
+      const blockedTask = {
+        entry: now,
+        depends: ["u1"],
+        status: "pending",
+        tags: [],
+        priority: null,
+      };
+
+      const allTasks = [depTask, blockedTask];
+      const u = parseFloat(calculateUrgency(blockedTask, allTasks));
+      
+      expect(u).to.be.lessThan(0);
+    });
+
+    it("should effectively hide blocked tasks even with high priority", function () {
+      const depTask = {
+        uuid: "u1",
+        status: "pending",
+        entry: now
+      };
+      
+      const blockedTask = {
+        entry: now,
+        depends: ["u1"],
+        status: "pending",
+        tags: [],
+        priority: 50 
+      };
+
+      const allTasks = [depTask, blockedTask];
+      console.log("Checking blocked task urgency logic...");
+      const u = parseFloat(calculateUrgency(blockedTask, allTasks));
+      console.log("Calculated urgency:", u);
+      
+      expect(u).to.be.lessThan(0);
+    });
   });
 
   describe("Project Filtering", function () {

@@ -256,7 +256,7 @@ export const execute = async (str) => {
       }
 
       await runList(args, limit);
-    } else if (cmd === "chain") {
+    } else if (["chain", "dependencies", "tree"].includes(cmd)) {
       const id = parseInt(args[0]);
       if (!id || !displayMapRef.value[id - 1])
         return print('<span class="msg-error">Invalid ID.</span>');
@@ -741,9 +741,9 @@ export const execute = async (str) => {
           print(
             `<div class="msg-help"><span class="msg-hl">info</span> ID<br>Shows full task details including annotations and UUID.<br><span class="msg-hl">info</span> <span class="msg-arg">pro:Name</span> — show project details (icon, tags).</div>`,
           );
-        else if (c === "chain")
+        else if (["chain", "tree", "dependencies", "deps"].includes(c))
           print(
-            `<div class="msg-help"><span class="msg-hl">chain</span> ID<br>Visualizes dependency tree for the specified task.</div>`,
+            `<div class="msg-help"><span class="msg-hl">chain</span> ID (aliases: <span class="msg-hl">tree</span>, <span class="msg-hl">deps</span>)<br>Visualizes dependency tree for the specified task.</div>`,
           );
         else if (c === "projects" || c === "proj")
           print(

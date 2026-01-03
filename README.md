@@ -21,7 +21,7 @@ Tasca runs entirely in the browser using IndexedDB for storage. No server requir
 | `annotate <ID> <note>`            | Add note to task                         |
 | `annotate <ID> -N`                | Remove annotation by index               |
 | `info` / `i <ID>`                 | Show task details                        |
-| `chain <ID>`                      | Show dependency tree                     |
+| `chain` / `tree` / `deps` <ID>      | Show dependency tree                     |
 | `projects`                        | List all projects                        |
 | `context` / `ctx` / `c [filters]` | Set/clear persistent context             |
 | `calendar` / `cal [filters]`      | Agenda view of dated tasks               |

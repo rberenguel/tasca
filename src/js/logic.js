@@ -5,7 +5,7 @@ export const C = {
   due: 12.0,
   blocking: 8.0,
   active: 4.0,
-  blocked: -5.0,
+  blocked: -20.0,
   priorityScale: 0.12, // pri:50 → 6 urgency (like old H)
   age: 2.0,
   project: 1.0,
@@ -197,6 +197,8 @@ export const VALID_COMMANDS = [
   "skip",
   "report",
   "rep",
+  "dependencies",
+  "tree",
 ];
 
 export const resolveCommand = (str) => {
