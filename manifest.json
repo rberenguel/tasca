@@ -1,17 +1,23 @@
 {
+  "manifest_version": 3,
   "name": "Tasca",
-  "short_name": "Tasca",
-  "version": "0.2.1",
-  "start_url": ".",
-  "display": "standalone",
-  "background_color": "#001015",
-  "theme_color": "#001015",
+  "version": "0.2.2",
   "description": "A minimal text-based task manager.",
-  "icons": [
-    {
-      "src": "icon.png",
-      "sizes": "192x192",
-      "type": "image/png"
+  "action": {
+    "default_icon": "icon.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "128": "icon.png"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Alt+T"
+      },
+      "description": "Open Tasca"
     }
-  ]
+  }
 }
