@@ -100,6 +100,7 @@ export const setupInput = (execute) => {
       ghost.innerHTML = "";
     }
     if (e.key === "Enter") {
+      e.preventDefault();
       const val = input.value.trim();
       input.value = "";
       ghost.innerHTML = "";

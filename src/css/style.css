@@ -1,16 +1,4 @@
-@font-face {
-  font-family: "Monoid";
-  src: url("../../fonts/monoid-regular.woff2") format("woff2");
-  font-weight: normal;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: "Monoid";
-  src: url("../../fonts/monoid-bold.woff2") format("woff2");
-  font-weight: bold;
-  font-style: normal;
-}
+@import url("../../fonts/monoid.css");
 
 .ph-light {
   filter: brightness(1.2);
@@ -55,12 +43,12 @@ body {
 .input-line {
   /* position: fixed; removed to fix spacing issue */
   /* top: 0; left: 0; right: 0; */
-  height: 50px;
+  min-height: 50px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   background-color: var(--base03);
   border-bottom: 1px solid var(--base02);
-  padding: 0 10px;
+  padding: 12px 10px;
   z-index: 1000;
 }
 
@@ -71,17 +59,18 @@ body {
   font-size: 16px;
   user-select: none;
   flex-shrink: 0;
+  line-height: 24px;
 }
 
 .input-stack {
   position: relative;
   flex-grow: 1;
   display: flex;
-  align-items: center;
-  height: 24px;
+  align-items: flex-start;
+  min-height: 24px;
 }
 
-input,
+textarea#cmd-input,
 .ghost {
   font-family: "Monoid", "Menlo", "Monaco", "Courier New", monospace;
   font-size: 16px;
@@ -91,22 +80,28 @@ input,
   padding: 0;
   margin: 0;
   width: 100%;
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 24px;
   line-height: 24px;
   letter-spacing: normal;
 }
 
-input {
+textarea#cmd-input {
   color: var(--base1);
   z-index: 2;
+  resize: none;
+  overflow: hidden;
+  min-height: 24px;
+  max-height: 200px;
+  field-sizing: content;
 }
 
-input::placeholder {
+textarea#cmd-input::placeholder {
   color: var(--base01);
   opacity: 0.5;
+}
+
+textarea#cmd-input:placeholder-shown {
+  field-sizing: fixed;
+  height: 24px;
 }
 
 .ghost {
@@ -115,6 +110,9 @@ input::placeholder {
   pointer-events: none;
   white-space: pre;
   opacity: 0.6;
+  position: absolute;
+  top: 0;
+  left: 0;
 }
 
 #terminal-output {
