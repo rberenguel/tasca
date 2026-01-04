@@ -1057,7 +1057,7 @@ export const execute = async (str) => {
         if (imported > 0) {
           const all = await dbOps.getAll();
           updateCache(all);
-          runList(lastFilterArgs, lastLimit);
+          await execute("next");
         }
       } catch (e) {
         print(`<span class="msg-error">Load failed: ${e.message}</span>`);

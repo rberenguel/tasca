@@ -71,7 +71,7 @@ initDB().then(async () => {
         print(
           `<span class="msg-success">Imported ${tasks.length} tasks${projMsg}.</span>`,
         );
-        runList(lastFilterArgs);
+        await execute("next");
       } catch (err) {
         print(`<span class="msg-error">Error: ${err.message}</span>`);
       }
