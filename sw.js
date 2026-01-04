@@ -1,25 +1,25 @@
-const CACHE_NAME = "tasca-cache-v0.5.4";
+const CACHE_NAME = "tasca-cache-v0.5.5";
 const CACHE_FILES = [
-  './fonts/monoid-bold.woff2',
-  './fonts/monoid-italic.woff2',
-  './fonts/monoid-regular.woff2',
-  './fonts/monoid.css',
-  './fonts/phosphor/Phosphor-Light.woff2',
-  './fonts/phosphor/phosphor.css',
-  './icon.png',
-  './index.html',
-  './pwa-manifest.json',
-  './src/css/style.css',
-  './src/js/app.js',
-  './src/js/commands.js',
-  './src/js/context.js',
-  './src/js/db.js',
-  './src/js/input.js',
-  './src/js/list.js',
-  './src/js/logic.js',
-  './src/js/state.js',
-  './src/js/ui.js',
-  './src/js/utils.js',
+  "./fonts/monoid-bold.woff2",
+  "./fonts/monoid-italic.woff2",
+  "./fonts/monoid-regular.woff2",
+  "./fonts/monoid.css",
+  "./fonts/phosphor/Phosphor-Light.woff2",
+  "./fonts/phosphor/phosphor.css",
+  "./icon.png",
+  "./index.html",
+  "./pwa-manifest.json",
+  "./src/css/style.css",
+  "./src/js/app.js",
+  "./src/js/commands.js",
+  "./src/js/context.js",
+  "./src/js/db.js",
+  "./src/js/input.js",
+  "./src/js/list.js",
+  "./src/js/logic.js",
+  "./src/js/state.js",
+  "./src/js/ui.js",
+  "./src/js/utils.js",
 ];
 
 self.addEventListener("install", (event) => {
@@ -35,18 +35,17 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("fetch", (event) => {
   event.respondWith(
-    caches.match(event.request)
-      .then((cachedResponse) => {
-        if (cachedResponse) {
-          return cachedResponse;
+    caches.match(event.request).then((cachedResponse) => {
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+      return fetch(event.request).catch(() => {
+        // Network failed and not in cache - for navigation, return cached index.html
+        if (event.request.mode === "navigate") {
+          return caches.match("./index.html");
         }
-        return fetch(event.request).catch(() => {
-          // Network failed and not in cache - for navigation, return cached index.html
-          if (event.request.mode === 'navigate') {
-            return caches.match('./index.html');
-          }
-        });
-      })
+      });
+    }),
   );
 });
 

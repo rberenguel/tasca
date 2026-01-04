@@ -845,7 +845,10 @@ export const execute = async (str) => {
             false,
           );
         else
-          print(`<span class="msg-error">No specific help for: ${sub}</span>`, false);
+          print(
+            `<span class="msg-error">No specific help for: ${sub}</span>`,
+            false,
+          );
       }
     } else if (cmd === "copy" || cmd === "cp") {
       const all = await dbOps.getAll();
@@ -1409,8 +1412,24 @@ export const execute = async (str) => {
         const projects = await dbOps.getAllProjects();
 
         // Get pending tasks sorted by age (oldest first)
+
+        const refProjects = new Set(
+          projects
+            .filter((p) =>
+              p.tags?.some((t) =>
+                ["reference", "ref"].includes(t.toLowerCase()),
+              ),
+            )
+            .map((p) => p.name),
+        );
+
+        // Get pending tasks sorted by age (oldest first), excluding reference projects
         const pending = all
-          .filter((t) => t.status === "pending")
+          .filter(
+            (t) =>
+              t.status === "pending" &&
+              (!t.project || !refProjects.has(t.project)),
+          )
           .map((t) => ({
             ...t,
             ageDays: Math.floor((Date.now() - t.entry) / 86400000),
