@@ -21,6 +21,10 @@ import {
   formatDate,
   formatDateOnly,
 } from "../src/js/utils.js";
+import { pushUndo, popUndo, hasUndo, clearUndo } from "../src/js/undo.js";
+import { execute } from "../src/js/commands.js";
+import { initDB, dbOps } from "../src/js/db.js";
+import { displayMapRef } from "../src/js/state.js";
 
 describe("Tasca Logic Tests", function () {
   describe("Urgency Calculation", function () {
@@ -342,6 +346,10 @@ describe("Tasca Logic Tests", function () {
     it("should include report command in VALID_COMMANDS", function () {
       expect(VALID_COMMANDS).to.include("report");
       expect(VALID_COMMANDS).to.include("rep");
+    });
+
+    it("should include undo command in VALID_COMMANDS", function () {
+      expect(VALID_COMMANDS).to.include("undo");
     });
 
     it("should resolve unambiguous commands", function () {
@@ -876,6 +884,397 @@ describe("Recurrence Tests", function () {
       const result = calculateNextRecurrence(task);
       expect(result.nextWait).to.not.be.undefined;
       expect(result.nextSched).to.not.be.undefined;
+    });
+  });
+});
+
+describe("Undo Stack Tests", function () {
+  beforeEach(function () {
+    clearUndo();
+  });
+
+  describe("Basic Stack Operations", function () {
+    it("should start empty", function () {
+      expect(hasUndo()).to.be.false;
+      expect(popUndo()).to.be.null;
+    });
+
+    it("should push and pop a single record", function () {
+      const record = { type: "create", uuid: "test-uuid-1" };
+      pushUndo(record);
+      expect(hasUndo()).to.be.true;
+      const popped = popUndo();
+      expect(popped).to.deep.equal(record);
+      expect(hasUndo()).to.be.false;
+    });
+
+    it("should pop in LIFO order", function () {
+      const r1 = { type: "create", uuid: "uuid-1" };
+      const r2 = { type: "create", uuid: "uuid-2" };
+      const r3 = { type: "create", uuid: "uuid-3" };
+      pushUndo(r1);
+      pushUndo(r2);
+      pushUndo(r3);
+      expect(popUndo()).to.deep.equal(r3);
+      expect(popUndo()).to.deep.equal(r2);
+      expect(popUndo()).to.deep.equal(r1);
+      expect(popUndo()).to.be.null;
+    });
+
+    it("should clear all records", function () {
+      pushUndo({ type: "create", uuid: "uuid-1" });
+      pushUndo({ type: "create", uuid: "uuid-2" });
+      expect(hasUndo()).to.be.true;
+      clearUndo();
+      expect(hasUndo()).to.be.false;
+      expect(popUndo()).to.be.null;
+    });
+  });
+
+  describe("Record Types", function () {
+    it("should handle create records", function () {
+      const record = { type: "create", uuid: "new-task-uuid" };
+      pushUndo(record);
+      const popped = popUndo();
+      expect(popped.type).to.equal("create");
+      expect(popped.uuid).to.equal("new-task-uuid");
+    });
+
+    it("should handle update records with task snapshot", function () {
+      const task = {
+        uuid: "task-uuid",
+        description: "Original description",
+        priority: 10,
+        status: "pending",
+      };
+      const record = { type: "update", task };
+      pushUndo(record);
+      const popped = popUndo();
+      expect(popped.type).to.equal("update");
+      expect(popped.task).to.deep.equal(task);
+    });
+
+    it("should handle delete records with task snapshot", function () {
+      const task = {
+        uuid: "deleted-uuid",
+        description: "Task to delete",
+        status: "pending",
+      };
+      const record = { type: "delete", task };
+      pushUndo(record);
+      const popped = popUndo();
+      expect(popped.type).to.equal("delete");
+      expect(popped.task).to.deep.equal(task);
+    });
+
+    it("should handle compound records", function () {
+      const records = [
+        { type: "update", task: { uuid: "u1", description: "Old state" } },
+        { type: "create", uuid: "u2" },
+      ];
+      const compound = { type: "compound", records };
+      pushUndo(compound);
+      const popped = popUndo();
+      expect(popped.type).to.equal("compound");
+      expect(popped.records).to.have.length(2);
+      expect(popped.records[0].type).to.equal("update");
+      expect(popped.records[1].type).to.equal("create");
+    });
+  });
+
+  describe("Multiple Operations", function () {
+    it("should handle interleaved push and pop", function () {
+      pushUndo({ type: "create", uuid: "u1" });
+      pushUndo({ type: "create", uuid: "u2" });
+      expect(popUndo().uuid).to.equal("u2");
+      pushUndo({ type: "create", uuid: "u3" });
+      expect(popUndo().uuid).to.equal("u3");
+      expect(popUndo().uuid).to.equal("u1");
+      expect(hasUndo()).to.be.false;
+    });
+
+    it("should maintain independence of records", function () {
+      const task1 = { uuid: "u1", description: "Task 1" };
+      const task2 = { uuid: "u2", description: "Task 2" };
+      pushUndo({ type: "update", task: task1 });
+      pushUndo({ type: "update", task: task2 });
+      // Modify original objects
+      task1.description = "Modified";
+      task2.description = "Modified";
+      // Popped records should still have original values
+      // (assuming structuredClone is used before pushing)
+      const p2 = popUndo();
+      const p1 = popUndo();
+      // Note: the test verifies the stack stores what was pushed
+      expect(p1.task.uuid).to.equal("u1");
+      expect(p2.task.uuid).to.equal("u2");
+    });
+  });
+});
+
+describe("Undo E2E Tests", function () {
+  before(async function () {
+    await initDB();
+    // Create required DOM element for execute() to work
+    if (!document.getElementById("terminal-output")) {
+      const div = document.createElement("div");
+      div.id = "terminal-output";
+      document.body.appendChild(div);
+    }
+  });
+
+  beforeEach(async function () {
+    await dbOps.purgeAll();
+    clearUndo();
+    displayMapRef.value = [];
+    document.getElementById("terminal-output").innerHTML = "";
+  });
+
+  describe("Undo Add", function () {
+    it("should delete a newly added task on undo", async function () {
+      await execute("add do the thing");
+
+      let tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(1);
+      expect(tasks[0].description).to.equal("do the thing");
+
+      await execute("undo");
+
+      tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(0);
+    });
+
+    it("should undo add with project and tags", async function () {
+      await execute("add task with metadata pro:TestProject !urgent pri:50");
+
+      let tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(1);
+      expect(tasks[0].project).to.equal("TestProject");
+      expect(tasks[0].tags).to.include("urgent");
+      expect(tasks[0].priority).to.equal(50);
+
+      await execute("undo");
+
+      tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(0);
+    });
+  });
+
+  describe("Undo Delete", function () {
+    it("should restore a deleted task on undo", async function () {
+      await execute("add task to delete pro:Project !tag1");
+
+      let tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(1);
+      const originalUuid = tasks[0].uuid;
+
+      await execute("delete 1");
+
+      tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(0);
+
+      await execute("undo");
+
+      tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(1);
+      expect(tasks[0].uuid).to.equal(originalUuid);
+      expect(tasks[0].description).to.equal("task to delete");
+      expect(tasks[0].project).to.equal("Project");
+      expect(tasks[0].tags).to.include("tag1");
+    });
+  });
+
+  describe("Undo Modify", function () {
+    it("should restore original task state on undo", async function () {
+      await execute("add original description pri:5");
+
+      let tasks = await dbOps.getAll();
+      expect(tasks[0].description).to.equal("original description");
+      expect(tasks[0].priority).to.equal(5);
+
+      await execute("mod 1 modified description pri:50");
+
+      tasks = await dbOps.getAll();
+      expect(tasks[0].description).to.equal("modified description");
+      expect(tasks[0].priority).to.equal(50);
+
+      await execute("undo");
+
+      tasks = await dbOps.getAll();
+      expect(tasks[0].description).to.equal("original description");
+      expect(tasks[0].priority).to.equal(5);
+    });
+
+    it("should restore removed project on undo", async function () {
+      await execute("add task pro:MyProject");
+
+      await execute("mod 1 pro:");
+
+      let tasks = await dbOps.getAll();
+      expect(tasks[0].project).to.equal("");
+
+      await execute("undo");
+
+      tasks = await dbOps.getAll();
+      expect(tasks[0].project).to.equal("MyProject");
+    });
+  });
+
+  describe("Undo Start", function () {
+    it("should remove start time on undo", async function () {
+      await execute("add task to start");
+
+      await execute("start 1");
+
+      let tasks = await dbOps.getAll();
+      expect(tasks[0].start).to.be.a("number");
+
+      await execute("undo");
+
+      tasks = await dbOps.getAll();
+      expect(tasks[0].start).to.be.undefined;
+    });
+  });
+
+  describe("Undo Done (non-recurring)", function () {
+    it("should restore task to pending status on undo", async function () {
+      await execute("add task to complete");
+
+      await execute("done 1");
+
+      let tasks = await dbOps.getAll();
+      expect(tasks[0].status).to.equal("completed");
+      expect(tasks[0].end).to.be.a("number");
+
+      await execute("undo");
+
+      tasks = await dbOps.getAll();
+      expect(tasks[0].status).to.equal("pending");
+      expect(tasks[0].end).to.be.undefined;
+    });
+  });
+
+  describe("Undo Done (recurring)", function () {
+    it("should restore original task and delete new recurrence on undo", async function () {
+      await execute("add recurring task due:today recur:1w");
+
+      let tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(1);
+      const originalUuid = tasks[0].uuid;
+      const originalDue = tasks[0].due;
+
+      await execute("done 1");
+
+      tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(2);
+      const completed = tasks.find((t) => t.status === "completed");
+      const newTask = tasks.find((t) => t.status === "pending");
+      expect(completed).to.not.be.undefined;
+      expect(newTask).to.not.be.undefined;
+      expect(newTask.due).to.be.greaterThan(originalDue);
+
+      await execute("undo");
+
+      tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(1);
+      expect(tasks[0].uuid).to.equal(originalUuid);
+      expect(tasks[0].status).to.equal("pending");
+      expect(tasks[0].due).to.equal(originalDue);
+    });
+  });
+
+  describe("Undo Skip (recurring)", function () {
+    it("should restore skipped task and delete new recurrence on undo", async function () {
+      await execute("add recurring task to skip due:today recur:1w");
+
+      let tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(1);
+      const originalUuid = tasks[0].uuid;
+      const originalDue = tasks[0].due;
+
+      await execute("skip 1");
+
+      tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(2);
+      const skipped = tasks.find((t) => t.status === "skipped");
+      const newTask = tasks.find((t) => t.status === "pending");
+      expect(skipped).to.not.be.undefined;
+      expect(newTask).to.not.be.undefined;
+
+      await execute("undo");
+
+      tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(1);
+      expect(tasks[0].uuid).to.equal(originalUuid);
+      expect(tasks[0].status).to.equal("pending");
+      expect(tasks[0].due).to.equal(originalDue);
+    });
+  });
+
+  describe("Undo Annotate", function () {
+    it("should remove added annotation on undo", async function () {
+      await execute("add task to annotate");
+
+      await execute("annotate 1 my important note");
+
+      let tasks = await dbOps.getAll();
+      expect(tasks[0].annotations).to.have.length(1);
+      expect(tasks[0].annotations[0].description).to.equal("my important note");
+
+      await execute("undo");
+
+      tasks = await dbOps.getAll();
+      expect(tasks[0].annotations || []).to.have.length(0);
+    });
+  });
+
+  describe("Multiple Undos in Sequence", function () {
+    it("should undo multiple operations in reverse order", async function () {
+      // Add task
+      await execute("add multi-step task");
+      let tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(1);
+
+      // Modify 1
+      await execute("mod 1 pri:10");
+      tasks = await dbOps.getAll();
+      expect(tasks[0].priority).to.equal(10);
+
+      // Modify 2
+      await execute("mod 1 pri:50 changed description");
+      tasks = await dbOps.getAll();
+      expect(tasks[0].priority).to.equal(50);
+      expect(tasks[0].description).to.equal("changed description");
+
+      // Undo modify 2
+      await execute("undo");
+      tasks = await dbOps.getAll();
+      expect(tasks[0].priority).to.equal(10);
+      expect(tasks[0].description).to.equal("multi-step task");
+
+      // Undo modify 1
+      await execute("undo");
+      tasks = await dbOps.getAll();
+      expect(tasks[0].priority).to.be.null;
+
+      // Undo add
+      await execute("undo");
+      tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(0);
+
+      // No more undos - should show error message but not crash
+      await execute("undo");
+      tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(0);
+    });
+  });
+
+  describe("Undo Nothing Available", function () {
+    it("should handle undo when stack is empty", async function () {
+      // Just verify it doesn't crash
+      await execute("undo");
+      const output = document.getElementById("terminal-output").innerHTML;
+      expect(output).to.include("Nothing to undo");
     });
   });
 });

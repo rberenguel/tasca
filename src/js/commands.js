@@ -292,7 +292,7 @@ export const execute = async (str) => {
         entry: Date.now(),
       });
       pushUndo({ type: "create", uuid });
-      runList(lastFilterArgs, lastLimit);
+      await runList(lastFilterArgs, lastLimit);
     } else if (cmd === "list" || cmd === "ls" || cmd === "l") {
       await runList(args);
     } else if (cmd === "next") {
@@ -432,7 +432,7 @@ export const execute = async (str) => {
           print(
             `<span class="msg-success">Project ${projName} updated.</span>`,
           );
-          runList(lastFilterArgs, lastLimit);
+          await runList(lastFilterArgs, lastLimit);
         } else {
           print(
             '<span class="msg-info">No changes (specify icon: or !tag).</span>',
@@ -466,14 +466,14 @@ export const execute = async (str) => {
         task.annotations.splice(n - 1, 1);
         await dbOps.update(task);
         print(`<span class="msg-success">Annotation ${n} removed.</span>`);
-        runList(lastFilterArgs, lastLimit);
+        await runList(lastFilterArgs, lastLimit);
         return;
       }
 
       if (!task.annotations) task.annotations = [];
       task.annotations.push({ entry: Date.now(), description: note });
       await dbOps.update(task);
-      runList(lastFilterArgs, lastLimit);
+      await runList(lastFilterArgs, lastLimit);
     } else if (cmd === "info" || cmd === "i") {
       // Check if it's a project info request
       if (
@@ -592,7 +592,7 @@ export const execute = async (str) => {
       }
       await dbOps.updateProject(proj);
       print(`<span class="msg-success">Project ${projName} updated.</span>`);
-      runList(lastFilterArgs, lastLimit);
+      await runList(lastFilterArgs, lastLimit);
     } else if (
       (targetId && (args[0] === "mod" || args[0] === "modify")) ||
       (["modify", "mod"].includes(cmd) && args[0] && args[0].match(/^\d+$/))
@@ -659,7 +659,7 @@ export const execute = async (str) => {
         task.description = descParts.join(" ");
       }
       await dbOps.update(task);
-      runList(lastFilterArgs, lastLimit);
+      await runList(lastFilterArgs, lastLimit);
     } else if (
       cmd === "start" ||
       cmd === "st" ||
@@ -674,7 +674,7 @@ export const execute = async (str) => {
         task.start = Date.now();
         await dbOps.update(task);
         print(`<span class="msg-success">Started task ${id}.</span>`);
-        runList(lastFilterArgs, lastLimit);
+        await runList(lastFilterArgs, lastLimit);
       }
     } else if (cmd === "done" || (targetId && args[0] === "done")) {
       const id = targetId || parseInt(args.find((a) => a.match(/^\d+$/)));
@@ -708,7 +708,7 @@ export const execute = async (str) => {
           print(`<span class="msg-success">Recurring task created.</span>`);
         }
         pushUndo({ type: "compound", records: undoRecords });
-        runList(lastFilterArgs, lastLimit);
+        await runList(lastFilterArgs, lastLimit);
       }
     } else if (["delete", "rm"].includes(cmd)) {
       const id = parseInt(args[0]);
@@ -717,7 +717,7 @@ export const execute = async (str) => {
       const task = await dbOps.get(displayMapRef.value[id - 1]);
       pushUndo({ type: "delete", task: structuredClone(task) });
       await dbOps.delete(displayMapRef.value[id - 1]);
-      runList(lastFilterArgs, lastLimit);
+      await runList(lastFilterArgs, lastLimit);
     } else if (cmd === "skip") {
       const id = parseInt(args[0]);
       if (!id || !displayMapRef.value[id - 1])
@@ -765,14 +765,14 @@ export const execute = async (str) => {
       print(
         '<span class="msg-success">Skipped. Next occurrence created.</span>',
       );
-      runList(lastFilterArgs, lastLimit);
+      await runList(lastFilterArgs, lastLimit);
     } else if (cmd === "undo") {
       const record = popUndo();
       if (!record)
         return print('<span class="msg-error">Nothing to undo.</span>');
       await applyUndo(record);
       print('<span class="msg-success">Undone.</span>');
-      runList(lastFilterArgs, lastLimit);
+      await runList(lastFilterArgs, lastLimit);
     } else if (cmd === "help") {
       const sub = args[0];
       if (!sub) {
