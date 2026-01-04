@@ -1278,3 +1278,193 @@ describe("Undo E2E Tests", function () {
     });
   });
 });
+
+describe("Command Syntax E2E Tests", function () {
+  before(async function () {
+    await initDB();
+    if (!document.getElementById("terminal-output")) {
+      const div = document.createElement("div");
+      div.id = "terminal-output";
+      document.body.appendChild(div);
+    }
+  });
+
+  beforeEach(async function () {
+    await dbOps.purgeAll();
+    clearUndo();
+    displayMapRef.value = [];
+    document.getElementById("terminal-output").innerHTML = "";
+  });
+
+  describe("Normal COMMAND NUMBER syntax", function () {
+    it("done 1 - should complete task", async function () {
+      await execute("add test task");
+      await execute("done 1");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].status).to.equal("completed");
+    });
+
+    it("delete 1 - should delete task", async function () {
+      await execute("add test task");
+      await execute("delete 1");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(0);
+    });
+
+    it("mod 1 - should modify task", async function () {
+      await execute("add original task");
+      await execute("mod 1 modified task pri:50");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].description).to.equal("modified task");
+      expect(tasks[0].priority).to.equal(50);
+    });
+
+    it("start 1 - should start task", async function () {
+      await execute("add test task");
+      await execute("start 1");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].start).to.be.a("number");
+    });
+
+    it("skip 1 - should skip recurring task", async function () {
+      await execute("add recurring task due:today recur:1w");
+      await execute("skip 1");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(2);
+      expect(tasks.find((t) => t.status === "skipped")).to.not.be.undefined;
+    });
+
+    it("annotate 1 - should add annotation", async function () {
+      await execute("add test task");
+      await execute("annotate 1 my note");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].annotations).to.have.length(1);
+      expect(tasks[0].annotations[0].description).to.equal("my note");
+    });
+  });
+
+  describe("Reversed NUMBER COMMAND syntax", function () {
+    it("1 done - should complete task", async function () {
+      await execute("add test task");
+      await execute("1 done");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].status).to.equal("completed");
+    });
+
+    it("1 delete - should delete task", async function () {
+      await execute("add test task");
+      await execute("1 delete");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(0);
+    });
+
+    it("1 rm - should delete task", async function () {
+      await execute("add test task");
+      await execute("1 rm");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(0);
+    });
+
+    it("1 mod - should modify task", async function () {
+      await execute("add original task");
+      await execute("1 mod modified task pri:50");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].description).to.equal("modified task");
+      expect(tasks[0].priority).to.equal(50);
+    });
+
+    it("1 modify - should modify task", async function () {
+      await execute("add original task");
+      await execute("1 modify new description");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].description).to.equal("new description");
+    });
+
+    it("1 start - should start task", async function () {
+      await execute("add test task");
+      await execute("1 start");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].start).to.be.a("number");
+    });
+
+    it("1 st - should start task", async function () {
+      await execute("add test task");
+      await execute("1 st");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].start).to.be.a("number");
+    });
+
+    it("1 skip - should skip recurring task", async function () {
+      await execute("add recurring task due:today recur:1w");
+      await execute("1 skip");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(2);
+      expect(tasks.find((t) => t.status === "skipped")).to.not.be.undefined;
+    });
+
+    it("1 annotate - should add annotation", async function () {
+      await execute("add test task");
+      await execute("1 annotate my note here");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].annotations).to.have.length(1);
+      expect(tasks[0].annotations[0].description).to.equal("my note here");
+    });
+
+    it("1 (just number) - should show info without error", async function () {
+      await execute("add test task");
+      await execute("1");
+
+      const output = document.getElementById("terminal-output").innerHTML;
+      expect(output).to.include("test task");
+      expect(output).not.to.include("Invalid");
+    });
+  });
+
+  describe("Multiple tasks with NUMBER COMMAND", function () {
+    it("should operate on correct task by number", async function () {
+      await execute("add first task");
+      await execute("add second task");
+      await execute("add third task");
+
+      await execute("2 done");
+
+      const tasks = await dbOps.getAll();
+      const pending = tasks.filter((t) => t.status === "pending");
+      const completed = tasks.filter((t) => t.status === "completed");
+
+      expect(pending).to.have.length(2);
+      expect(completed).to.have.length(1);
+      expect(completed[0].description).to.equal("second task");
+    });
+
+    it("should modify correct task with reversed syntax", async function () {
+      await execute("add first task");
+      await execute("add second task");
+
+      await execute("1 mod updated first");
+      await execute("2 mod updated second");
+
+      const tasks = await dbOps.getAll();
+      const first = tasks.find((t) => t.description === "updated first");
+      const second = tasks.find((t) => t.description === "updated second");
+
+      expect(first).to.not.be.undefined;
+      expect(second).to.not.be.undefined;
+    });
+  });
+});

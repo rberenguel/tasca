@@ -130,7 +130,12 @@ export const runList = async (args, limit = Infinity) => {
       return 0;
     });
   } else {
-    tasks.sort((a, b) => parseFloat(b.urgency) - parseFloat(a.urgency));
+    tasks.sort((a, b) => {
+      const urgDiff = parseFloat(b.urgency) - parseFloat(a.urgency);
+      if (urgDiff !== 0) return urgDiff;
+      // Tiebreaker: older tasks first (FIFO within same urgency)
+      return (a.entry || 0) - (b.entry || 0);
+    });
   }
 
   // In "next" view (limit !== Infinity), hide tasks with negative urgency

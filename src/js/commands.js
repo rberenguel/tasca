@@ -13,6 +13,7 @@ import {
   matchesProject,
   hasVirtualTag,
   expandVirtualTagShorthand,
+  VALID_COMMANDS,
 } from "./logic.js";
 import { print, renderProjectsTable, formatProject } from "./ui.js";
 import { runList } from "./list.js";
@@ -142,13 +143,25 @@ export const execute = async (str) => {
 
     let rawCmd = parts[0];
     let cmd = resolveCommand(rawCmd);
-    if (!cmd && rawCmd.match(/^\d+$/)) cmd = "info";
+    let args = parts.slice(1);
+    let targetId = rawCmd.match(/^\d+$/) ? parseInt(rawCmd) : null;
+
+    // Handle NUMBER COMMAND syntax (e.g., "1 done" instead of "done 1")
+    if (targetId && args[0]) {
+      const resolved =
+        resolveCommand(args[0]) ||
+        (VALID_COMMANDS.includes(args[0]) ? args[0] : null);
+      if (resolved) {
+        cmd = resolved;
+        args = args.slice(1);
+      }
+    }
+    if (!cmd && rawCmd.match(/^\d+$/)) {
+      cmd = "info";
+    }
     if (!cmd) cmd = rawCmd;
 
     lastCommandWasHelp = cmd === "help";
-
-    let args = parts.slice(1);
-    let targetId = rawCmd.match(/^\d+$/) ? parseInt(rawCmd) : null;
 
     if (cmd === "export" || cmd === "exp") {
       await dbOps.cleanupOrphanProjects();
@@ -441,11 +454,11 @@ export const execute = async (str) => {
         return;
       }
 
-      const id = parseInt(args[0]);
+      const id = targetId || parseInt(args[0]);
       if (!id || !displayMapRef.value[id - 1])
         return print('<span class="msg-error">Invalid ID.</span>');
       const task = await dbOps.get(displayMapRef.value[id - 1]);
-      const note = args.slice(1).join(" ");
+      const note = (targetId ? args : args.slice(1)).join(" ");
       if (!note)
         return print('<span class="msg-error">No annotation text.</span>');
 
@@ -504,7 +517,7 @@ export const execute = async (str) => {
         print(html, true);
         return;
       }
-      const id = parseInt(args[0] || rawCmd);
+      const id = targetId || parseInt(args[0]);
       if (!id || !displayMapRef.value[id - 1])
         return print('<span class="msg-error">Invalid ID.</span>');
       const t = await dbOps.get(displayMapRef.value[id - 1]);
@@ -593,10 +606,7 @@ export const execute = async (str) => {
       await dbOps.updateProject(proj);
       print(`<span class="msg-success">Project ${projName} updated.</span>`);
       await runList(lastFilterArgs, lastLimit);
-    } else if (
-      (targetId && (args[0] === "mod" || args[0] === "modify")) ||
-      (["modify", "mod"].includes(cmd) && args[0] && args[0].match(/^\d+$/))
-    ) {
+    } else if (["modify", "mod"].includes(cmd)) {
       const id = targetId || parseInt(args[0]);
       const tokens = targetId ? args : args.slice(1);
       if (!id || !displayMapRef.value[id - 1])
@@ -660,12 +670,8 @@ export const execute = async (str) => {
       }
       await dbOps.update(task);
       await runList(lastFilterArgs, lastLimit);
-    } else if (
-      cmd === "start" ||
-      cmd === "st" ||
-      (targetId && (args[0] === "start" || args[0] === "st"))
-    ) {
-      const id = targetId || parseInt(args.find((a) => a.match(/^\d+$/)));
+    } else if (cmd === "start" || cmd === "st") {
+      const id = targetId || parseInt(args[0]);
       if (!id || !displayMapRef.value[id - 1])
         return print('<span class="msg-error">Invalid ID.</span>');
       const task = await dbOps.get(displayMapRef.value[id - 1]);
@@ -676,8 +682,8 @@ export const execute = async (str) => {
         print(`<span class="msg-success">Started task ${id}.</span>`);
         await runList(lastFilterArgs, lastLimit);
       }
-    } else if (cmd === "done" || (targetId && args[0] === "done")) {
-      const id = targetId || parseInt(args.find((a) => a.match(/^\d+$/)));
+    } else if (cmd === "done") {
+      const id = targetId || parseInt(args[0]);
       if (!id || !displayMapRef.value[id - 1])
         return print('<span class="msg-error">Invalid ID.</span>');
       const task = await dbOps.get(displayMapRef.value[id - 1]);
@@ -711,7 +717,7 @@ export const execute = async (str) => {
         await runList(lastFilterArgs, lastLimit);
       }
     } else if (["delete", "rm"].includes(cmd)) {
-      const id = parseInt(args[0]);
+      const id = targetId || parseInt(args[0]);
       if (!id || !displayMapRef.value[id - 1])
         return print('<span class="msg-error">Invalid ID.</span>');
       const task = await dbOps.get(displayMapRef.value[id - 1]);
@@ -719,7 +725,7 @@ export const execute = async (str) => {
       await dbOps.delete(displayMapRef.value[id - 1]);
       await runList(lastFilterArgs, lastLimit);
     } else if (cmd === "skip") {
-      const id = parseInt(args[0]);
+      const id = targetId || parseInt(args[0]);
       if (!id || !displayMapRef.value[id - 1])
         return print('<span class="msg-error">Invalid ID.</span>');
       const task = await dbOps.get(displayMapRef.value[id - 1]);
