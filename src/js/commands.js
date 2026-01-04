@@ -23,6 +23,7 @@ import {
   lastLimit,
 } from "./state.js";
 import { setContext, getInheritedAttributes } from "./context.js";
+import { pushUndo, popUndo } from "./undo.js";
 
 const isIOS =
   /iPad|iPhone|iPod/.test(navigator.userAgent) ||
@@ -108,6 +109,20 @@ const createTaskObject = (args) => {
     url,
     icon,
   };
+};
+
+const applyUndo = async (record) => {
+  if (record.type === "update") {
+    await dbOps.update(record.task);
+  } else if (record.type === "create") {
+    await dbOps.delete(record.uuid);
+  } else if (record.type === "delete") {
+    await dbOps.add(record.task);
+  } else if (record.type === "compound") {
+    for (const r of [...record.records].reverse()) {
+      await applyUndo(r);
+    }
+  }
 };
 
 export const execute = async (str) => {
@@ -257,8 +272,9 @@ export const execute = async (str) => {
       if (!proj && inherited.project) proj = inherited.project;
       if (tags.length === 0 && inherited.tags) tags = [...inherited.tags];
 
+      const uuid = generateUUID();
       await dbOps.add({
-        uuid: generateUUID(),
+        uuid,
         description: tObj.desc,
         project: proj,
         priority: tObj.priority,
@@ -275,6 +291,7 @@ export const execute = async (str) => {
         status: "pending",
         entry: Date.now(),
       });
+      pushUndo({ type: "create", uuid });
       runList(lastFilterArgs, lastLimit);
     } else if (cmd === "list" || cmd === "ls" || cmd === "l") {
       await runList(args);
@@ -432,6 +449,7 @@ export const execute = async (str) => {
       if (!note)
         return print('<span class="msg-error">No annotation text.</span>');
 
+      pushUndo({ type: "update", task: structuredClone(task) });
       const removeMatch = note.match(/^-(\d+)$/);
       if (removeMatch) {
         const n = parseInt(removeMatch[1]);
@@ -584,6 +602,7 @@ export const execute = async (str) => {
       if (!id || !displayMapRef.value[id - 1])
         return print('<span class="msg-error">Invalid ID.</span>');
       const task = await dbOps.get(displayMapRef.value[id - 1]);
+      pushUndo({ type: "update", task: structuredClone(task) });
       const descParts = [];
       tokens.forEach((token) => {
         if (token.startsWith("pri:")) {
@@ -651,6 +670,7 @@ export const execute = async (str) => {
         return print('<span class="msg-error">Invalid ID.</span>');
       const task = await dbOps.get(displayMapRef.value[id - 1]);
       if (task) {
+        pushUndo({ type: "update", task: structuredClone(task) });
         task.start = Date.now();
         await dbOps.update(task);
         print(`<span class="msg-success">Started task ${id}.</span>`);
@@ -662,14 +682,16 @@ export const execute = async (str) => {
         return print('<span class="msg-error">Invalid ID.</span>');
       const task = await dbOps.get(displayMapRef.value[id - 1]);
       if (task) {
+        const undoRecords = [{ type: "update", task: structuredClone(task) }];
         task.status = "completed";
         task.end = Date.now();
         await dbOps.update(task);
         const recurrence = calculateNextRecurrence(task);
         if (recurrence) {
+          const newUuid = generateUUID();
           const newTask = {
             ...task,
-            uuid: generateUUID(),
+            uuid: newUuid,
             status: "pending",
             due: recurrence.nextDue,
             wait: recurrence.nextWait || null,
@@ -682,14 +704,18 @@ export const execute = async (str) => {
           delete newTask.end;
           delete newTask.start;
           await dbOps.add(newTask);
+          undoRecords.push({ type: "create", uuid: newUuid });
           print(`<span class="msg-success">Recurring task created.</span>`);
         }
+        pushUndo({ type: "compound", records: undoRecords });
         runList(lastFilterArgs, lastLimit);
       }
     } else if (["delete", "rm"].includes(cmd)) {
       const id = parseInt(args[0]);
       if (!id || !displayMapRef.value[id - 1])
         return print('<span class="msg-error">Invalid ID.</span>');
+      const task = await dbOps.get(displayMapRef.value[id - 1]);
+      pushUndo({ type: "delete", task: structuredClone(task) });
       await dbOps.delete(displayMapRef.value[id - 1]);
       runList(lastFilterArgs, lastLimit);
     } else if (cmd === "skip") {
@@ -709,15 +735,18 @@ export const execute = async (str) => {
           '<span class="msg-error">Could not calculate next recurrence.</span>',
         );
 
+      const undoRecords = [{ type: "update", task: structuredClone(task) }];
+
       // Mark current as skipped
       task.status = "skipped";
       task.end = Date.now();
       await dbOps.update(task);
 
       // Create next occurrence
+      const newUuid = generateUUID();
       const newTask = {
         ...task,
-        uuid: generateUUID(),
+        uuid: newUuid,
         status: "pending",
         due: recurrence.nextDue,
         wait: recurrence.nextWait || null,
@@ -730,16 +759,25 @@ export const execute = async (str) => {
       delete newTask.end;
       delete newTask.start;
       await dbOps.add(newTask);
+      undoRecords.push({ type: "create", uuid: newUuid });
 
+      pushUndo({ type: "compound", records: undoRecords });
       print(
         '<span class="msg-success">Skipped. Next occurrence created.</span>',
       );
+      runList(lastFilterArgs, lastLimit);
+    } else if (cmd === "undo") {
+      const record = popUndo();
+      if (!record)
+        return print('<span class="msg-error">Nothing to undo.</span>');
+      await applyUndo(record);
+      print('<span class="msg-success">Undone.</span>');
       runList(lastFilterArgs, lastLimit);
     } else if (cmd === "help") {
       const sub = args[0];
       if (!sub) {
         print(
-          `<span style="color:var(--yellow)">Commands:</span> add, list, done, skip, delete, modify, annotate, info, chain, projects, context, calendar, report, export, import. Type <span class="msg-hl">help [cmd]</span> for details.`,
+          `<span style="color:var(--yellow)">Commands:</span> add, list, done, skip, delete, modify, annotate, undo, info, chain, projects, context, calendar, report, export, import. Type <span class="msg-hl">help [cmd]</span> for details.`,
           false,
         );
       } else {
@@ -777,6 +815,11 @@ export const execute = async (str) => {
         else if (c === "annotate")
           print(
             `<div class="msg-help"><span class="msg-hl">annotate</span> ID <span class="msg-arg">note text...</span><br>Adds a timestamped note. Use <span class="msg-arg">-N</span> to remove by index (see info).</div>`,
+            false,
+          );
+        else if (c === "undo")
+          print(
+            `<div class="msg-help"><span class="msg-hl">undo</span><br>Reverts the last task operation. Not persisted across page reloads.</div>`,
             false,
           );
         else if (c === "info")
