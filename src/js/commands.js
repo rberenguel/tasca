@@ -28,6 +28,8 @@ const isIOS =
   /iPad|iPhone|iPod/.test(navigator.userAgent) ||
   (navigator.userAgent.includes("Mac") && navigator.maxTouchPoints > 1);
 
+let lastCommandWasHelp = false;
+
 // Merge tokens like "pro:" + "value" into "pro:value"
 const normalizeArgs = (parts) => {
   const result = [];
@@ -113,7 +115,13 @@ export const execute = async (str) => {
 
   try {
     let parts = str.trim().split(/\s+/);
-    if (!parts.length || parts[0] === "") return;
+    if (!parts.length || parts[0] === "") {
+      if (lastCommandWasHelp) {
+        lastCommandWasHelp = false;
+        await runList(lastFilterArgs, lastLimit);
+      }
+      return;
+    }
     if (parts[0] === "task") parts.shift();
     parts = normalizeArgs(parts);
 
@@ -121,6 +129,8 @@ export const execute = async (str) => {
     let cmd = resolveCommand(rawCmd);
     if (!cmd && rawCmd.match(/^\d+$/)) cmd = "info";
     if (!cmd) cmd = rawCmd;
+
+    lastCommandWasHelp = cmd === "help";
 
     let args = parts.slice(1);
     let targetId = rawCmd.match(/^\d+$/) ? parseInt(rawCmd) : null;
@@ -730,91 +740,112 @@ export const execute = async (str) => {
       if (!sub) {
         print(
           `<span style="color:var(--yellow)">Commands:</span> add, list, done, skip, delete, modify, annotate, info, chain, projects, context, calendar, report, export, import. Type <span class="msg-hl">help [cmd]</span> for details.`,
+          false,
         );
       } else {
         const c = resolveCommand(sub);
         if (c === "add")
           print(
             `<div class="msg-help"><span class="msg-hl">add</span> description <span class="msg-arg">pro:Project</span> <span class="msg-arg">pri:N</span> <span class="msg-arg">due:DATE</span> <span class="msg-arg">wait:DATE</span> <span class="msg-arg">sched:DATE</span> <span class="msg-arg">recur:PERIOD</span> <span class="msg-arg">!tag</span><br>DATE: <span class="msg-arg">YYYYMMDD</span> | <span class="msg-arg">today</span> | <span class="msg-arg">tomorrow</span> | <span class="msg-arg">3d</span> | <span class="msg-arg">2w</span> | <span class="msg-arg">1m</span><br>PERIOD: <span class="msg-arg">1d</span> | <span class="msg-arg">1w</span> | <span class="msg-arg">2w</span> | <span class="msg-arg">1m</span> | <span class="msg-arg">1y</span><br>Priority: 1=low, 10=medium, 50=high. Negative for backlog. Use <span class="msg-arg">!someday</span> to hide from next.</div>`,
+            false,
           );
         else if (c === "modify")
           print(
             `<div class="msg-help"><span class="msg-hl">mod</span> ID <span class="msg-arg">pro:P</span> <span class="msg-arg">pri:N</span> <span class="msg-arg">due:Y</span> <span class="msg-arg">wait:Y</span> <span class="msg-arg">sched:Y</span> <span class="msg-arg">recur:P</span> <span class="msg-arg">!tag</span> <span class="msg-arg">dep:ID</span><br><span class="msg-hl">mod</span> <span class="msg-arg">pro:Name</span> <span class="msg-arg">icon:value</span> <span class="msg-arg">!tag</span> (project metadata, tags toggle)</div>`,
+            false,
           );
         else if (c === "list")
           print(
             `<div class="msg-help"><span class="msg-hl">list</span> [search] <span class="msg-arg">pro:Project</span> <span class="msg-arg">!tag</span> <span class="msg-arg">end:1w</span><br>Virtual: <span class="msg-arg">!overdue</span> <span class="msg-arg">!today</span> <span class="msg-arg">!waiting</span> <span class="msg-arg">!scheduled</span> <span class="msg-arg">!recurring</span> <span class="msg-arg">!blocked</span> <span class="msg-arg">!someday</span> <span class="msg-arg">!done</span> <span class="msg-arg">!all</span></div>`,
+            false,
           );
         else if (c === "done")
           print(
             `<div class="msg-help"><span class="msg-hl">done</span> ID<br>Completes a task. If recurring, creates the next instance.</div>`,
+            false,
           );
         else if (c === "skip")
           print(
             `<div class="msg-help"><span class="msg-hl">skip</span> ID<br>Skip a recurring task. Marks as skipped and creates next instance.</div>`,
+            false,
           );
         else if (c === "delete")
           print(
             `<div class="msg-help"><span class="msg-hl">delete</span> ID<br>Permanently removes a task.</div>`,
+            false,
           );
         else if (c === "annotate")
           print(
             `<div class="msg-help"><span class="msg-hl">annotate</span> ID <span class="msg-arg">note text...</span><br>Adds a timestamped note. Use <span class="msg-arg">-N</span> to remove by index (see info).</div>`,
+            false,
           );
         else if (c === "info")
           print(
             `<div class="msg-help"><span class="msg-hl">info</span> ID<br>Shows full task details including annotations and UUID.<br><span class="msg-hl">info</span> <span class="msg-arg">pro:Name</span> — show project details (icon, tags).</div>`,
+            false,
           );
         else if (["chain", "tree", "dependencies", "deps"].includes(c))
           print(
             `<div class="msg-help"><span class="msg-hl">chain</span> ID (aliases: <span class="msg-hl">tree</span>, <span class="msg-hl">deps</span>)<br>Visualizes dependency tree for the specified task.</div>`,
+            false,
           );
         else if (c === "projects" || c === "proj")
           print(
             `<div class="msg-help"><span class="msg-hl">projects</span><br>Lists all projects with task counts and tags.<br>Toggle tags: <span class="msg-arg">mod pro:Name !reference</span> (use again to remove)<br>Projects with <span class="msg-arg">!reference</span> tag are hidden from next.</div>`,
+            false,
           );
         else if (c === "export")
           print(
             `<div class="msg-help"><span class="msg-hl">export</span> [search] <span class="msg-arg">pro:Project</span> <span class="msg-arg">!tag</span><br>Exports tasks as JSON. Supports same filters as list.</div>`,
+            false,
           );
         else if (c === "context" || c === "ctx" || c === "c")
           print(
             `<div class="msg-help"><span class="msg-hl">context</span> <span class="msg-arg">pro:Project</span> <span class="msg-arg">!tag</span> <span class="msg-arg">search</span><br>Set persistent filter context. Filters auto-apply to list/next, attributes inherit to add.<br><span class="msg-hl">context</span> (no args) clears context.</div>`,
+            false,
           );
         else if (c === "calendar" || c === "cal")
           print(
             `<div class="msg-help"><span class="msg-hl">cal</span> [search] <span class="msg-arg">pro:Project</span> <span class="msg-arg">!tag</span> <span class="msg-arg">lim:N</span><br>Agenda view of dated tasks. Shows <span class="msg-arg">[due]</span> <span class="msg-arg">[sched]</span> <span class="msg-arg">[wait]</span> dates.<br>Includes overdue from past 7 days. <span class="msg-arg">!done</span> shows completed by end date.</div>`,
+            false,
           );
         else if (c === "link")
           print(
             `<div class="msg-help"><span class="msg-hl">link</span><br>Link a JSON file for sync (desktop Chrome). Use <span class="msg-arg">load</span> to import, <span class="msg-arg">save</span> to export.</div>`,
+            false,
           );
         else if (c === "load")
           print(
             `<div class="msg-help"><span class="msg-hl">load</span><br>Import tasks from linked file. Tasks matched by UUID.</div>`,
+            false,
           );
         else if (c === "save")
           print(
             `<div class="msg-help"><span class="msg-hl">save</span><br>Export all tasks to linked file (overwrites).</div>`,
+            false,
           );
         else if (c === "unlink")
           print(
             `<div class="msg-help"><span class="msg-hl">unlink</span><br>Remove linked file association.</div>`,
+            false,
           );
         else if (c === "report" || c === "rep")
           print(
             `<div class="msg-help"><span class="msg-hl">report</span> <span class="msg-arg">stale</span> | <span class="msg-arg">rot [N]</span> | <span class="msg-arg">done [period] [by:project|tag]</span><br><span class="msg-arg">stale</span> — projects by staleness (days since activity)<br><span class="msg-arg">rot [N]</span> — oldest N pending tasks (default 10)<br><span class="msg-arg">done [1w] [by:tag]</span> — completed tasks grouped by project or tag</div>`,
+            false,
           );
         else if (c === "copy" || c === "cp")
           print(
             `<div class="msg-help"><span class="msg-hl">copy</span> (alias <span class="msg-hl">cp</span>)<br>Copies the currently displayed task list to clipboard (description, project, tags).</div>`,
+            false,
           );
         else if (c === "paste")
           print(
             `<div class="msg-help"><span class="msg-hl">paste</span><br>Imports tasks from clipboard. Expects one task per line (same format as add command).</div>`,
+            false,
           );
         else
-          print(`<span class="msg-error">No specific help for: ${sub}</span>`);
+          print(`<span class="msg-error">No specific help for: ${sub}</span>`, false);
       }
     } else if (cmd === "copy" || cmd === "cp") {
       const all = await dbOps.getAll();

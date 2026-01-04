@@ -120,7 +120,7 @@ export const setupInput = (execute) => {
       }
       historyState.historyIndex = -1;
       historyState.historyTemp = "";
-      if (val) await execute(val);
+      await execute(val);
     }
   });
 
