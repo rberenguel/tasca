@@ -6,15 +6,27 @@ let db = null;
 
 export const initDB = () =>
   new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 6);
+    const request = indexedDB.open(DB_NAME, 7);
 
     request.onupgradeneeded = (event) => {
       const db = event.target.result;
+      const txn = event.target.transaction;
+
+      // Ensure object stores exist
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         const store = db.createObjectStore(STORE_NAME, { keyPath: "uuid" });
         store.createIndex("project", "project", { unique: false });
         store.createIndex("status", "status", { unique: false });
+      } else {
+        const store = txn.objectStore(STORE_NAME);
+        if (!store.indexNames.contains("status")) {
+          store.createIndex("status", "status", { unique: false });
+        }
+        if (!store.indexNames.contains("project")) {
+          store.createIndex("project", "project", { unique: false });
+        }
       }
+
       if (!db.objectStoreNames.contains(PROJ_STORE_NAME)) {
         db.createObjectStore(PROJ_STORE_NAME, { keyPath: "name" });
       }
@@ -44,19 +56,34 @@ export const dbOps = {
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
     }),
+  getByStatus: (status) =>
+    new Promise((resolve, reject) => {
+      if (!db) return reject("DB not init");
+      const tx = db.transaction(STORE_NAME, "readonly");
+      const store = tx.objectStore(STORE_NAME);
+      const index = store.index("status");
+      const req = index.getAll(status);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    }),
   add: (task) =>
     new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, "readwrite");
       const store = tx.objectStore(STORE_NAME);
-      const req = store.add(task);
+      // If task has modified (e.g. restore/undo), keep it. Else set now.
+      const taskWithMod = { ...task, modified: task.modified || Date.now() };
+      const req = store.add(taskWithMod);
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
     }),
-  update: (task) =>
+  update: (task, { touch = true } = {}) =>
     new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, "readwrite");
       const store = tx.objectStore(STORE_NAME);
-      const req = store.put(task);
+      const taskWithMod = { ...task };
+      if (touch) taskWithMod.modified = Date.now();
+      // If !touch, we preserve whatever 'modified' is in task (or undefined)
+      const req = store.put(taskWithMod);
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
     }),
@@ -87,11 +114,13 @@ export const dbOps = {
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
     }),
-  updateProject: (projData) =>
+  updateProject: (projData, { touch = true } = {}) =>
     new Promise((resolve, reject) => {
       const tx = db.transaction(PROJ_STORE_NAME, "readwrite");
       const store = tx.objectStore(PROJ_STORE_NAME);
-      const req = store.put(projData);
+      const projWithMod = { ...projData };
+      if (touch) projWithMod.modified = Date.now();
+      const req = store.put(projWithMod);
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
     }),

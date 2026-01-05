@@ -4,6 +4,7 @@ import {
   hasVirtualTag,
   matchesProject,
   expandVirtualTagShorthand,
+  C,
 } from "./logic.js";
 import { renderTable } from "./ui.js";
 import { parseRelativeTime } from "./utils.js";
@@ -23,7 +24,40 @@ export const runList = async (args, limit = Infinity) => {
   const effectiveArgs = mergeFilters(args);
   setLastFilterArgs(effectiveArgs);
   setLastLimit(limit);
-  const all = await dbOps.getAll();
+
+  // Pre-scan args to see if we can optimize
+  let showWaiting = false,
+    showDone = false;
+  let forceAll = false;
+
+  for (let token of effectiveArgs) {
+    if (token.startsWith("!")) {
+      const expanded = expandVirtualTagShorthand(token);
+      const tag = expanded.substring(1).toUpperCase();
+      if (["WAITING", "SCHEDULED", "RECURRING", "ALL"].includes(tag))
+        showWaiting = true;
+      if (["DONE", "COMPLETED"].includes(tag)) showDone = true;
+    } else if (token.startsWith("sort:")) {
+      // safe
+    } else if (token.startsWith("pro:") || token.startsWith("p:")) {
+      // safe
+    } else if (token.startsWith("end:")) {
+      forceAll = true; // might need completed tasks
+    }
+  }
+
+  let all;
+  if (!showDone && !forceAll) {
+    // Optimization: fetch only pending if we don't need completed
+    all = await dbOps.getByStatus("pending");
+    // We might need to fetch waiting/scheduled? No, they are "pending" in status, usually.
+    // Wait, let's verify if "waiting" tasks have status="pending".
+    // DB schema has status index. logic.js says WAITING regex returns t.wait > now && t.status === "pending".
+    // So yes, pending includes waiting/scheduled.
+  } else {
+    all = await dbOps.getAll();
+  }
+
   updateCache(all);
   const projects = await dbOps.getAllProjects();
   let search = [],
@@ -31,8 +65,7 @@ export const runList = async (args, limit = Infinity) => {
     fTags = [],
     endAfter = null,
     sortFields = null;
-  let showWaiting = false,
-    showDone = false;
+  // showWaiting/showDone already init above
 
   for (let token of effectiveArgs) {
     if (
@@ -143,6 +176,7 @@ export const runList = async (args, limit = Infinity) => {
 
   // In "next" view (limit !== Infinity), hide tasks with negative urgency
   // But show all tasks when a context is set
+  // Using C.ageThreshold to ensure consistency though logic mainly uses it for urgency
   if (limit !== Infinity && !hasContext()) {
     tasks = tasks.filter((t) => parseFloat(t.urgency) >= 0);
   }

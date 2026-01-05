@@ -12,6 +12,13 @@ export const C = {
   someday: -100.0,
   reference: -100.0,
   routine: -10.0,
+  // Thresholds
+  ageThreshold: 100,
+  daysWarning: 2,
+  daysSoon: 7,
+  priHigh: 50,
+  priMed: 25,
+  priLow: 10,
 };
 
 export const calculateUrgency = (t, allTasks, projectsMeta = []) => {
@@ -43,11 +50,11 @@ export const calculateUrgency = (t, allTasks, projectsMeta = []) => {
     u += t.priority * C.priorityScale;
   if (t.project) u += C.project;
   const ageDays = (Date.now() - t.entry) / (1000 * 60 * 60 * 24);
-  u += ageDays > 100 ? C.age : (ageDays / 100) * C.age;
+  u += ageDays > C.ageThreshold ? C.age : (ageDays / C.ageThreshold) * C.age;
   if (t.due) {
     const daysLeft = (t.due - Date.now()) / (1000 * 60 * 60 * 24);
-    if (daysLeft <= 2) u += C.due;
-    else if (daysLeft <= 14) u += C.due * (1 - (daysLeft - 2) / 12);
+    if (daysLeft <= C.daysWarning) u += C.due;
+    else if (daysLeft <= 14) u += C.due * (1 - (daysLeft - C.daysWarning) / 12);
   }
   // Check blocking (t blocks o) - if any 'o' is pending and depends on 't'
   const isBlocking = allTasks.some(

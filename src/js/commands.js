@@ -122,11 +122,11 @@ const createTaskObject = (args) => {
 
 const applyUndo = async (record) => {
   if (record.type === "update") {
-    await dbOps.update(record.task);
+    await dbOps.update(record.task, { touch: false });
   } else if (record.type === "create") {
     await dbOps.delete(record.uuid);
   } else if (record.type === "delete") {
-    await dbOps.add(record.task);
+    await dbOps.add(record.task, { touch: false });
   } else if (record.type === "compound") {
     for (const r of [...record.records].reverse()) {
       await applyUndo(r);
@@ -1201,13 +1201,13 @@ export const execute = async (str) => {
           const projects = Array.isArray(data) ? [] : data.projects || [];
           for (const t of tasks) {
             if (t.uuid) {
-              await dbOps.update(t);
+              await dbOps.update(t, { touch: false });
               imported++;
             }
           }
           for (const p of projects) {
             if (p.name) {
-              await dbOps.updateProject(p);
+              await dbOps.updateProject(p, { touch: false });
               importedProjects++;
             }
           }

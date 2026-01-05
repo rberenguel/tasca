@@ -1,4 +1,4 @@
-import { getDaysRemaining } from "./logic.js";
+import { getDaysRemaining, C } from "./logic.js";
 import { formatDateHtml } from "./utils.js";
 import { hasContext, formatContextDisplay } from "./context.js";
 
@@ -18,12 +18,16 @@ export const setProjectMetadata = (meta) => {
   }
 };
 
-export const print = (html, append = true) => {
+export const print = (content, append = true) => {
   const term = document.getElementById("terminal-output");
   if (!append) term.innerHTML = "";
   const div = document.createElement("div");
   div.style.marginBottom = "8px";
-  div.innerHTML = html;
+  if (typeof content === "string") {
+    div.innerHTML = content;
+  } else if (content instanceof Node) {
+    div.appendChild(content);
+  }
   term.appendChild(div);
   term.scrollTop = append ? term.scrollHeight : 0;
 };
@@ -73,173 +77,289 @@ export const formatProject = (proj) => {
 
 export const renderTable = (tasks, allTasks, displayMapRef, projects = []) => {
   setProjectMetadata(projects);
+
+  // Helper to create table structure
+  const createTableStruct = () => {
+    const wrapper = document.createElement("div");
+    wrapper.className = "table-wrapper";
+    const table = document.createElement("table");
+    const thead = document.createElement("thead");
+    thead.innerHTML = `<tr>
+        <th style="width:25px">ID</th>
+        <th>Description</th>
+        <th style="width:40px; text-align:right">Urg</th>
+    </tr>`;
+    table.appendChild(thead);
+    const tbody = document.createElement("tbody");
+    table.appendChild(tbody);
+    wrapper.appendChild(table);
+    return { wrapper, tbody };
+  };
+
+  const container = document.createDocumentFragment();
+
+  if (hasContext()) {
+    const ctxDiv = document.createElement("div");
+    ctxDiv.className = "context-banner";
+    ctxDiv.textContent = `Context: ${formatContextDisplay()}`;
+    container.appendChild(ctxDiv);
+  }
+
   if (!tasks || tasks.length === 0) {
     displayMapRef.value = [];
-    let html = `
-        <div class="table-wrapper">
-        <table>
-            <thead><tr>
-                <th style="width:25px">ID</th>
-                <th>Description</th>
-                <th style="width:40px; text-align:right">Urg</th>
-            </tr></thead>
-            <tbody></tbody>
-        </table></div>`;
-    html += `<div style="font-size:0.8em; color:var(--base01)">0 tasks shown.</div>`;
-    if (hasContext()) {
-      const ctxDisplay = formatContextDisplay();
-      html = `<div class="context-banner">Context: ${ctxDisplay}</div>` + html;
-    }
-    return print(html, false);
+    const { wrapper } = createTableStruct();
+    container.appendChild(wrapper);
+    const footer = document.createElement("div");
+    footer.style.fontSize = "0.8em";
+    footer.style.color = "var(--base01)";
+    footer.textContent = "0 tasks shown.";
+    container.appendChild(footer);
+    return print(container, false);
   }
 
   displayMapRef.value = tasks.map((t) => t.uuid);
-
-  let html = `
-    <div class="table-wrapper">
-    <table>
-        <thead><tr>
-            <th style="width:25px">ID</th>
-            <th>Description</th>
-            <th style="width:40px; text-align:right">Urg</th>
-        </tr></thead>
-        <tbody>`;
+  const { wrapper, tbody } = createTableStruct();
 
   tasks.forEach((t, index) => {
-    let desc = formatInlineCode(t.description);
+    const tr = document.createElement("tr");
+    if (t.start && t.status === "pending") tr.className = "row-active";
 
-    let tagsHtml = "";
-    if (t.tags && t.tags.length > 0) {
-      t.tags.forEach((tag) => {
-        tagsHtml += ` <span class="tag-pill">${tag}</span>`;
-      });
+    // Cell 1: ID
+    const tdId = document.createElement("td");
+    tdId.className = "row-id";
+    tdId.textContent = index + 1;
+    tr.appendChild(tdId);
+
+    // Cell 2: Description + Metadata
+    const tdDesc = document.createElement("td");
+    tdDesc.className = "row-desc";
+
+    // Icon
+    if (t.icon) {
+      const i = document.createElement("i");
+      i.className = t.icon;
+      i.style.marginRight = "5px";
+      tdDesc.appendChild(i);
     }
 
-    // Enrich description with project, priority etc if not simple list
-    let metaHtml = "";
+    // Description (handles inline code)
+    const descSpan = document.createElement("span");
+    descSpan.innerHTML = formatInlineCode(t.description); // formatInlineCode still returns HTML string
+    tdDesc.appendChild(descSpan);
+
+    // Metadata
+    // Link
     if (t.url) {
-      metaHtml += ` <a href="${t.url}" target="_blank" rel="noopener" class="task-link"><i class="ph-light ph-link"></i></a>`;
+      const a = document.createElement("a");
+      a.href = t.url;
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.className = "task-link";
+      a.style.marginLeft = "4px"; // added spacing
+      a.innerHTML = '<i class="ph-light ph-link"></i>';
+      tdDesc.appendChild(a);
     }
-    if (t.project) metaHtml += ` ${formatProject(t.project)}`;
+    // Project
+    if (t.project) {
+      tdDesc.appendChild(document.createTextNode(" "));
+      const projSpan = document.createElement("span");
+      projSpan.innerHTML = formatProject(t.project);
+      tdDesc.appendChild(projSpan);
+    }
+    // Priority
     if (t.priority != null) {
-      let priColor = "var(--base01)"; // default/low/negative
-      if (typeof t.priority === "number" && t.priority >= 10) {
-        // Smooth gradient: green(10) → yellow(25) → red(50+)
-        // HSL hue: green=120, yellow=60, red=0
+      tdDesc.appendChild(document.createTextNode(" "));
+      const priSpan = document.createElement("span");
+      let priColor = "var(--base01)";
+      if (typeof t.priority === "number" && t.priority >= C.priLow) {
         let hue;
-        if (t.priority >= 50) {
-          hue = 0; // red
-        } else if (t.priority >= 25) {
-          // yellow(60) to red(0) as priority goes 25→50
-          hue = 60 - ((t.priority - 25) / 25) * 60;
-        } else {
-          // green(120) to yellow(60) as priority goes 10→25
-          hue = 120 - ((t.priority - 10) / 15) * 60;
-        }
+        if (t.priority >= C.priHigh) hue = 0;
+        else if (t.priority >= C.priMed)
+          hue = 60 - ((t.priority - C.priMed) / C.priMed) * 60;
+        else hue = 120 - ((t.priority - C.priLow) / (C.priMed - C.priLow)) * 60;
         priColor = `hsl(${hue}, 70%, 45%)`;
       }
-      metaHtml += ` <span style="color:${priColor}; font-weight:bold">pri:${t.priority}</span>`;
+      priSpan.style.color = priColor;
+      priSpan.style.fontWeight = "bold";
+      priSpan.textContent = `pri:${t.priority}`;
+      tdDesc.appendChild(priSpan);
     }
-
+    // Due
     if (t.due) {
+      tdDesc.appendChild(document.createTextNode(" "));
       const daysCheck = getDaysRemaining(t.due);
+      const dateSpan = document.createElement("span");
       let cls = "date-far";
-      if (daysCheck < 2) cls = "date-urgent";
-      else if (daysCheck < 7) cls = "date-soon";
-      metaHtml += ` <span class="date-pill ${cls}">(${daysCheck}d)</span>`;
+      if (daysCheck < C.daysWarning) cls = "date-urgent";
+      else if (daysCheck < C.daysSoon) cls = "date-soon";
+      dateSpan.className = `date-pill ${cls}`;
+      dateSpan.textContent = `(${daysCheck}d)`;
+      tdDesc.appendChild(dateSpan);
     }
+    // Wait
     if (t.wait && t.wait > Date.now()) {
-      metaHtml += ` <span class="date-pill date-wait">wait:${formatDateHtml(t.wait)}</span>`;
+      tdDesc.appendChild(document.createTextNode(" "));
+      const waitSpan = document.createElement("span");
+      waitSpan.className = "date-pill date-wait";
+      waitSpan.textContent = `wait:${formatDateHtml(t.wait)}`;
+      tdDesc.appendChild(waitSpan);
     }
+    // Recur
     if (t.recur) {
-      metaHtml += ` <span class="recur-icon">↻${t.recur}</span>`;
+      tdDesc.appendChild(document.createTextNode(" "));
+      const recurSpan = document.createElement("span");
+      recurSpan.className = "recur-icon";
+      recurSpan.textContent = `↻${t.recur}`;
+      tdDesc.appendChild(recurSpan);
     }
+    // Active
     if (t.start && t.status === "pending") {
-      metaHtml += ` <span class="active-icon">▶</span>`;
+      tdDesc.appendChild(document.createTextNode(" "));
+      const activeSpan = document.createElement("span");
+      activeSpan.className = "active-icon";
+      activeSpan.textContent = "▶";
+      tdDesc.appendChild(activeSpan);
     }
+    // Deps
     if (t.depends && t.depends.length > 0) {
       const activeDeps = allTasks.filter(
         (tsk) => t.depends.includes(tsk.uuid) && tsk.status === "pending",
       );
       if (activeDeps.length > 0) {
-        metaHtml += ` <span class="blocked-pill">dep:${activeDeps.length}</span>`;
+        tdDesc.appendChild(document.createTextNode(" "));
+        const depSpan = document.createElement("span");
+        depSpan.className = "blocked-pill";
+        depSpan.textContent = `dep:${activeDeps.length}`;
+        tdDesc.appendChild(depSpan);
       }
     }
+    // Annotations
     if (t.annotations && t.annotations.length > 0) {
-      metaHtml += ` <span class="anno-count">msg:${t.annotations.length}</span>`;
+      tdDesc.appendChild(document.createTextNode(" "));
+      const annoSpan = document.createElement("span");
+      annoSpan.className = "anno-count";
+      annoSpan.textContent = `msg:${t.annotations.length}`;
+      tdDesc.appendChild(annoSpan);
     }
+    // Done info
     if (t.end) {
+      tdDesc.appendChild(document.createTextNode(" "));
       const d = new Date(t.end);
       const dateStr = d.toISOString().slice(0, 10);
       const timeStr = d.toTimeString().slice(0, 5);
-      metaHtml += ` <span style="color:var(--green)">done:${dateStr} ${timeStr}</span>`;
+      const doneSpan = document.createElement("span");
+      doneSpan.style.color = "var(--green)";
+      doneSpan.textContent = `done:${dateStr} ${timeStr}`;
+      tdDesc.appendChild(doneSpan);
+    }
+    // Tags
+    if (t.tags && t.tags.length > 0) {
+      t.tags.forEach((tag) => {
+        tdDesc.appendChild(document.createTextNode(" "));
+        const tagSpan = document.createElement("span");
+        tagSpan.className = "tag-pill";
+        tagSpan.textContent = tag;
+        tdDesc.appendChild(tagSpan);
+      });
     }
 
-    const taskIcon = t.icon
-      ? `<i class="${t.icon}" style="margin-right:5px"></i>`
-      : "";
-    const isActive = t.start && t.status === "pending";
-    html += `<tr${isActive ? ' class="row-active"' : ""}>
-            <td class="row-id">${index + 1}</td>
-            <td class="row-desc">${taskIcon}${desc}${metaHtml}${tagsHtml}</td>
-            <td class="row-urgency">${t.urgency}</td>
-        </tr>`;
+    tr.appendChild(tdDesc);
+
+    // Cell 3: Urgency
+    const tdUrg = document.createElement("td");
+    tdUrg.className = "row-urgency";
+    tdUrg.textContent = t.urgency;
+    tr.appendChild(tdUrg);
+
+    tbody.appendChild(tr);
   });
 
-  html += `</tbody></table></div>`;
-  html += `<div style="font-size:0.8em; color:var(--base01)">${tasks.length} tasks shown.</div>`;
+  container.appendChild(wrapper);
 
-  // Prepend context banner if active
-  if (hasContext()) {
-    const ctxDisplay = formatContextDisplay();
-    html = `<div class="context-banner">Context: ${ctxDisplay}</div>` + html;
-  }
+  const footer = document.createElement("div");
+  footer.style.fontSize = "0.8em";
+  footer.style.color = "var(--base01)";
+  footer.textContent = `${tasks.length} tasks shown.`;
+  container.appendChild(footer);
 
-  print(html, false);
+  print(container, false);
 };
 
 export const renderProjectsTable = (projectNames, projectsMeta, taskCounts) => {
   setProjectMetadata(projectsMeta);
+
+  const createTableStruct = () => {
+    const wrapper = document.createElement("div");
+    wrapper.className = "table-wrapper";
+    const table = document.createElement("table");
+    const thead = document.createElement("thead");
+    thead.innerHTML = `<tr>
+        <th>Project</th>
+        <th style="width:60px; text-align:right">Tasks</th>
+    </tr>`;
+    table.appendChild(thead);
+    const tbody = document.createElement("tbody");
+    table.appendChild(tbody);
+    wrapper.appendChild(table);
+    return { wrapper, tbody };
+  };
+
+  const container = document.createDocumentFragment();
+
   if (!projectNames || projectNames.length === 0) {
-    let html = `
-        <div class="table-wrapper">
-        <table>
-            <thead><tr>
-                <th>Project</th>
-                <th style="width:60px; text-align:right">Tasks</th>
-            </tr></thead>
-            <tbody></tbody>
-        </table></div>`;
-    html += `<div style="font-size:0.8em; color:var(--base01)">0 projects.</div>`;
-    return print(html, false);
+    const { wrapper } = createTableStruct();
+    container.appendChild(wrapper);
+    const footer = document.createElement("div");
+    footer.style.fontSize = "0.8em";
+    footer.style.color = "var(--base01)";
+    footer.textContent = "0 projects.";
+    container.appendChild(footer);
+    return print(container, false);
   }
 
-  let html = `
-    <div class="table-wrapper">
-    <table>
-        <thead><tr>
-            <th>Project</th>
-            <th style="width:60px; text-align:right">Tasks</th>
-        </tr></thead>
-        <tbody>`;
+  const { wrapper, tbody } = createTableStruct();
 
   projectNames.sort().forEach((name) => {
     const count = taskCounts[name] || 0;
     const meta = projectMetadata[name];
-    let tagsHtml = "";
+
+    const tr = document.createElement("tr");
+
+    // Cell 1: Project with icon and tags
+    const tdProj = document.createElement("td");
+
+    // formatProject returns HTML string
+    const projSpan = document.createElement("span");
+    projSpan.innerHTML = formatProject(name);
+    tdProj.appendChild(projSpan);
+
     if (meta?.tags?.length > 0) {
       meta.tags.forEach((tag) => {
-        tagsHtml += ` <span class="tag-pill">${tag}</span>`;
+        tdProj.appendChild(document.createTextNode(" "));
+        const tagSpan = document.createElement("span");
+        tagSpan.className = "tag-pill";
+        tagSpan.textContent = tag;
+        tdProj.appendChild(tagSpan);
       });
     }
-    html += `<tr>
-            <td>${formatProject(name)}${tagsHtml}</td>
-            <td style="text-align:right">${count}</td>
-        </tr>`;
+    tr.appendChild(tdProj);
+
+    // Cell 2: Count
+    const tdCount = document.createElement("td");
+    tdCount.style.textAlign = "right";
+    tdCount.textContent = count;
+    tr.appendChild(tdCount);
+
+    tbody.appendChild(tr);
   });
 
-  html += `</tbody></table></div>`;
-  html += `<div style="font-size:0.8em; color:var(--base01)">${projectNames.length} projects.</div>`;
+  container.appendChild(wrapper);
 
-  print(html, false);
+  const footer = document.createElement("div");
+  footer.style.fontSize = "0.8em";
+  footer.style.color = "var(--base01)";
+  footer.textContent = `${projectNames.length} projects.`;
+  container.appendChild(footer);
+
+  print(container, false);
 };
