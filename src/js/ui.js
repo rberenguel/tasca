@@ -3,6 +3,12 @@ import { formatDateHtml } from "./utils.js";
 import { hasContext, formatContextDisplay } from "./context.js";
 
 let projectMetadata = {};
+
+// Format text between backticks as inline code
+export const formatInlineCode = (text) => {
+  if (!text) return text;
+  return text.replace(/`([^`]+)`/g, '<span class="inline-code">$1</span>');
+};
 let cachedProjectCounts = {}; // for projects table
 
 export const setProjectMetadata = (meta) => {
@@ -100,7 +106,7 @@ export const renderTable = (tasks, allTasks, displayMapRef, projects = []) => {
         <tbody>`;
 
   tasks.forEach((t, index) => {
-    let desc = t.description;
+    let desc = formatInlineCode(t.description);
 
     let tagsHtml = "";
     if (t.tags && t.tags.length > 0) {

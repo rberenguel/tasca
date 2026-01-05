@@ -298,6 +298,10 @@ tr.row-active .row-desc {
   user-select: text;
   -webkit-user-select: text;
 }
+.inline-code {
+  font-size: 95%;
+  color: var(--cyan);
+}
 .active-icon {
   color: var(--green);
   font-size: 0.8em;

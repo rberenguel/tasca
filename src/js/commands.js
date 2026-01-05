@@ -15,7 +15,7 @@ import {
   expandVirtualTagShorthand,
   VALID_COMMANDS,
 } from "./logic.js";
-import { print, renderProjectsTable, formatProject } from "./ui.js";
+import { print, renderProjectsTable, formatProject, formatInlineCode } from "./ui.js";
 import { runList } from "./list.js";
 import {
   displayMapRef,
@@ -382,7 +382,7 @@ export const execute = async (str) => {
         if (prefix.length > 0 || isTail !== undefined)
           treeMarker = `<span style="color:var(--base01)">${prefix}${isTail ? "└── " : "├── "}</span>`;
 
-        let content = `<span style="${isTarget ? "color:var(--yellow); font-weight:bold" : ""}">ID:${displayMapRef.value.indexOf(u) + 1} ${t.description}</span>`;
+        let content = `<span style="${isTarget ? "color:var(--yellow); font-weight:bold" : ""}">ID:${displayMapRef.value.indexOf(u) + 1} ${formatInlineCode(t.description)}</span>`;
         if (t.tags && t.tags.length)
           content += ` <span style="color:var(--blue)">${t.tags.map((tag) => "+" + tag).join(" ")}</span>`;
         if (t.project)
@@ -525,7 +525,7 @@ export const execute = async (str) => {
       const t = await dbOps.get(displayMapRef.value[id - 1]);
       let html = `<div class="task-info">`;
       html += `<div style="color:var(--yellow)">Task ${id} - ${t.uuid}</div>`;
-      html += `<div><b>Desc:</b> ${t.description}</div>`;
+      html += `<div><b>Desc:</b> ${formatInlineCode(t.description)}</div>`;
       html += `<div><b>Status:</b> ${t.status}</div>`;
       if (t.project) {
         const projects = await dbOps.getAllProjects();
@@ -553,7 +553,7 @@ export const execute = async (str) => {
       if (t.annotations && t.annotations.length > 0) {
         html += `<div style="margin-top:5px; border-top:1px dashed var(--base01); padding-top:5px"><b>Annotations:</b></div>`;
         t.annotations.forEach((a, i) => {
-          html += `<div style="margin-left:10px; font-size:0.9em; color:var(--base1)"><span style="color:var(--base01)">${i + 1}.</span> ${formatDate(a.entry)}: ${a.description}</div>`;
+          html += `<div style="margin-left:10px; font-size:0.9em; color:var(--base1)"><span style="color:var(--base01)">${i + 1}.</span> ${formatDate(a.entry)}: ${formatInlineCode(a.description)}</div>`;
         });
       }
       html += `</div>`;
@@ -1377,7 +1377,7 @@ export const execute = async (str) => {
           for (const e of groups[dayKey]) {
             const t = e.task;
             const typeLabel = `<span style="color:var(--base01)">[${e.type}]</span>`;
-            let desc = t.description;
+            let desc = formatInlineCode(t.description);
             if (t.priority)
               desc += ` <span style="color:var(--magenta)">pri:${t.priority}</span>`;
             if (t.project) {
@@ -1548,7 +1548,7 @@ export const execute = async (str) => {
                   : "var(--cyan)";
             html += `<tr>`;
             html += `<td>${idx++}</td>`;
-            html += `<td>${t.description} ${proj} <span style="color:${ageColor}">${t.ageDays}d</span></td>`;
+            html += `<td>${formatInlineCode(t.description)} ${proj} <span style="color:${ageColor}">${t.ageDays}d</span></td>`;
             html += `</tr>`;
           }
           html += "</tbody></table></div>";
@@ -1604,7 +1604,7 @@ export const execute = async (str) => {
 
             for (const t of tasks) {
               const dateStr = new Date(t.end).toLocaleDateString();
-              html += `<div style="margin-left:12px"><span style="color:var(--green)">✓</span> ${t.description} <span style="color:var(--base01)">${dateStr}</span></div>`;
+              html += `<div style="margin-left:12px"><span style="color:var(--green)">✓</span> ${formatInlineCode(t.description)} <span style="color:var(--base01)">${dateStr}</span></div>`;
             }
           }
           print(html, false);
@@ -1633,7 +1633,7 @@ export const execute = async (str) => {
 
             for (const t of tasks) {
               const dateStr = new Date(t.end).toLocaleDateString();
-              html += `<div style="margin-left:12px"><span style="color:var(--green)">✓</span> ${t.description} <span style="color:var(--base01)">${dateStr}</span></div>`;
+              html += `<div style="margin-left:12px"><span style="color:var(--green)">✓</span> ${formatInlineCode(t.description)} <span style="color:var(--base01)">${dateStr}</span></div>`;
             }
           }
           print(html, false);
