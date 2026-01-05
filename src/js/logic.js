@@ -170,6 +170,8 @@ export const VALID_COMMANDS = [
   "rm",
   "modify",
   "mod",
+  "edit",
+  "ed",
   "export",
   "exp",
   "import",

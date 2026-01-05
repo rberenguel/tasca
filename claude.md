@@ -37,11 +37,21 @@ src/js/
 
 ## Commands Reference
 
-Task commands: `add`, `delete`, `done`, `start`, `stop`, `modify`, `annotate`, `info`, `skip`
+Task commands: `add`, `delete`, `done`, `start`, `stop`, `modify`, `edit/ed`, `annotate`, `info`, `skip`
 Views: `list`, `next`, `calendar/cal`, `projects`, `chain`
 Data: `export/exp`, `import/imp`, `link`, `load`, `save`, `unlink`
 Context: `context/ctx/c` (GTD persistent filters)
 Reports: `report/rep` with subcommands (for GTD weekly reviews)
+
+## Edit Command
+
+`edit` (or `ed`) populates the input field with a `mod` command containing all task properties:
+
+```
+edit 1    → Input becomes: mod 1 Task description pro:Project pri:10 !tag due:20250120 ...
+```
+
+This allows quick inline editing of any property - modify what you need and press Enter.
 
 ## Report Command
 

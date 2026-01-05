@@ -352,6 +352,11 @@ describe("Tasca Logic Tests", function () {
       expect(VALID_COMMANDS).to.include("undo");
     });
 
+    it("should include edit command in VALID_COMMANDS", function () {
+      expect(VALID_COMMANDS).to.include("edit");
+      expect(VALID_COMMANDS).to.include("ed");
+    });
+
     it("should resolve unambiguous commands", function () {
       expect(resolveCommand("report")).to.equal("report");
       expect(resolveCommand("add")).to.equal("add");
@@ -359,6 +364,7 @@ describe("Tasca Logic Tests", function () {
       expect(resolveCommand("done")).to.equal("done");
       expect(resolveCommand("calendar")).to.equal("calendar");
       expect(resolveCommand("ski")).to.equal("skip");
+      expect(resolveCommand("edit")).to.equal("edit");
     });
 
     it("should return null for ambiguous prefixes", function () {
@@ -1465,6 +1471,170 @@ describe("Command Syntax E2E Tests", function () {
 
       expect(first).to.not.be.undefined;
       expect(second).to.not.be.undefined;
+    });
+  });
+});
+
+describe("Edit Command E2E Tests", function () {
+  before(async function () {
+    await initDB();
+    if (!document.getElementById("terminal-output")) {
+      const div = document.createElement("div");
+      div.id = "terminal-output";
+      document.body.appendChild(div);
+    }
+    if (!document.getElementById("cmd-input")) {
+      const input = document.createElement("textarea");
+      input.id = "cmd-input";
+      document.body.appendChild(input);
+    }
+  });
+
+  beforeEach(async function () {
+    await dbOps.purgeAll();
+    clearUndo();
+    displayMapRef.value = [];
+    document.getElementById("terminal-output").innerHTML = "";
+    document.getElementById("cmd-input").value = "";
+  });
+
+  describe("Basic edit command", function () {
+    it("edit 1 - should populate input with mod command", async function () {
+      await execute("add test task");
+      await execute("edit 1");
+
+      const input = document.getElementById("cmd-input");
+      expect(input.value).to.include("mod 1");
+      expect(input.value).to.include("test task");
+    });
+
+    it("ed 1 - should work with alias", async function () {
+      await execute("add test task");
+      await execute("ed 1");
+
+      const input = document.getElementById("cmd-input");
+      expect(input.value).to.include("mod 1");
+      expect(input.value).to.include("test task");
+    });
+
+    it("1 edit - should work with reversed syntax", async function () {
+      await execute("add test task");
+      await execute("1 edit");
+
+      const input = document.getElementById("cmd-input");
+      expect(input.value).to.include("mod 1");
+      expect(input.value).to.include("test task");
+    });
+
+    it("1 ed - should work with reversed syntax and alias", async function () {
+      await execute("add test task");
+      await execute("1 ed");
+
+      const input = document.getElementById("cmd-input");
+      expect(input.value).to.include("mod 1");
+      expect(input.value).to.include("test task");
+    });
+  });
+
+  describe("Edit with task properties", function () {
+    it("should include project in edit command", async function () {
+      await execute("add task with project pro:TestProject");
+      await execute("edit 1");
+
+      const input = document.getElementById("cmd-input");
+      expect(input.value).to.include("pro:TestProject");
+    });
+
+    it("should include priority in edit command", async function () {
+      await execute("add task with priority pri:50");
+      await execute("edit 1");
+
+      const input = document.getElementById("cmd-input");
+      expect(input.value).to.include("pri:50");
+    });
+
+    it("should include tags in edit command", async function () {
+      await execute("add task with tags !urgent !important");
+      await execute("edit 1");
+
+      const input = document.getElementById("cmd-input");
+      expect(input.value).to.include("!urgent");
+      expect(input.value).to.include("!important");
+    });
+
+    it("should include due date in edit command", async function () {
+      await execute("add task with due due:20250615");
+      await execute("edit 1");
+
+      const input = document.getElementById("cmd-input");
+      expect(input.value).to.include("due:20250615");
+    });
+
+    it("should include recurrence in edit command", async function () {
+      await execute("add recurring task due:today recur:1w");
+      await execute("edit 1");
+
+      const input = document.getElementById("cmd-input");
+      expect(input.value).to.include("recur:1w");
+    });
+
+    it("should include url in edit command", async function () {
+      await execute("add task with url url:https://example.com");
+      await execute("edit 1");
+
+      const input = document.getElementById("cmd-input");
+      expect(input.value).to.include("url:https://example.com");
+    });
+
+    it("should include all properties together", async function () {
+      await execute(
+        "add complex task pro:Work pri:25 !urgent due:20250620 recur:1w",
+      );
+      await execute("edit 1");
+
+      const input = document.getElementById("cmd-input");
+      expect(input.value).to.include("mod 1");
+      expect(input.value).to.include("complex task");
+      expect(input.value).to.include("pro:Work");
+      expect(input.value).to.include("pri:25");
+      expect(input.value).to.include("!urgent");
+      expect(input.value).to.include("due:20250620");
+      expect(input.value).to.include("recur:1w");
+    });
+  });
+
+  describe("Edit error handling", function () {
+    it("should show error for invalid ID", async function () {
+      await execute("add test task");
+      await execute("edit 99");
+
+      const output = document.getElementById("terminal-output").innerHTML;
+      expect(output).to.include("Invalid ID");
+    });
+
+    it("should show error when no tasks exist", async function () {
+      await execute("edit 1");
+
+      const output = document.getElementById("terminal-output").innerHTML;
+      expect(output).to.include("Invalid ID");
+    });
+  });
+
+  describe("Edit and modify workflow", function () {
+    it("should allow editing then modifying a task", async function () {
+      await execute("add original task pri:10");
+
+      // Edit populates input
+      await execute("edit 1");
+      const input = document.getElementById("cmd-input");
+      expect(input.value).to.include("pri:10");
+
+      // Simulate user modifying the input and executing
+      await execute("mod 1 updated task pri:50");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].description).to.equal("updated task");
+      expect(tasks[0].priority).to.equal(50);
     });
   });
 });

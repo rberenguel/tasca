@@ -4,6 +4,7 @@ import {
   parseWaitTime,
   formatDate,
   formatDateHtml,
+  formatDateOnly,
   calculateNextRecurrence,
   parseRelativeTime,
 } from "./utils.js";
@@ -15,7 +16,12 @@ import {
   expandVirtualTagShorthand,
   VALID_COMMANDS,
 } from "./logic.js";
-import { print, renderProjectsTable, formatProject, formatInlineCode } from "./ui.js";
+import {
+  print,
+  renderProjectsTable,
+  formatProject,
+  formatInlineCode,
+} from "./ui.js";
 import { runList } from "./list.js";
 import {
   displayMapRef,
@@ -558,6 +564,46 @@ export const execute = async (str) => {
       }
       html += `</div>`;
       print(html, true);
+    } else if (["edit", "ed"].includes(cmd)) {
+      // Populate input with mod command for quick editing
+      const id = targetId || parseInt(args[0]);
+      if (!id || !displayMapRef.value[id - 1])
+        return print('<span class="msg-error">Invalid ID.</span>');
+      const t = await dbOps.get(displayMapRef.value[id - 1]);
+
+      // Build the command string
+      let cmdParts = [`mod ${id}`, t.description];
+
+      if (t.project) cmdParts.push(`pro:${t.project}`);
+      if (t.priority != null) cmdParts.push(`pri:${t.priority}`);
+      if (t.tags && t.tags.length > 0) {
+        t.tags.forEach((tag) => cmdParts.push(`!${tag}`));
+      }
+      if (t.due) cmdParts.push(`due:${formatDate(t.due)}`);
+      if (t.wait) cmdParts.push(`wait:${formatDate(t.wait)}`);
+      if (t.sched) cmdParts.push(`sched:${formatDate(t.sched)}`);
+      if (t.recur) cmdParts.push(`recur:${t.recur}`);
+      if (t.url) cmdParts.push(`url:${t.url}`);
+      if (t.icon) cmdParts.push(`icon:${t.icon}`);
+      if (t.depends && t.depends.length > 0) {
+        // Convert UUIDs to display IDs where possible
+        const depIds = t.depends
+          .map((uuid) => {
+            const idx = displayMapRef.value.indexOf(uuid);
+            return idx >= 0 ? idx + 1 : null;
+          })
+          .filter((id) => id !== null);
+        if (depIds.length > 0) cmdParts.push(`dep:${depIds.join(",")}`);
+      }
+
+      const cmdStr = cmdParts.join(" ");
+      const input = document.getElementById("cmd-input");
+      if (input) {
+        input.value = cmdStr;
+        input.focus();
+        // Move cursor to end
+        input.setSelectionRange(cmdStr.length, cmdStr.length);
+      }
     } else if (
       ["modify", "mod"].includes(cmd) &&
       args[0] &&
@@ -785,7 +831,7 @@ export const execute = async (str) => {
       const sub = args[0];
       if (!sub) {
         print(
-          `<span style="color:var(--yellow)">Commands:</span> add, list, done, skip, delete, modify, annotate, undo, info, chain, projects, context, calendar, report, export, import, icon. Type <span class="msg-hl">help [cmd]</span> for details.`,
+          `<span style="color:var(--yellow)">Commands:</span> add, list, done, skip, delete, modify, edit, annotate, undo, info, chain, projects, context, calendar, report, export, import, icon. Type <span class="msg-hl">help [cmd]</span> for details.`,
           false,
         );
       } else {
@@ -838,6 +884,11 @@ export const execute = async (str) => {
         else if (c === "info")
           print(
             `<div class="msg-help"><span class="msg-hl">info</span> ID<br>Shows full task details including annotations and UUID.<br><span class="msg-hl">info</span> <span class="msg-arg">pro:Name</span> — show project details (icon, tags).</div>`,
+            false,
+          );
+        else if (c === "edit" || c === "ed")
+          print(
+            `<div class="msg-help"><span class="msg-hl">edit</span> ID (alias: <span class="msg-hl">ed</span>)<br>Populates the input with a <span class="msg-hl">mod</span> command containing all task properties for quick editing.</div>`,
             false,
           );
         else if (["chain", "tree", "dependencies", "deps"].includes(c))
