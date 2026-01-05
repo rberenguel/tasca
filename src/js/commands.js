@@ -783,7 +783,7 @@ export const execute = async (str) => {
       const sub = args[0];
       if (!sub) {
         print(
-          `<span style="color:var(--yellow)">Commands:</span> add, list, done, skip, delete, modify, annotate, undo, info, chain, projects, context, calendar, report, export, import. Type <span class="msg-hl">help [cmd]</span> for details.`,
+          `<span style="color:var(--yellow)">Commands:</span> add, list, done, skip, delete, modify, annotate, undo, info, chain, projects, context, calendar, report, export, import, icon. Type <span class="msg-hl">help [cmd]</span> for details.`,
           false,
         );
       } else {
@@ -798,6 +798,9 @@ export const execute = async (str) => {
             `<div class="msg-help"><span class="msg-hl">mod</span> ID <span class="msg-arg">pro:P</span> <span class="msg-arg">pri:N</span> <span class="msg-arg">due:Y</span> <span class="msg-arg">wait:Y</span> <span class="msg-arg">sched:Y</span> <span class="msg-arg">recur:P</span> <span class="msg-arg">!tag</span> <span class="msg-arg">dep:ID</span><br><span class="msg-hl">mod</span> <span class="msg-arg">pro:Name</span> <span class="msg-arg">icon:value</span> <span class="msg-arg">!tag</span> (project metadata, tags toggle)</div>`,
             false,
           );
+        else if (c === "icon") {
+          window.open("https://phosphoricons.com/#toolbar", "_blank");
+        }
         else if (c === "list")
           print(
             `<div class="msg-help"><span class="msg-hl">list</span> [search] <span class="msg-arg">pro:Project</span> <span class="msg-arg">!tag</span> <span class="msg-arg">end:1w</span><br>Virtual: <span class="msg-arg">!overdue</span> <span class="msg-arg">!today</span> <span class="msg-arg">!waiting</span> <span class="msg-arg">!scheduled</span> <span class="msg-arg">!recurring</span> <span class="msg-arg">!blocked</span> <span class="msg-arg">!someday</span> <span class="msg-arg">!done</span> <span class="msg-arg">!all</span></div>`,
