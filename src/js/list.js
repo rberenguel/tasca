@@ -9,6 +9,7 @@ import { renderTable } from "./ui.js";
 import { parseRelativeTime } from "./utils.js";
 import {
   displayMapRef,
+  iconResultsRef,
   setLastFilterArgs,
   setLastLimit,
   updateCache,
@@ -16,6 +17,8 @@ import {
 import { mergeFilters, hasContext } from "./context.js";
 
 export const runList = async (args, limit = Infinity) => {
+  // Clear icon results so copy N works for tasks
+  iconResultsRef.value = [];
   // Apply context filters
   const effectiveArgs = mergeFilters(args);
   setLastFilterArgs(effectiveArgs);

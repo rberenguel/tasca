@@ -4,6 +4,9 @@
 export let displayMap = [];
 export const displayMapRef = { value: displayMap };
 
+// Last icon search results for copy command
+export const iconResultsRef = { value: [] };
+
 // Autocomplete caches
 export const knownProjects = new Set();
 export const knownTags = new Set();

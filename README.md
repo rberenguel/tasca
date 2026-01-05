@@ -35,6 +35,7 @@ Tasca runs entirely in the browser using IndexedDB for storage. No server requir
 | `load`                            | Import from linked file                  |
 | `save`                            | Export to linked file                    |
 | `unlink`                          | Remove linked file                       |
+| `icon <term>`                     | Search for icon names by keyword         |
 | `about`                           | Show version info                        |
 | `help [cmd]`                      | Show help                                |
 
@@ -144,7 +145,7 @@ mod pro:Work icon:                      # clear icon
 mod pro:Books !reference                # toggle tag (hides from next)
 ```
 
-Icons use [Phosphor](https://phosphoricons.com/). Project tags are shown in `projects` list.
+Icons use [Phosphor](https://phosphoricons.com/). Use `icon <term>` to search for icon names (uses Phosphor's tag index for related terms). Use `copy N` to copy an icon name from search results. Project tags are shown in `projects` list.
 
 ### Sync Between Devices
 

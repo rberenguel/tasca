@@ -19,12 +19,14 @@ import { print, renderProjectsTable, formatProject } from "./ui.js";
 import { runList } from "./list.js";
 import {
   displayMapRef,
+  iconResultsRef,
   updateCache,
   lastFilterArgs,
   lastLimit,
 } from "./state.js";
 import { setContext, getInheritedAttributes } from "./context.js";
 import { pushUndo, popUndo } from "./undo.js";
+import { searchIcons, searchIconsMulti } from "./icon-tags.js";
 
 const isIOS =
   /iPad|iPhone|iPod/.test(navigator.userAgent) ||
@@ -798,9 +800,11 @@ export const execute = async (str) => {
             `<div class="msg-help"><span class="msg-hl">mod</span> ID <span class="msg-arg">pro:P</span> <span class="msg-arg">pri:N</span> <span class="msg-arg">due:Y</span> <span class="msg-arg">wait:Y</span> <span class="msg-arg">sched:Y</span> <span class="msg-arg">recur:P</span> <span class="msg-arg">!tag</span> <span class="msg-arg">dep:ID</span><br><span class="msg-hl">mod</span> <span class="msg-arg">pro:Name</span> <span class="msg-arg">icon:value</span> <span class="msg-arg">!tag</span> (project metadata, tags toggle)</div>`,
             false,
           );
-        else if (c === "icon") {
-          window.open("https://phosphoricons.com/#toolbar", "_blank");
-        }
+        else if (c === "icon")
+          print(
+            `<div class="msg-help"><span class="msg-hl">icon</span> <span class="msg-arg">term</span><br>Search for Phosphor icon names by keyword. Use with <span class="msg-arg">icon:name</span> in add/modify.</div>`,
+            false,
+          );
         else if (c === "list")
           print(
             `<div class="msg-help"><span class="msg-hl">list</span> [search] <span class="msg-arg">pro:Project</span> <span class="msg-arg">!tag</span> <span class="msg-arg">end:1w</span><br>Virtual: <span class="msg-arg">!overdue</span> <span class="msg-arg">!today</span> <span class="msg-arg">!waiting</span> <span class="msg-arg">!scheduled</span> <span class="msg-arg">!recurring</span> <span class="msg-arg">!blocked</span> <span class="msg-arg">!someday</span> <span class="msg-arg">!done</span> <span class="msg-arg">!all</span></div>`,
@@ -903,6 +907,28 @@ export const execute = async (str) => {
           );
       }
     } else if (cmd === "copy" || cmd === "cp") {
+      // Check if copying an icon from icon search results
+      if (
+        args.length === 1 &&
+        /^\d+$/.test(args[0]) &&
+        iconResultsRef.value.length > 0
+      ) {
+        const idx = parseInt(args[0]) - 1;
+        if (idx >= 0 && idx < iconResultsRef.value.length) {
+          const iconName = iconResultsRef.value[idx];
+          try {
+            await navigator.clipboard.writeText(iconName);
+            print(
+              `<span class="msg-success">Copied icon name: ${iconName}</span>`,
+            );
+          } catch (err) {
+            print(
+              `<span class="msg-error">Failed to copy: ${err.message}</span>`,
+            );
+          }
+          return;
+        }
+      }
       const all = await dbOps.getAll();
       const output = [];
       for (const uuid of displayMapRef.value) {
@@ -1615,6 +1641,33 @@ export const execute = async (str) => {
         print(
           `<span class="msg-error">Unknown report: ${subCmd}. Try: stale, rot, done</span>`,
         );
+      }
+    } else if (cmd === "icon") {
+      if (args.length === 0) {
+        return print(
+          '<span class="msg-info">Usage: icon TERM — search for icon names by keyword. Use copy N to copy icon name.</span>',
+        );
+      }
+      const query = args.join(" ");
+      const results = query.includes(" ")
+        ? searchIconsMulti(query)
+        : searchIcons(query);
+      if (results.length === 0) {
+        iconResultsRef.value = [];
+        print(`<span class="msg-info">No icons found for "${query}"</span>`);
+      } else {
+        const preview = results.slice(0, 50);
+        iconResultsRef.value = preview;
+        let html = `<div style="color:var(--yellow)">Icons matching "${query}" (${results.length}):</div>`;
+        html += `<div class="table-wrapper"><table><tbody>`;
+        preview.forEach((name, idx) => {
+          html += `<tr><td style="width:25px">${idx + 1}</td><td style="width:1.5em;font-size:1.4em"><i class="ph-light ph-${name}"></i></td><td>${name}</td></tr>`;
+        });
+        html += `</tbody></table></div>`;
+        if (results.length > 50) {
+          html += `<div style="color:var(--base01)">...and ${results.length - 50} more</div>`;
+        }
+        print(html, false);
       }
     } else print(`<span class="msg-error">Unknown: ${cmd}</span>`);
   } catch (err) {
