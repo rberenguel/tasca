@@ -32,7 +32,7 @@ const isIOS =
   /iPad|iPhone|iPod/.test(navigator.userAgent) ||
   (navigator.userAgent.includes("Mac") && navigator.maxTouchPoints > 1);
 
-let lastCommandWasHelp = false;
+let lastCommandWasPassthrough = false;
 
 // Merge tokens like "pro:" + "value" into "pro:value"
 const normalizeArgs = (parts) => {
@@ -134,8 +134,8 @@ export const execute = async (str) => {
   try {
     let parts = str.trim().split(/\s+/);
     if (!parts.length || parts[0] === "") {
-      if (lastCommandWasHelp) {
-        lastCommandWasHelp = false;
+      if (lastCommandWasPassthrough) {
+        lastCommandWasPassthrough = false;
         await runList(lastFilterArgs, lastLimit);
       }
       return;
@@ -163,7 +163,7 @@ export const execute = async (str) => {
     }
     if (!cmd) cmd = rawCmd;
 
-    lastCommandWasHelp = cmd === "help";
+    lastCommandWasPassthrough = cmd === "help" || cmd === "icon";
 
     if (cmd === "export" || cmd === "exp") {
       await dbOps.cleanupOrphanProjects();
@@ -921,6 +921,7 @@ export const execute = async (str) => {
             print(
               `<span class="msg-success">Copied icon name: ${iconName}</span>`,
             );
+            lastCommandWasPassthrough = true;
           } catch (err) {
             print(
               `<span class="msg-error">Failed to copy: ${err.message}</span>`,
