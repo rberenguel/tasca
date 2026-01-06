@@ -29,6 +29,23 @@ export const historyState = {
   historyTemp: "",
 };
 
+// Unsaved changes tracking
+export const unsavedState = {
+  dirty: false,
+};
+
+export const markDirty = () => {
+  unsavedState.dirty = true;
+  const dot = document.getElementById("unsaved-dot");
+  if (dot) dot.hidden = false;
+};
+
+export const markClean = () => {
+  unsavedState.dirty = false;
+  const dot = document.getElementById("unsaved-dot");
+  if (dot) dot.hidden = true;
+};
+
 // Update autocomplete caches from tasks
 export const updateCache = (tasks) => {
   knownProjects.clear();

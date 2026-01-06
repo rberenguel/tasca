@@ -1,6 +1,6 @@
 import { initDB, dbOps } from "./db.js";
 import { print } from "./ui.js";
-import { fetchIcons, updateCache, lastFilterArgs } from "./state.js";
+import { fetchIcons, updateCache, lastFilterArgs, markDirty } from "./state.js";
 import { setupInput } from "./input.js";
 import { execute } from "./commands.js";
 import { runList } from "./list.js";
@@ -71,6 +71,7 @@ initDB().then(async () => {
         print(
           `<span class="msg-success">Imported ${tasks.length} tasks${projMsg}.</span>`,
         );
+        markDirty();
         await execute("next");
       } catch (err) {
         print(`<span class="msg-error">Error: ${err.message}</span>`);

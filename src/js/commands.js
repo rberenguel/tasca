@@ -29,6 +29,8 @@ import {
   updateCache,
   lastFilterArgs,
   lastLimit,
+  markDirty,
+  markClean,
 } from "./state.js";
 import { setContext, getInheritedAttributes } from "./context.js";
 import { pushUndo, popUndo } from "./undo.js";
@@ -239,6 +241,7 @@ export const execute = async (str) => {
           print(
             `<span class="msg-success">Exported ${filtered.length} tasks to ${handle.name}.</span>`,
           );
+          if (args.length === 0) markClean();
           return;
         } catch (e) {
           if (e.name === "AbortError") return;
@@ -252,6 +255,7 @@ export const execute = async (str) => {
           print(
             `<span class="msg-success">Exported ${filtered.length} tasks.</span>`,
           );
+          if (args.length === 0) markClean();
           return;
         } catch (e) {
           if (e.name === "AbortError") return;
@@ -269,6 +273,7 @@ export const execute = async (str) => {
       print(
         `<span class="msg-success">Exported ${filtered.length} tasks.</span>`,
       );
+      if (args.length === 0) markClean();
     } else if (cmd === "import" || cmd === "imp")
       document.getElementById("import-picker").click();
     else if (cmd === "clear") {
@@ -313,6 +318,7 @@ export const execute = async (str) => {
         entry: Date.now(),
       });
       pushUndo({ type: "create", uuid });
+      markDirty();
       await runList(lastFilterArgs, lastLimit);
     } else if (cmd === "list" || cmd === "ls" || cmd === "l") {
       await runList(args);
@@ -453,6 +459,7 @@ export const execute = async (str) => {
           print(
             `<span class="msg-success">Project ${projName} updated.</span>`,
           );
+          markDirty();
           await runList(lastFilterArgs, lastLimit);
         } else {
           print(
@@ -487,6 +494,7 @@ export const execute = async (str) => {
         task.annotations.splice(n - 1, 1);
         await dbOps.update(task);
         print(`<span class="msg-success">Annotation ${n} removed.</span>`);
+        markDirty();
         await runList(lastFilterArgs, lastLimit);
         return;
       }
@@ -494,6 +502,7 @@ export const execute = async (str) => {
       if (!task.annotations) task.annotations = [];
       task.annotations.push({ entry: Date.now(), description: note });
       await dbOps.update(task);
+      markDirty();
       await runList(lastFilterArgs, lastLimit);
     } else if (cmd === "info" || cmd === "i") {
       // Check if it's a project info request
@@ -717,6 +726,7 @@ export const execute = async (str) => {
         task.description = descParts.join(" ");
       }
       await dbOps.update(task);
+      markDirty();
       await runList(lastFilterArgs, lastLimit);
     } else if (cmd === "start" || cmd === "st") {
       const id = targetId || parseInt(args[0]);
@@ -728,6 +738,7 @@ export const execute = async (str) => {
         task.start = Date.now();
         await dbOps.update(task);
         print(`<span class="msg-success">Started task ${id}.</span>`);
+        markDirty();
         await runList(lastFilterArgs, lastLimit);
       }
     } else if (cmd === "done") {
@@ -762,6 +773,7 @@ export const execute = async (str) => {
           print(`<span class="msg-success">Recurring task created.</span>`);
         }
         pushUndo({ type: "compound", records: undoRecords });
+        markDirty();
         await runList(lastFilterArgs, lastLimit);
       }
     } else if (["delete", "rm"].includes(cmd)) {
@@ -771,6 +783,7 @@ export const execute = async (str) => {
       const task = await dbOps.get(displayMapRef.value[id - 1]);
       pushUndo({ type: "delete", task: structuredClone(task) });
       await dbOps.delete(displayMapRef.value[id - 1]);
+      markDirty();
       await runList(lastFilterArgs, lastLimit);
     } else if (cmd === "skip") {
       const id = targetId || parseInt(args[0]);
@@ -819,6 +832,7 @@ export const execute = async (str) => {
       print(
         '<span class="msg-success">Skipped. Next occurrence created.</span>',
       );
+      markDirty();
       await runList(lastFilterArgs, lastLimit);
     } else if (cmd === "undo") {
       const record = popUndo();
@@ -826,6 +840,7 @@ export const execute = async (str) => {
         return print('<span class="msg-error">Nothing to undo.</span>');
       await applyUndo(record);
       print('<span class="msg-success">Undone.</span>');
+      markDirty();
       await runList(lastFilterArgs, lastLimit);
     } else if (cmd === "help") {
       const sub = args[0];
@@ -1218,6 +1233,7 @@ export const execute = async (str) => {
         print(
           `<span class="msg-success">Loaded ${imported} tasks${projMsg} from ${handle.name}.</span>`,
         );
+        markClean();
         if (imported > 0) {
           const all = await dbOps.getAll();
           updateCache(all);
@@ -1252,6 +1268,7 @@ export const execute = async (str) => {
         print(
           `<span class="msg-success">Saved ${all.length} tasks to ${handle.name}.</span>`,
         );
+        markClean();
       } catch (e) {
         print(`<span class="msg-error">Save failed: ${e.message}</span>`);
       }
