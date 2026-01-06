@@ -5,7 +5,7 @@ export const setupInput = (execute) => {
   const input = document.getElementById("cmd-input");
   const ghost = document.getElementById("ghost-input");
 
-  input.addEventListener("input", () => {
+  const updateGhost = () => {
     const val = input.value;
     const parts = val.split(" ");
     const last = parts[parts.length - 1];
@@ -63,7 +63,11 @@ export const setupInput = (execute) => {
     } else {
       ghost.innerHTML = "";
     }
-  });
+  };
+
+  input.addEventListener("input", updateGhost);
+  // iOS fires compositionend after completing text input - ensure ghost updates
+  input.addEventListener("compositionend", updateGhost);
 
   input.addEventListener("keydown", async (e) => {
     if (e.key === "Tab") {

@@ -89,6 +89,9 @@ textarea#cmd-input,
   width: 100%;
   line-height: 24px;
   letter-spacing: normal;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  -webkit-text-size-adjust: 100%;
 }
 
 textarea#cmd-input {
@@ -115,7 +118,6 @@ textarea#cmd-input:placeholder-shown {
   color: var(--base01);
   z-index: 1;
   pointer-events: none;
-  white-space: pre;
   opacity: 0.6;
   position: absolute;
   top: 0;
