@@ -130,6 +130,8 @@ textarea#cmd-input:placeholder-shown {
   overflow-y: auto;
   padding: 0 10px 50px 10px;
   -webkit-overflow-scrolling: touch;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 /* Custom scrollbar styling */

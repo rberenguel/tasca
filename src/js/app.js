@@ -63,8 +63,10 @@ initDB().then(async () => {
         // Handle both old format (array) and new format (object with tasks/projects)
         const tasks = Array.isArray(data) ? data : data.tasks || [];
         const projects = Array.isArray(data) ? [] : data.projects || [];
+        const savedAt = Array.isArray(data) ? null : data.savedAt || null;
         for (const t of tasks) if (t.uuid) await dbOps.update(t);
         for (const p of projects) if (p.name) await dbOps.updateProject(p);
+        if (savedAt) await dbOps.setSetting("lastSave", savedAt);
         const projMsg = projects.length
           ? ` and ${projects.length} projects`
           : "";
@@ -85,9 +87,12 @@ initDB().then(async () => {
   setupInput(execute);
 
   // Tap output area to toggle input focus (mobile UX)
+  // Only trigger if no text is selected (to allow text selection)
   const terminalOutput = document.getElementById("terminal-output");
   const cmdInput = document.getElementById("cmd-input");
   terminalOutput.addEventListener("click", () => {
+    const selection = window.getSelection();
+    if (selection && selection.toString().length > 0) return;
     if (document.activeElement === cmdInput) {
       cmdInput.blur();
     } else {

@@ -168,9 +168,7 @@ export const renderTable = (tasks, allTasks, displayMapRef, projects = []) => {
     // Blocker count (how many pending tasks does this task block?)
     const blocksCount = allTasks.filter(
       (tsk) =>
-        tsk.status === "pending" &&
-        tsk.depends &&
-        tsk.depends.includes(t.uuid),
+        tsk.status === "pending" && tsk.depends && tsk.depends.includes(t.uuid),
     ).length;
     if (blocksCount > 0) {
       tdDesc.appendChild(document.createTextNode(" "));

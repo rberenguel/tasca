@@ -223,7 +223,11 @@ export const execute = async (str) => {
           );
       }
 
-      const exportData = { tasks: filtered, projects: projectsMeta };
+      const exportData = {
+        tasks: filtered,
+        projects: projectsMeta,
+        savedAt: Date.now(),
+      };
       const dataStr = JSON.stringify(exportData, null, 2);
       const blob = new Blob([dataStr], { type: "application/json" });
       const filename =
@@ -248,7 +252,10 @@ export const execute = async (str) => {
           print(
             `<span class="msg-success">Exported ${filtered.length} tasks to ${handle.name}.</span>`,
           );
-          if (args.length === 0) markClean();
+          if (args.length === 0) {
+            markClean();
+            await dbOps.setSetting("lastSave", Date.now());
+          }
           return;
         } catch (e) {
           if (e.name === "AbortError") return;
@@ -262,7 +269,10 @@ export const execute = async (str) => {
           print(
             `<span class="msg-success">Exported ${filtered.length} tasks.</span>`,
           );
-          if (args.length === 0) markClean();
+          if (args.length === 0) {
+            markClean();
+            await dbOps.setSetting("lastSave", Date.now());
+          }
           return;
         } catch (e) {
           if (e.name === "AbortError") return;
@@ -280,7 +290,10 @@ export const execute = async (str) => {
       print(
         `<span class="msg-success">Exported ${filtered.length} tasks.</span>`,
       );
-      if (args.length === 0) markClean();
+      if (args.length === 0) {
+        markClean();
+        await dbOps.setSetting("lastSave", Date.now());
+      }
     } else if (cmd === "import" || cmd === "imp")
       document.getElementById("import-picker").click();
     else if (cmd === "clear") {
@@ -288,6 +301,7 @@ export const execute = async (str) => {
       execute("next");
     } else if (rawCmd === "42clear") {
       await dbOps.purgeAll();
+      await dbOps.deleteSetting("lastSave");
       updateCache([]);
       document.getElementById("terminal-output").innerHTML = "";
       print(
@@ -403,7 +417,7 @@ export const execute = async (str) => {
 
         let content = `<span style="${isTarget ? "color:var(--yellow); font-weight:bold" : ""}">ID:${displayMapRef.value.indexOf(u) + 1} ${formatInlineCode(t.description)}</span>`;
         if (t.tags && t.tags.length)
-          content += ` <span style="color:var(--blue)">${t.tags.map((tag) => "+" + tag).join(" ")}</span>`;
+          content += ` <span style="color:var(--blue)">${t.tags.map((tag) => "!" + tag).join(" ")}</span>`;
         if (t.project)
           content += ` <span style="color:var(--yellow)">${t.project}</span>`;
 
@@ -636,7 +650,7 @@ export const execute = async (str) => {
       args.slice(1).forEach((arg) => {
         if (arg.startsWith("icon:")) {
           let val = arg.split(":")[1];
-          icon = (!val || val === "") ? null : val;
+          icon = !val || val === "" ? null : val;
         } else if (arg.startsWith("!")) {
           tagsToToggle.push(arg.substring(1).toLowerCase());
         }
@@ -999,17 +1013,28 @@ export const execute = async (str) => {
       for (const uuid of displayMapRef.value) {
         const task = all.find((t) => t.uuid === uuid);
         if (task) {
-          let line = task.description;
-          if (task.url) line += ` url:${task.url}`;
-          if (task.project) line += ` p:${task.project}`;
-          if (task.tags && task.tags.length > 0)
-            line += ` ${task.tags.map((t) => "!" + t).join(" ")}`;
-          if (task.priority != null) line += ` pri:${task.priority}`;
-          if (task.due) line += ` due:${formatDate(task.due)}`;
-          if (task.wait) line += ` wait:${formatDate(task.wait)}`;
-          if (task.sched) line += ` sched:${formatDate(task.sched)}`;
-          if (task.recur) line += ` recur:${task.recur}`;
-          output.push(line);
+          let parts = [task.description];
+          if (task.project) parts.push(`pro:${task.project}`);
+          if (task.priority != null) parts.push(`pri:${task.priority}`);
+          if (task.tags && task.tags.length > 0) {
+            task.tags.forEach((tag) => parts.push(`!${tag}`));
+          }
+          if (task.due) parts.push(`due:${formatDate(task.due)}`);
+          if (task.wait) parts.push(`wait:${formatDate(task.wait)}`);
+          if (task.sched) parts.push(`sched:${formatDate(task.sched)}`);
+          if (task.recur) parts.push(`recur:${task.recur}`);
+          if (task.url) parts.push(`url:${task.url}`);
+          if (task.icon) parts.push(`icon:${task.icon}`);
+          if (task.depends && task.depends.length > 0) {
+            const depIds = task.depends
+              .map((depUuid) => {
+                const idx = displayMapRef.value.indexOf(depUuid);
+                return idx >= 0 ? idx + 1 : null;
+              })
+              .filter((id) => id !== null);
+            if (depIds.length > 0) parts.push(`dep:${depIds.join(",")}`);
+          }
+          output.push(parts.join(" "));
         }
       }
 
@@ -1143,8 +1168,14 @@ export const execute = async (str) => {
         const manifest = await res.json();
         version = manifest.version || "unknown";
       } catch (e) {}
+      const lastSave = await dbOps.getSetting("lastSave");
+      let lastSaveStr = "never";
+      if (lastSave) {
+        const d = new Date(lastSave);
+        lastSaveStr = d.toLocaleString();
+      }
       print(
-        `<div style="color:var(--base1)">Tasca v${version}<br>PWA task manager inspired by Taskwarrior.<br>Ruben Berenguel, 2025 with the help of Claude and Gemini.</div>`,
+        `<div style="color:var(--base1)">Tasca v${version}<br>PWA task manager inspired by Taskwarrior.<br>Ruben Berenguel, 2025 with the help of Claude and Gemini.<br><br>Last save: ${lastSaveStr}</div>`,
       );
     } else if (["projects", "proj"].includes(cmd)) {
       await dbOps.cleanupOrphanProjects();
@@ -1212,6 +1243,7 @@ export const execute = async (str) => {
           // Handle both old format (array) and new format (object with tasks/projects)
           const tasks = Array.isArray(data) ? data : data.tasks || [];
           const projects = Array.isArray(data) ? [] : data.projects || [];
+          const savedAt = Array.isArray(data) ? null : data.savedAt || null;
           for (const t of tasks) {
             if (t.uuid) {
               await dbOps.update(t, { touch: false });
@@ -1223,6 +1255,9 @@ export const execute = async (str) => {
               await dbOps.updateProject(p, { touch: false });
               importedProjects++;
             }
+          }
+          if (savedAt) {
+            await dbOps.setSetting("lastSave", savedAt);
           }
         }
         const projMsg = importedProjects
@@ -1259,7 +1294,7 @@ export const execute = async (str) => {
         await dbOps.cleanupOrphanProjects();
         const all = await dbOps.getAll();
         const projects = await dbOps.getAllProjects();
-        const saveData = { tasks: all, projects };
+        const saveData = { tasks: all, projects, savedAt: Date.now() };
         const writable = await handle.createWritable();
         await writable.write(JSON.stringify(saveData, null, 2));
         await writable.close();
@@ -1267,6 +1302,7 @@ export const execute = async (str) => {
           `<span class="msg-success">Saved ${all.length} tasks to ${handle.name}.</span>`,
         );
         markClean();
+        await dbOps.setSetting("lastSave", Date.now());
       } catch (e) {
         print(`<span class="msg-error">Save failed: ${e.message}</span>`);
       }
