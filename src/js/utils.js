@@ -8,6 +8,18 @@ export const generateUUID = () => {
   });
 };
 
+// Monotonically increasing timestamp for deterministic ordering
+let lastTimestamp = 0;
+export const uniqueTimestamp = () => {
+  const now = Date.now();
+  if (now <= lastTimestamp) {
+    lastTimestamp++;
+  } else {
+    lastTimestamp = now;
+  }
+  return lastTimestamp;
+};
+
 // Helper to set specific time on a date
 const setTime = (date, hours, minutes) => {
   date.setHours(hours, minutes, 0, 0);

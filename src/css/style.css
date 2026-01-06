@@ -264,6 +264,16 @@ tr.row-active .row-desc {
   margin-right: 4px;
   font-size: 0.9em;
 }
+.blocker-pill {
+  color: #8b2020;
+  font-weight: bold;
+  margin-right: 4px;
+  font-size: 0.9em;
+}
+.blocker-icon {
+  font-size: 110%;
+  font-weight: bold !important;
+}
 .date-pill {
   font-size: 0.85em;
   margin-right: 6px;

@@ -7,6 +7,7 @@ import {
   formatDateOnly,
   calculateNextRecurrence,
   parseRelativeTime,
+  uniqueTimestamp,
 } from "./utils.js";
 import { dbOps } from "./db.js";
 import {
@@ -35,6 +36,12 @@ import {
 import { setContext, getInheritedAttributes } from "./context.js";
 import { pushUndo, popUndo } from "./undo.js";
 import { searchIcons, searchIconsMulti } from "./icon-tags.js";
+
+// Convert icon name to full Phosphor class (handles legacy full class format)
+const iconClass = (name) => {
+  if (!name) return "";
+  return name.startsWith("ph-") ? name : `ph-light ph-${name}`;
+};
 
 const isIOS =
   /iPad|iPhone|iPod/.test(navigator.userAgent) ||
@@ -101,7 +108,7 @@ const createTaskObject = (args) => {
     else if (token.startsWith("url:")) url = token.substring(4);
     else if (token.startsWith("icon:")) {
       let val = token.split(":")[1];
-      if (val && !val.startsWith("ph-light")) val = "ph-light ph-" + val;
+      // Store just the icon name, not the full class
       icon = val || null;
     } else if (token.startsWith("!")) tags.push(token.substring(1));
     else desc.push(token);
@@ -315,7 +322,7 @@ export const execute = async (str) => {
         icon: tObj.icon,
         annotations: [],
         status: "pending",
-        entry: Date.now(),
+        entry: uniqueTimestamp(),
       });
       pushUndo({ type: "create", uuid });
       markDirty();
@@ -434,9 +441,7 @@ export const execute = async (str) => {
         let tagsToToggle = [];
         args.slice(1).forEach((arg) => {
           if (arg.startsWith("icon:")) {
-            let val = arg.split(":")[1];
-            if (val && !val.startsWith("ph-light")) val = "ph-light ph-" + val;
-            icon = val;
+            icon = arg.split(":")[1] || null;
           } else if (arg.startsWith("!")) {
             tagsToToggle.push(arg.substring(1).toLowerCase());
           }
@@ -526,7 +531,7 @@ export const execute = async (str) => {
         let html = `<div class="task-info">`;
         html += `<div style="color:var(--yellow)">Project: ${projName}</div>`;
         if (proj?.icon)
-          html += `<div><b>Icon:</b> <i class="${proj.icon}" style="margin-right:5px"></i>${proj.icon.replace("ph-light ph-", "")}</div>`;
+          html += `<div><b>Icon:</b> <i class="${iconClass(proj.icon)}" style="margin-right:5px"></i>${proj.icon.replace(/^ph-light ph-/, "")}</div>`;
         if (proj?.tags?.length > 0)
           html += `<div><b>Tags:</b> ${proj.tags.join(" ")}</div>`;
         html += `<div><b>Pending tasks:</b> ${taskCount}</div>`;
@@ -547,13 +552,13 @@ export const execute = async (str) => {
         const pMeta = projects.find((p) => p.name === t.project);
         let pIcon = "";
         if (pMeta && pMeta.icon)
-          pIcon = `<i class="${pMeta.icon}" style="margin-right:5px"></i>`;
+          pIcon = `<i class="${iconClass(pMeta.icon)}" style="margin-right:5px"></i>`;
         html += `<div><b>Project:</b> ${pIcon}${t.project}</div>`;
       }
       if (t.url)
         html += `<div><b>URL:</b> <a href="${t.url}" target="_blank" rel="noopener" class="task-link">${t.url}</a></div>`;
       if (t.icon)
-        html += `<div><b>Icon:</b> <i class="${t.icon}"></i> ${t.icon}</div>`;
+        html += `<div><b>Icon:</b> <i class="${iconClass(t.icon)}"></i> ${t.icon.replace(/^ph-light ph-/, "")}</div>`;
       if (t.due) html += `<div><b>Due:</b> ${formatDateHtml(t.due)}</div>`;
       if (t.wait) html += `<div><b>Wait:</b> ${formatDateHtml(t.wait)}</div>`;
       if (t.sched)
@@ -631,12 +636,7 @@ export const execute = async (str) => {
       args.slice(1).forEach((arg) => {
         if (arg.startsWith("icon:")) {
           let val = arg.split(":")[1];
-          if (!val || val === "") {
-            icon = null;
-          } else {
-            if (!val.startsWith("ph-light")) val = "ph-light ph-" + val;
-            icon = val;
-          }
+          icon = (!val || val === "") ? null : val;
         } else if (arg.startsWith("!")) {
           tagsToToggle.push(arg.substring(1).toLowerCase());
         }
@@ -696,9 +696,7 @@ export const execute = async (str) => {
           const val = token.substring(4);
           task.url = val || null;
         } else if (token.startsWith("icon:")) {
-          let val = token.split(":")[1];
-          if (val && !val.startsWith("ph-light")) val = "ph-light ph-" + val;
-          task.icon = val || null;
+          task.icon = token.split(":")[1] || null;
         } else if (token.startsWith("!")) {
           const tag = token.substring(1);
           if (!task.tags) task.tags = [];
@@ -762,7 +760,7 @@ export const execute = async (str) => {
             wait: recurrence.nextWait || null,
             waitTime: recurrence.waitTime || task.waitTime || null,
             sched: recurrence.nextSched || null,
-            entry: Date.now(),
+            entry: uniqueTimestamp(),
             annotations: [],
           };
           delete newTask.depends;
@@ -819,7 +817,7 @@ export const execute = async (str) => {
         wait: recurrence.nextWait || null,
         waitTime: recurrence.waitTime || task.waitTime || null,
         sched: recurrence.nextSched || null,
-        entry: Date.now(),
+        entry: uniqueTimestamp(),
         annotations: [],
       };
       delete newTask.depends;
@@ -1095,7 +1093,7 @@ export const execute = async (str) => {
               icon: tObj.icon,
               annotations: [],
               status: "pending",
-              entry: Date.now(),
+              entry: uniqueTimestamp(),
             });
             count++;
           }
@@ -1452,7 +1450,7 @@ export const execute = async (str) => {
               const pMeta = projects.find((p) => p.name === t.project);
               const icon =
                 pMeta && pMeta.icon
-                  ? `<i class="${pMeta.icon}" style="margin-right:3px"></i>`
+                  ? `<i class="${iconClass(pMeta.icon)}" style="margin-right:3px"></i>`
                   : "";
               desc += ` <span style="color:var(--yellow)">${icon}${t.project}</span>`;
             }
@@ -1535,7 +1533,7 @@ export const execute = async (str) => {
           for (const p of sorted) {
             const pMeta = projects.find((pm) => pm.name === p.name);
             const icon = pMeta?.icon
-              ? `<i class="${pMeta.icon}" style="margin-right:4px"></i>`
+              ? `<i class="${iconClass(pMeta.icon)}" style="margin-right:4px"></i>`
               : "";
             const dateStr = new Date(p.lastActivity).toLocaleDateString();
             const staleClass =
@@ -1695,7 +1693,7 @@ export const execute = async (str) => {
           for (const [projName, tasks] of sortedProjects) {
             const pMeta = projects.find((p) => p.name === projName);
             const icon = pMeta?.icon
-              ? `<i class="${pMeta.icon}" style="margin-right:4px"></i>`
+              ? `<i class="${iconClass(pMeta.icon)}" style="margin-right:4px"></i>`
               : "";
             html += `<div style="color:var(--yellow); margin-top:8px; border-bottom:1px solid var(--base01)">${icon}${projName} (${tasks.length})</div>`;
 

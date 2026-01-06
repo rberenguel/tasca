@@ -1025,6 +1025,7 @@ describe("Undo E2E Tests", function () {
     if (!document.getElementById("terminal-output")) {
       const div = document.createElement("div");
       div.id = "terminal-output";
+      div.style.display = "none";
       document.body.appendChild(div);
     }
   });
@@ -1291,6 +1292,7 @@ describe("Command Syntax E2E Tests", function () {
     if (!document.getElementById("terminal-output")) {
       const div = document.createElement("div");
       div.id = "terminal-output";
+      div.style.display = "none";
       document.body.appendChild(div);
     }
   });
@@ -1481,11 +1483,13 @@ describe("Edit Command E2E Tests", function () {
     if (!document.getElementById("terminal-output")) {
       const div = document.createElement("div");
       div.id = "terminal-output";
+      div.style.display = "none";
       document.body.appendChild(div);
     }
     if (!document.getElementById("cmd-input")) {
       const input = document.createElement("textarea");
       input.id = "cmd-input";
+      input.style.display = "none";
       document.body.appendChild(input);
     }
   });

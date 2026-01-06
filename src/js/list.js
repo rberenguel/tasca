@@ -170,14 +170,16 @@ export const runList = async (args, limit = Infinity) => {
       const urgDiff = parseFloat(b.urgency) - parseFloat(a.urgency);
       if (urgDiff !== 0) return urgDiff;
       // Tiebreaker: older tasks first (FIFO within same urgency)
-      return (a.entry || 0) - (b.entry || 0);
+      const entryDiff = (a.entry || 0) - (b.entry || 0);
+      if (entryDiff !== 0) return entryDiff;
+      // Final tiebreaker: UUID for deterministic order when entry times match
+      return (a.uuid || "").localeCompare(b.uuid || "");
     });
   }
 
   // In "next" view (limit !== Infinity), hide tasks with negative urgency
-  // But show all tasks when a context is set
-  // Using C.ageThreshold to ensure consistency though logic mainly uses it for urgency
-  if (limit !== Infinity && !hasContext()) {
+  // (blocked, someday, reference, etc.) - these are not actionable
+  if (limit !== Infinity) {
     tasks = tasks.filter((t) => parseFloat(t.urgency) >= 0);
   }
 

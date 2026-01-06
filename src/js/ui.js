@@ -2,6 +2,12 @@ import { getDaysRemaining, C } from "./logic.js";
 import { formatDateHtml } from "./utils.js";
 import { hasContext, formatContextDisplay } from "./context.js";
 
+// Convert icon name to full Phosphor class (handles legacy full class format)
+const iconClass = (name) => {
+  if (!name) return "";
+  return name.startsWith("ph-") ? name : `ph-light ph-${name}`;
+};
+
 let projectMetadata = {};
 
 // Format text between backticks as inline code
@@ -40,7 +46,7 @@ export const formatProject = (proj) => {
   // Check exact match or parent match if we want inheritance, but let's stick to simple lookup first.
   // If strict match:
   if (projectMetadata[proj] && projectMetadata[proj].icon) {
-    iconHtml = `<i class="${projectMetadata[proj].icon}" style="margin-right:4px; color:var(--yellow)"></i>`;
+    iconHtml = `<i class="${iconClass(projectMetadata[proj].icon)}" style="margin-right:4px; color:var(--yellow)"></i>`;
   }
   // If we wanted inheritance (e.g. Work.Project gets Work icon), we'd split and loop.
   // Let's support simple inheritance: check 'Work.Project', then 'Work'.
@@ -49,7 +55,7 @@ export const formatProject = (proj) => {
     while (parts.length > 0) {
       const p = parts.join(".");
       if (projectMetadata[p] && projectMetadata[p].icon) {
-        iconHtml = `<i class="${projectMetadata[p].icon}" style="margin-right:4px; color:var(--yellow)"></i>`;
+        iconHtml = `<i class="${iconClass(projectMetadata[p].icon)}" style="margin-right:4px; color:var(--yellow)"></i>`;
         break;
       }
       parts.pop();
@@ -137,7 +143,7 @@ export const renderTable = (tasks, allTasks, displayMapRef, projects = []) => {
     // Icon
     if (t.icon) {
       const i = document.createElement("i");
-      i.className = t.icon;
+      i.className = iconClass(t.icon);
       i.style.marginRight = "5px";
       tdDesc.appendChild(i);
     }
@@ -158,6 +164,20 @@ export const renderTable = (tasks, allTasks, displayMapRef, projects = []) => {
       a.style.marginLeft = "4px"; // added spacing
       a.innerHTML = '<i class="ph-light ph-link"></i>';
       tdDesc.appendChild(a);
+    }
+    // Blocker count (how many pending tasks does this task block?)
+    const blocksCount = allTasks.filter(
+      (tsk) =>
+        tsk.status === "pending" &&
+        tsk.depends &&
+        tsk.depends.includes(t.uuid),
+    ).length;
+    if (blocksCount > 0) {
+      tdDesc.appendChild(document.createTextNode(" "));
+      const blockerSpan = document.createElement("span");
+      blockerSpan.className = "blocker-pill";
+      blockerSpan.innerHTML = `<i class="ph-light ph-prohibit blocker-icon"></i>${blocksCount}`;
+      tdDesc.appendChild(blockerSpan);
     }
     // Project
     if (t.project) {
