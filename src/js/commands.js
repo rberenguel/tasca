@@ -965,7 +965,7 @@ export const execute = async (str) => {
           );
         else if (c === "report" || c === "rep")
           print(
-            `<div class="msg-help"><span class="msg-hl">report</span> <span class="msg-arg">stale</span> | <span class="msg-arg">rot [N]</span> | <span class="msg-arg">done [period] [by:project|tag]</span><br><span class="msg-arg">stale</span> — projects by staleness (days since activity)<br><span class="msg-arg">rot [N]</span> — oldest N pending tasks (default 10)<br><span class="msg-arg">done [1w] [by:tag]</span> — completed tasks grouped by project or tag</div>`,
+            `<div class="msg-help"><span class="msg-hl">report</span> <span class="msg-arg">stale</span> | <span class="msg-arg">rot [N]</span> | <span class="msg-arg">done [period] [by:project|tag]</span> | <span class="msg-arg">cfd [pro:X] [period] [by:project|tag]</span> | <span class="msg-arg">cycle [pro:X] [period] [by:project|tag]</span><br><span class="msg-arg">stale</span> — projects by staleness (days since activity)<br><span class="msg-arg">rot [N]</span> — oldest N pending tasks (default 10)<br><span class="msg-arg">done [1w] [by:tag]</span> — completed tasks grouped by project or tag<br><span class="msg-arg">cfd</span> — cumulative flow diagram (done vs pending over time)<br><span class="msg-arg">cycle</span> — cycle time distribution (latency from entry to done)</div>`,
             false,
           );
         else if (c === "copy" || c === "cp")
@@ -1504,7 +1504,9 @@ export const execute = async (str) => {
         print(`<b>Report Commands:</b>
   <span class="cmd">report stale</span> - Project staleness (days since last activity)
   <span class="cmd">report rot [N]</span> - Oldest pending tasks (default: 10)
-  <span class="cmd">report done [period] [by:project|tag]</span> - Completed tasks grouped (default: 1w, by:project)`);
+  <span class="cmd">report done [period] [by:project|tag]</span> - Completed tasks grouped (default: 1w, by:project)
+  <span class="cmd">report cfd [pro:X] [period] [by:project|tag]</span> - Cumulative flow diagram (done vs pending over time)
+  <span class="cmd">report cycle [pro:X] [period] [by:project|tag]</span> - Cycle time distribution (entry to done latency)`);
       } else if (subCmd === "stale") {
         const all = await dbOps.getAll();
         const projects = await dbOps.getAllProjects();
@@ -1662,7 +1664,10 @@ export const execute = async (str) => {
         let groupBy = "project";
         for (const arg of subArgs) {
           if (arg.startsWith("by:")) {
-            groupBy = arg.split(":")[1].toLowerCase();
+            const val = arg.split(":")[1].toLowerCase();
+            if (["p", "pro", "proj", "project"].includes(val))
+              groupBy = "project";
+            else if (["t", "tag"].includes(val)) groupBy = "tag";
           } else {
             periodArg = arg;
           }
@@ -1740,9 +1745,389 @@ export const execute = async (str) => {
           }
           print(html, false);
         }
+      } else if (subCmd === "cfd") {
+        // Cumulative Flow Diagram
+        // Parse project filter, grouping, and period
+        let fProj = null;
+        let groupBy = null;
+        let periodArg = null;
+        for (const arg of subArgs) {
+          if (
+            arg.startsWith("p:") ||
+            arg.startsWith("pro:") ||
+            arg.startsWith("proj:") ||
+            arg.startsWith("project:")
+          )
+            fProj = arg.split(":")[1];
+          else if (arg.startsWith("by:")) {
+            const val = arg.split(":")[1].toLowerCase();
+            if (["p", "pro", "proj", "project"].includes(val))
+              groupBy = "project";
+            else if (["t", "tag"].includes(val)) groupBy = "tag";
+          } else if (/^\d+[dwmy]$/.test(arg)) periodArg = arg;
+        }
+
+        const all = await dbOps.getAll();
+        const projects = await dbOps.getAllProjects();
+        let tasks = all;
+        if (fProj)
+          tasks = tasks.filter((t) => matchesProject(t.project, fProj));
+
+        // Period filter - include tasks that existed during the period
+        const periodStart = periodArg ? parseRelativeTime(periodArg) : null;
+        if (periodStart) {
+          tasks = tasks.filter(
+            (t) => t.entry <= Date.now() && (!t.end || t.end >= periodStart),
+          );
+        }
+
+        if (tasks.length === 0) {
+          return print('<span class="msg-info">No tasks found.</span>');
+        }
+
+        if (groupBy === "project" || groupBy === "tag") {
+          // Snapshot comparison by project or tag
+          const byGroup = {};
+          for (const t of tasks) {
+            if (groupBy === "project") {
+              const proj = t.project || "(no project)";
+              if (!byGroup[proj]) byGroup[proj] = { pending: 0, done: 0 };
+              if (t.status === "pending") byGroup[proj].pending++;
+              else if (t.status === "completed") byGroup[proj].done++;
+            } else {
+              const tags = t.tags?.length > 0 ? t.tags : ["(no tag)"];
+              for (const tag of tags) {
+                if (!byGroup[tag]) byGroup[tag] = { pending: 0, done: 0 };
+                if (t.status === "pending") byGroup[tag].pending++;
+                else if (t.status === "completed") byGroup[tag].done++;
+              }
+            }
+          }
+
+          // Identify reference projects
+          const refProjects = new Set(
+            projects
+              .filter((p) =>
+                p.tags?.some((t) =>
+                  ["reference", "ref"].includes(t.toLowerCase()),
+                ),
+              )
+              .map((p) => p.name),
+          );
+
+          const groupData = Object.entries(byGroup)
+            .map(([name, data]) => ({
+              name,
+              pending: data.pending,
+              done: data.done,
+              total: data.pending + data.done,
+              rate: data.done / (data.pending + data.done) || 0,
+              isRef: groupBy === "project" && refProjects.has(name),
+            }))
+            .filter((g) => g.total > 0)
+            .sort((a, b) => {
+              // Reference projects go to the end
+              if (a.isRef !== b.isRef) return a.isRef ? 1 : -1;
+              return b.pending - a.pending; // most backlog first
+            });
+
+          const maxTotal = Math.max(...groupData.map((g) => g.total), 1);
+          const barWidth = 150;
+
+          const label = groupBy === "project" ? "Project" : "Tag";
+          const periodLabel = periodArg ? ` — last ${periodArg}` : "";
+          let html = `<div style="margin-bottom:8px;color:var(--base01)">Flow by ${label}${fProj ? ` (${fProj})` : ""}${periodLabel} — ${tasks.length} tasks</div>`;
+          html += `<div style="font-size:0.85em;margin-bottom:4px"><span style="color:var(--cyan)">■</span> done <span style="color:var(--orange)">■</span> pending</div>`;
+          html += '<div class="table-wrapper"><table><thead><tr>';
+          html += `<th>${label}</th><th></th><th>Done</th><th>Ratio</th>`;
+          html += "</tr></thead><tbody>";
+
+          for (const g of groupData) {
+            let icon = "";
+            let displayName = g.name;
+            if (groupBy === "project") {
+              const pMeta = projects.find((pm) => pm.name === g.name);
+              icon = pMeta?.icon
+                ? `<i class="${iconClass(pMeta.icon)}" style="margin-right:4px"></i>`
+                : "";
+            } else {
+              displayName = `!${g.name}`;
+            }
+            const doneW = Math.round((g.done / maxTotal) * barWidth);
+            const pendingW = Math.round((g.pending / maxTotal) * barWidth);
+            const ratePct = (g.rate * 100).toFixed(0);
+            const rateColor = g.isRef
+              ? "var(--base01)"
+              : g.rate >= 0.7
+                ? "var(--green)"
+                : g.rate >= 0.4
+                  ? "var(--yellow)"
+                  : "var(--orange)";
+            const refMarker = g.isRef
+              ? ' <span style="color:var(--base01);font-size:0.8em">[ref]</span>'
+              : "";
+            const rowStyle = g.isRef ? ' style="opacity:0.6"' : "";
+            html += `<tr${rowStyle}>`;
+            html += `<td>${icon}${displayName}${refMarker}</td>`;
+            html += `<td><div style="display:flex"><div style="width:${doneW}px;height:10px;background:var(--cyan)"></div><div style="width:${pendingW}px;height:10px;background:var(--orange)"></div></div></td>`;
+            html += `<td style="color:var(--base01)">${g.done}/${g.total}</td>`;
+            html += `<td style="color:${rateColor}">${ratePct}%</td>`;
+            html += `</tr>`;
+          }
+          html += "</tbody></table></div>";
+          print(html, false);
+        } else {
+          // Time series CFD (default)
+          const minEntry = Math.min(...tasks.map((t) => t.entry || Date.now()));
+          const now = Date.now();
+          const Day = 86400000;
+
+          // Use period start if specified, otherwise use earliest task entry
+          const startDate = periodStart || minEntry;
+
+          // Build daily data points (sample weekly if range > 90 days)
+          const totalDays = Math.ceil((now - startDate) / Day);
+          const step = totalDays > 90 ? 7 : 1;
+          const data = [];
+
+          for (let d = startDate; d <= now; d += step * Day) {
+            const dayEnd = d + Day;
+            const pending = tasks.filter(
+              (t) => t.entry <= dayEnd && (t.end > dayEnd || !t.end),
+            ).length;
+            const done = tasks.filter((t) => t.end && t.end <= dayEnd).length;
+            data.push({ date: d, pending, done, total: pending + done });
+          }
+
+          // Find max for scaling
+          const maxTotal = Math.max(...data.map((d) => d.total), 1);
+          const barWidth = 200;
+
+          const periodLabel = periodArg
+            ? ` — last ${periodArg}`
+            : ` — ${totalDays} days`;
+          let html = `<div style="margin-bottom:8px;color:var(--base01)">Cumulative Flow${fProj ? ` (${fProj})` : ""}${periodLabel}, ${tasks.length} tasks</div>`;
+          html += `<div style="font-size:0.85em;margin-bottom:4px"><span style="color:var(--orange)">■</span> pending <span style="color:var(--cyan)">■</span> done</div>`;
+
+          // Show last 20 data points max for readability
+          const displayData = data.slice(-20);
+
+          for (const d of displayData) {
+            const dateStr = new Date(d.date).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+            });
+            const pendingW = Math.round((d.pending / maxTotal) * barWidth);
+            const doneW = Math.round((d.done / maxTotal) * barWidth);
+            html += `<div style="display:flex;align-items:center;margin:2px 0">`;
+            html += `<span style="width:50px;color:var(--base01);font-size:0.8em">${dateStr}</span>`;
+            html += `<div style="width:${doneW}px;height:10px;background:var(--cyan)"></div>`;
+            html += `<div style="width:${pendingW}px;height:10px;background:var(--orange)"></div>`;
+            html += `<span style="margin-left:6px;color:var(--base01);font-size:0.8em">${d.done}/${d.total}</span>`;
+            html += `</div>`;
+          }
+          print(html, false);
+        }
+      } else if (subCmd === "cycle" || subCmd === "slo") {
+        // Cycle Time analysis
+        let fProj = null;
+        let periodArg = "all";
+        let groupBy = null;
+        for (const arg of subArgs) {
+          if (
+            arg.startsWith("p:") ||
+            arg.startsWith("pro:") ||
+            arg.startsWith("proj:") ||
+            arg.startsWith("project:")
+          )
+            fProj = arg.split(":")[1];
+          else if (/^\d+[dwmy]$/.test(arg)) periodArg = arg;
+          else if (arg.startsWith("by:")) {
+            const val = arg.split(":")[1].toLowerCase();
+            if (["p", "pro", "proj", "project"].includes(val))
+              groupBy = "project";
+            else if (["t", "tag"].includes(val)) groupBy = "tag";
+          }
+        }
+
+        const all = await dbOps.getAll();
+        const projects = await dbOps.getAllProjects();
+        let completed = all.filter(
+          (t) => t.status === "completed" && t.end && t.entry,
+        );
+
+        if (fProj)
+          completed = completed.filter((t) => matchesProject(t.project, fProj));
+
+        if (periodArg !== "all") {
+          const cutoff = parseRelativeTime(periodArg);
+          if (cutoff) completed = completed.filter((t) => t.end >= cutoff);
+        }
+
+        if (completed.length === 0) {
+          return print(
+            '<span class="msg-info">No completed tasks found.</span>',
+          );
+        }
+
+        // Helper to calculate stats for a set of tasks
+        const calcStats = (tasks) => {
+          const latencies = tasks
+            .map((t) => (t.end - t.entry) / 86400000)
+            .sort((a, b) => a - b);
+          if (latencies.length === 0) return null;
+          return {
+            n: latencies.length,
+            avg: latencies.reduce((a, b) => a + b, 0) / latencies.length,
+            p50: latencies[Math.floor(latencies.length * 0.5)],
+            p85: latencies[Math.floor(latencies.length * 0.85)],
+            p95: latencies[Math.floor(latencies.length * 0.95)],
+          };
+        };
+
+        if (groupBy === "project" || groupBy === "tag") {
+          // Group by project or tag, show p50 for each, sorted by worst first
+          const byGroup = {};
+          for (const t of completed) {
+            if (groupBy === "project") {
+              const proj = t.project || "(no project)";
+              if (!byGroup[proj]) byGroup[proj] = [];
+              byGroup[proj].push(t);
+            } else {
+              const tags = t.tags?.length > 0 ? t.tags : ["(no tag)"];
+              for (const tag of tags) {
+                if (!byGroup[tag]) byGroup[tag] = [];
+                byGroup[tag].push(t);
+              }
+            }
+          }
+
+          // Identify reference projects
+          const refProjects = new Set(
+            projects
+              .filter((p) =>
+                p.tags?.some((t) =>
+                  ["reference", "ref"].includes(t.toLowerCase()),
+                ),
+              )
+              .map((p) => p.name),
+          );
+
+          const groupStats = Object.entries(byGroup)
+            .map(([name, tasks]) => ({
+              name,
+              ...calcStats(tasks),
+              isRef: groupBy === "project" && refProjects.has(name),
+            }))
+            .filter((p) => p.n)
+            .sort((a, b) => {
+              // Reference projects go to the end
+              if (a.isRef !== b.isRef) return a.isRef ? 1 : -1;
+              return b.p50 - a.p50; // worst first
+            });
+
+          const maxP50 = Math.max(...groupStats.map((p) => p.p50), 1);
+          const barWidth = 120;
+
+          const label = groupBy === "project" ? "Project" : "Tag";
+          let html = `<div style="margin-bottom:8px;color:var(--base01)">Cycle Time by ${label}${periodArg !== "all" ? ` — last ${periodArg}` : ""} (${completed.length} tasks)</div>`;
+          html += '<div class="table-wrapper"><table><thead><tr>';
+          html += `<th>${label}</th><th>n</th><th>p50</th><th>p85</th><th></th>`;
+          html += "</tr></thead><tbody>";
+
+          for (const p of groupStats) {
+            let icon = "";
+            let displayName = p.name;
+            if (groupBy === "project") {
+              const pMeta = projects.find((pm) => pm.name === p.name);
+              icon = pMeta?.icon
+                ? `<i class="${iconClass(pMeta.icon)}" style="margin-right:4px"></i>`
+                : "";
+            } else {
+              displayName = `!${p.name}`;
+            }
+            const w = Math.round((p.p50 / maxP50) * barWidth);
+            const color = p.isRef
+              ? "var(--base01)"
+              : p.p50 < 7
+                ? "var(--green)"
+                : p.p50 < 30
+                  ? "var(--yellow)"
+                  : "var(--red)";
+            const refMarker = p.isRef
+              ? ' <span style="color:var(--base01);font-size:0.8em">[ref]</span>'
+              : "";
+            const rowStyle = p.isRef ? ' style="opacity:0.6"' : "";
+            html += `<tr${rowStyle}>`;
+            html += `<td>${icon}${displayName}${refMarker}</td>`;
+            html += `<td style="color:var(--base01)">${p.n}</td>`;
+            html += `<td style="color:${color}">${p.p50.toFixed(1)}d</td>`;
+            html += `<td style="color:var(--base01)">${p.p85.toFixed(1)}d</td>`;
+            html += `<td><div style="width:${w}px;height:10px;background:${color}"></div></td>`;
+            html += `</tr>`;
+          }
+          html += "</tbody></table></div>";
+          print(html, false);
+        } else {
+          // Default: overall stats with histogram
+          const stats = calcStats(completed);
+
+          // Distribution buckets
+          const buckets = [
+            { label: "<1d", max: 1, count: 0 },
+            { label: "1-7d", max: 7, count: 0 },
+            { label: "7-30d", max: 30, count: 0 },
+            { label: "30-90d", max: 90, count: 0 },
+            { label: "90d+", max: Infinity, count: 0 },
+          ];
+          for (const t of completed) {
+            const lat = (t.end - t.entry) / 86400000;
+            for (const b of buckets) {
+              if (lat < b.max) {
+                b.count++;
+                break;
+              }
+            }
+          }
+
+          const maxCount = Math.max(...buckets.map((b) => b.count), 1);
+          const barWidth = 150;
+
+          let html = `<div style="margin-bottom:8px;color:var(--base01)">Cycle Time${fProj ? ` (${fProj})` : ""}${periodArg !== "all" ? ` — last ${periodArg}` : ""}</div>`;
+          html += `<div style="margin-bottom:8px">`;
+          html += `<span style="color:var(--cyan)">n=${stats.n}</span> `;
+          html += `<span style="color:var(--base01)">avg:</span><span style="color:var(--base1)">${stats.avg.toFixed(1)}d</span> `;
+          html += `<span style="color:var(--base01)">p50:</span><span style="color:var(--green)">${stats.p50.toFixed(1)}d</span> `;
+          html += `<span style="color:var(--base01)">p85:</span><span style="color:var(--yellow)">${stats.p85.toFixed(1)}d</span> `;
+          html += `<span style="color:var(--base01)">p95:</span><span style="color:var(--red)">${stats.p95.toFixed(1)}d</span>`;
+          html += `</div>`;
+
+          html += `<div style="font-size:0.9em">`;
+          for (const b of buckets) {
+            const w = Math.round((b.count / maxCount) * barWidth);
+            const pct = ((b.count / completed.length) * 100).toFixed(0);
+            const color =
+              b.max <= 1
+                ? "var(--green)"
+                : b.max <= 7
+                  ? "var(--cyan)"
+                  : b.max <= 30
+                    ? "var(--yellow)"
+                    : b.max <= 90
+                      ? "var(--orange)"
+                      : "var(--red)";
+            html += `<div style="display:flex;align-items:center;margin:2px 0">`;
+            html += `<span style="width:55px;color:var(--base01)">${b.label}</span>`;
+            html += `<div style="width:${w}px;height:12px;background:${color}"></div>`;
+            html += `<span style="margin-left:6px;color:var(--base01)">${b.count} (${pct}%)</span>`;
+            html += `</div>`;
+          }
+          html += `</div>`;
+          print(html, false);
+        }
       } else {
         print(
-          `<span class="msg-error">Unknown report: ${subCmd}. Try: stale, rot, done</span>`,
+          `<span class="msg-error">Unknown report: ${subCmd}. Try: stale, rot, done, cfd, cycle</span>`,
         );
       }
     } else if (cmd === "icon") {

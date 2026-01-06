@@ -63,6 +63,10 @@ This allows quick inline editing of any property - modify what you need and pres
 
 - **`report done [period] [by:project|tag]`** - Completed tasks grouped by project (default) or tag. Period default `1w`. Tasks with multiple tags appear in each group when using `by:tag`.
 
+- **`report cfd [pro:X] [period] [by:project|tag]`** - Cumulative flow diagram. Default shows time series of done vs pending. With `by:project` or `by:tag`, shows snapshot comparison across groups sorted by most backlog. Reference projects shown dimmed at end.
+
+- **`report cycle [pro:X] [period] [by:project|tag]`** - Cycle time analysis (latency from entry to completion). Shows percentiles (p50, p85, p95) and distribution histogram. With `by:project` or `by:tag`, shows table of each group's p50/p85 sorted by worst first. Reference projects shown dimmed at end. Alias: `slo`.
+
 ## Task Options
 
 - `pro:ProjectName` - Project (hierarchical with dots)
