@@ -33,7 +33,7 @@ import {
   markDirty,
   markClean,
 } from "./state.js";
-import { setContext, getInheritedAttributes } from "./context.js";
+import { setContext, getContext, getInheritedAttributes } from "./context.js";
 import { pushUndo, popUndo } from "./undo.js";
 import { searchIcons, searchIconsMulti } from "./icon-tags.js";
 
@@ -972,7 +972,7 @@ export const execute = async (str) => {
           );
         else if (c === "report" || c === "rep")
           print(
-            `<div class="msg-help msg-standalone"><span class="msg-hl">report</span> <span class="msg-arg">stale</span> | <span class="msg-arg">rot [N]</span> | <span class="msg-arg">done [period] [by:project|tag]</span> | <span class="msg-arg">cfd [pro:X] [period] [by:project|tag]</span> | <span class="msg-arg">cycle [pro:X] [period] [by:project|tag]</span><br><span class="msg-arg">stale</span> — projects by staleness (days since activity)<br><span class="msg-arg">rot [N]</span> — oldest N pending tasks (default 10)<br><span class="msg-arg">done [1w] [by:tag]</span> — completed tasks grouped by project or tag<br><span class="msg-arg">cfd</span> — cumulative flow diagram (done vs pending over time)<br><span class="msg-arg">cycle</span> — cycle time distribution (latency from entry to done)</div>`,
+            `<div class="msg-help msg-standalone"><span class="msg-hl">report</span> <span class="msg-arg">stale</span> | <span class="msg-arg">rot [N]</span> | <span class="msg-arg">done [period] [by:project|tag]</span> | <span class="msg-arg">cfd [pro:X] [period] [by:project|tag]</span> | <span class="msg-arg">cycle [pro:X] [period] [by:project|tag]</span> | <span class="msg-arg">forecast</span> | <span class="msg-arg">churn [period]</span> | <span class="msg-arg">audit [period]</span><br><span class="msg-arg">stale</span> — projects by staleness (days since activity)<br><span class="msg-arg">rot [N]</span> — oldest N pending tasks (default 10)<br><span class="msg-arg">done [1w] [by:tag]</span> — completed tasks grouped by project or tag<br><span class="msg-arg">cfd</span> — cumulative flow diagram (done vs pending over time)<br><span class="msg-arg">cycle</span> — cycle time distribution (latency from entry to done)<br><span class="msg-arg">forecast</span> — backlog completion prediction based on velocity<br><span class="msg-arg">churn [1w]</span> — project context switching metric<br><span class="msg-arg">audit [4w]</span> — recurring task skip rate analysis</div>`,
             false,
           );
         else if (c === "copy" || c === "cp")
@@ -1514,7 +1514,10 @@ export const execute = async (str) => {
   <span class="cmd">report rot [N]</span> - Oldest pending tasks (default: 10)
   <span class="cmd">report done [period] [by:project|tag]</span> - Completed tasks grouped (default: 1w, by:project)
   <span class="cmd">report cfd [pro:X] [period] [by:project|tag]</span> - Cumulative flow diagram (done vs pending over time)
-  <span class="cmd">report cycle [pro:X] [period] [by:project|tag]</span> - Cycle time distribution (entry to done latency)</div>`, false);
+  <span class="cmd">report cycle [pro:X] [period] [by:project|tag]</span> - Cycle time distribution (entry to done latency)
+  <span class="cmd">report forecast</span> - Backlog completion prediction based on velocity
+  <span class="cmd">report churn [period]</span> - Project context switching metric (default: 1w)
+  <span class="cmd">report audit [period]</span> - Recurring task skip rate analysis (default: 4w)</div>`, false);
       } else if (subCmd === "stale") {
         const all = await dbOps.getAll();
         const projects = await dbOps.getAllProjects();
@@ -2146,9 +2149,200 @@ export const execute = async (str) => {
           html += `</div>`;
           print(html, false);
         }
+      } else if (subCmd === "churn") {
+        // Parse period (default: 1w)
+        let periodArg = "1w";
+        for (const arg of subArgs) {
+          periodArg = arg;
+        }
+
+        const periodMs = parseRelativeTime(periodArg);
+        const cutoff = periodMs || Date.now() - 7 * 86400000;
+
+        const all = await dbOps.getAll();
+
+        // Find tasks with activity (started or completed/skipped) in period
+        const activeTasks = all.filter(
+          (t) =>
+            (t.start && t.start >= cutoff) || (t.end && t.end >= cutoff),
+        );
+
+        // Group by project and count
+        const projectCounts = {};
+        for (const t of activeTasks) {
+          const proj = t.project || "(no project)";
+          if (!projectCounts[proj]) projectCounts[proj] = 0;
+          projectCounts[proj]++;
+        }
+
+        const projectCount = Object.keys(projectCounts).length;
+        const sortedProjects = Object.entries(projectCounts).sort(
+          (a, b) => b[1] - a[1],
+        );
+
+        let html = `<div style="margin-bottom:8px">`;
+        html += `<span style="color:var(--base01)">Churn (${periodArg}):</span> `;
+        html += `<span style="color:${projectCount > 5 ? "var(--yellow)" : "var(--green)"}">${projectCount} projects</span>`;
+        html += `<span style="color:var(--base01)"> touched (${activeTasks.length} tasks)</span>`;
+        html += `</div>`;
+
+        if (sortedProjects.length > 0) {
+          html += `<div class="table-wrapper"><table><tbody>`;
+          for (const [proj, count] of sortedProjects) {
+            html += `<tr>`;
+            html += `<td style="color:var(--cyan)">${proj}</td>`;
+            html += `<td style="color:var(--base01);text-align:right;padding-left:12px">${count} task${count > 1 ? "s" : ""}</td>`;
+            html += `</tr>`;
+          }
+          html += `</tbody></table></div>`;
+        }
+
+        print(html, false);
+      } else if (subCmd === "forecast") {
+        const all = await dbOps.getAll();
+
+        // Calculate velocity: tasks completed in last 4 weeks
+        const fourWeeksAgo = Date.now() - 28 * 86400000;
+        const completedRecently = all.filter(
+          (t) => t.status === "completed" && t.end && t.end >= fourWeeksAgo,
+        );
+        const velocity = completedRecently.length / 4; // tasks per week
+
+        // Count pending tasks (respecting context filter)
+        const pending = all.filter((t) => t.status === "pending");
+        const ctx = getContext();
+        let filteredPending = pending;
+        if (ctx) {
+          const { filterFn } = parseFilterArgs(ctx.split(/\s+/));
+          filteredPending = pending.filter(filterFn);
+        }
+        const pendingCount = filteredPending.length;
+
+        // Calculate ETA
+        let etaWeeks = velocity > 0 ? pendingCount / velocity : Infinity;
+        const etaDate = new Date(Date.now() + etaWeeks * 7 * 86400000);
+
+        let html = `<div style="margin-bottom:8px;color:var(--base01)">Backlog Forecast${ctx ? ` (context: ${ctx})` : ""}</div>`;
+
+        html += `<div style="margin-bottom:4px">`;
+        html += `<span style="color:var(--base01)">Velocity:</span> `;
+        html += `<span style="color:var(--cyan)">${velocity.toFixed(1)} tasks/week</span>`;
+        html += `<span style="color:var(--base01)"> (last 4 weeks: ${completedRecently.length} completed)</span>`;
+        html += `</div>`;
+
+        html += `<div style="margin-bottom:4px">`;
+        html += `<span style="color:var(--base01)">Pending:</span> `;
+        html += `<span style="color:var(--yellow)">${pendingCount} tasks</span>`;
+        html += `</div>`;
+
+        html += `<div>`;
+        html += `<span style="color:var(--base01)">ETA:</span> `;
+        if (velocity === 0) {
+          html += `<span style="color:var(--red)">No velocity data (no completions in 4 weeks)</span>`;
+        } else if (pendingCount === 0) {
+          html += `<span style="color:var(--green)">Backlog empty!</span>`;
+        } else {
+          const etaColor =
+            etaWeeks <= 2
+              ? "var(--green)"
+              : etaWeeks <= 8
+                ? "var(--yellow)"
+                : "var(--red)";
+          html += `<span style="color:${etaColor}">${etaWeeks.toFixed(1)} weeks</span>`;
+          html += `<span style="color:var(--base01)"> (${etaDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })})</span>`;
+        }
+        html += `</div>`;
+
+        print(html, false);
+      } else if (subCmd === "audit") {
+        // Parse period (default: 4w)
+        let periodArg = "4w";
+        for (const arg of subArgs) {
+          periodArg = arg;
+        }
+
+        const periodMs = parseRelativeTime(periodArg);
+        const cutoff = periodMs || Date.now() - 28 * 86400000;
+
+        const all = await dbOps.getAll();
+
+        // Find recurring tasks resolved in period
+        const resolved = all.filter(
+          (t) =>
+            t.recur &&
+            t.end &&
+            t.end >= cutoff &&
+            (t.status === "completed" || t.status === "skipped"),
+        );
+
+        const totalResolved = resolved.length;
+        const skippedCount = resolved.filter(
+          (t) => t.status === "skipped",
+        ).length;
+        const skipRate =
+          totalResolved > 0 ? (skippedCount / totalResolved) * 100 : 0;
+
+        // Group by description to see which recurring tasks get skipped most
+        const byDesc = {};
+        for (const t of resolved) {
+          const key = t.description;
+          if (!byDesc[key]) byDesc[key] = { completed: 0, skipped: 0 };
+          if (t.status === "skipped") byDesc[key].skipped++;
+          else byDesc[key].completed++;
+        }
+
+        // Sort by skip rate descending, then by total volume
+        const sortedTasks = Object.entries(byDesc)
+          .map(([desc, counts]) => ({
+            desc,
+            ...counts,
+            total: counts.completed + counts.skipped,
+            rate: (counts.skipped / (counts.completed + counts.skipped)) * 100,
+          }))
+          .sort((a, b) => b.rate - a.rate || b.total - a.total);
+
+        let html = `<div style="margin-bottom:8px;color:var(--base01)">Recurring Task Audit (${periodArg})</div>`;
+
+        if (totalResolved === 0) {
+          html += `<span style="color:var(--base01)">No recurring tasks resolved in this period.</span>`;
+        } else {
+          const overallColor =
+            skipRate < 10
+              ? "var(--green)"
+              : skipRate < 30
+                ? "var(--yellow)"
+                : "var(--red)";
+
+          html += `<div style="margin-bottom:8px">`;
+          html += `<span style="color:var(--base01)">Total resolved:</span> `;
+          html += `<span style="color:var(--cyan)">${totalResolved}</span>`;
+          html += `<span style="color:var(--base01)"> | Skipped:</span> `;
+          html += `<span style="color:${overallColor}">${skippedCount} (${skipRate.toFixed(0)}%)</span>`;
+          html += `</div>`;
+
+          if (sortedTasks.length > 0) {
+            html += `<div class="table-wrapper"><table><tbody>`;
+            for (const t of sortedTasks) {
+              const rateColor =
+                t.rate < 10
+                  ? "var(--green)"
+                  : t.rate < 30
+                    ? "var(--yellow)"
+                    : "var(--red)";
+              const flag = t.rate >= 50 ? " ⚠" : "";
+              html += `<tr>`;
+              html += `<td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.desc}</td>`;
+              html += `<td style="color:${rateColor};text-align:right;padding-left:12px">${t.skipped}/${t.total} skipped (${t.rate.toFixed(0)}%)${flag}</td>`;
+              html += `</tr>`;
+            }
+            html += `</tbody></table></div>`;
+          }
+        }
+
+        print(html, false);
       } else {
         print(
-          `<span class="msg-error">Unknown report: ${subCmd}. Try: stale, rot, done, cfd, cycle</span>`,
+          `<span class="msg-error">Unknown report: ${subCmd}. Try: stale, rot, done, cfd, cycle, churn, forecast, audit</span>`,
         );
       }
     } else if (cmd === "icon") {
