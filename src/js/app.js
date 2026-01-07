@@ -51,6 +51,24 @@ const setupPlaceholderRotation = (isEmpty) => {
   }, 10000);
 };
 
+// Chrome extension: listen for "add from tab" messages (safe no-op in PWA mode)
+if (typeof chrome !== "undefined" && chrome.runtime?.onMessage) {
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message.type === "prefill-add") {
+      const input = document.getElementById("cmd-input");
+      const title = message.title || "";
+      const url = message.url || "";
+      const icon = message.icon ? `icon:${message.icon} ` : "";
+      const text = `add ${title} ${icon}url:${url}`;
+      input.value = text;
+      input.focus();
+      // Position cursor between title and icon/url:
+      const cursorPos = 4 + title.length;
+      input.setSelectionRange(cursorPos, cursorPos);
+    }
+  });
+}
+
 initDB().then(async () => {
   // Import file picker handler
   document.getElementById("import-picker").addEventListener("change", (e) => {
