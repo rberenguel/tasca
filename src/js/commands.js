@@ -104,7 +104,8 @@ const createTaskObject = (args) => {
       waitTime = parseWaitTime(waitStr);
     } else if (token.startsWith("sched:") || token.startsWith("scheduled:"))
       sched = parseDate(token.split(":")[1]);
-    else if (token.startsWith("recur:")) recur = token.split(":")[1];
+    else if (token.startsWith("recur:") || token.startsWith("rec:"))
+      recur = token.split(":")[1];
     else if (token.startsWith("url:")) url = token.substring(4);
     else if (token.startsWith("icon:")) {
       let val = token.split(":")[1];
@@ -252,7 +253,7 @@ export const execute = async (str) => {
           await writable.write(dataStr);
           await writable.close();
           print(
-            `<span class="msg-success">Exported ${filtered.length} tasks to ${handle.name}.</span>`,
+            `<div class="msg-standalone"><span class="msg-success">Exported ${filtered.length} tasks to ${handle.name}.</span></div>`,
             false,
           );
           if (args.length === 0) {
@@ -270,7 +271,7 @@ export const execute = async (str) => {
         try {
           await navigator.share({ files: [file] });
           print(
-            `<span class="msg-success">Exported ${filtered.length} tasks.</span>`,
+            `<div class="msg-standalone"><span class="msg-success">Exported ${filtered.length} tasks.</span></div>`,
             false,
           );
           if (args.length === 0) {
@@ -292,7 +293,7 @@ export const execute = async (str) => {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       print(
-        `<span class="msg-success">Exported ${filtered.length} tasks.</span>`,
+        `<div class="msg-standalone"><span class="msg-success">Exported ${filtered.length} tasks.</span></div>`,
         false,
       );
       if (args.length === 0) {
@@ -710,7 +711,8 @@ export const execute = async (str) => {
           task.waitTime = parseWaitTime(waitStr);
         } else if (token.startsWith("sched:") || token.startsWith("scheduled:"))
           task.sched = parseDate(token.split(":")[1]);
-        else if (token.startsWith("recur:")) task.recur = token.split(":")[1];
+        else if (token.startsWith("recur:") || token.startsWith("rec:"))
+          task.recur = token.split(":")[1];
         else if (token.startsWith("url:")) {
           const val = token.substring(4);
           task.url = val || null;
@@ -863,124 +865,124 @@ export const execute = async (str) => {
       const sub = args[0];
       if (!sub) {
         print(
-          `<span style="color:var(--yellow)">Commands:</span> add, list, done, skip, delete, modify, edit, annotate, undo, info, chain, projects, context, calendar, report, export, import, icon. Type <span class="msg-hl">help [cmd]</span> for details.`,
+          `<div class="msg-standalone"><span style="color:var(--yellow)">Commands:</span> add, list, done, skip, delete, modify, edit, annotate, undo, info, chain, projects, context, calendar, report, export, import, icon. Type <span class="msg-hl">help [cmd]</span> for details.</div>`,
           false,
         );
       } else {
         const c = resolveCommand(sub);
         if (c === "add")
           print(
-            `<div class="msg-help"><span class="msg-hl">add</span> description <span class="msg-arg">pro:Project</span> <span class="msg-arg">pri:N</span> <span class="msg-arg">due:DATE</span> <span class="msg-arg">wait:DATE</span> <span class="msg-arg">sched:DATE</span> <span class="msg-arg">recur:PERIOD</span> <span class="msg-arg">!tag</span><br>DATE: <span class="msg-arg">YYYYMMDD</span> | <span class="msg-arg">today</span> | <span class="msg-arg">tomorrow</span> | <span class="msg-arg">3d</span> | <span class="msg-arg">2w</span> | <span class="msg-arg">1m</span><br>PERIOD: <span class="msg-arg">1d</span> | <span class="msg-arg">1w</span> | <span class="msg-arg">2w</span> | <span class="msg-arg">1m</span> | <span class="msg-arg">1y</span><br>Priority: 1=low, 10=medium, 50=high. Negative for backlog. Use <span class="msg-arg">!someday</span> to hide from next.</div>`,
+            `<div class="msg-help msg-standalone"><span class="msg-hl">add</span> description <span class="msg-arg">pro:Project</span> <span class="msg-arg">pri:N</span> <span class="msg-arg">due:DATE</span> <span class="msg-arg">wait:DATE</span> <span class="msg-arg">sched:DATE</span> <span class="msg-arg">recur:PERIOD</span> <span class="msg-arg">!tag</span><br>DATE: <span class="msg-arg">YYYYMMDD</span> | <span class="msg-arg">today</span> | <span class="msg-arg">tomorrow</span> | <span class="msg-arg">3d</span> | <span class="msg-arg">2w</span> | <span class="msg-arg">1m</span><br>PERIOD: <span class="msg-arg">1d</span> | <span class="msg-arg">1w</span> | <span class="msg-arg">2w</span> | <span class="msg-arg">1m</span> | <span class="msg-arg">1y</span><br>Priority: 1=low, 10=medium, 50=high. Negative for backlog. Use <span class="msg-arg">!someday</span> to hide from next.</div>`,
             false,
           );
         else if (c === "modify")
           print(
-            `<div class="msg-help"><span class="msg-hl">mod</span> ID <span class="msg-arg">pro:P</span> <span class="msg-arg">pri:N</span> <span class="msg-arg">due:Y</span> <span class="msg-arg">wait:Y</span> <span class="msg-arg">sched:Y</span> <span class="msg-arg">recur:P</span> <span class="msg-arg">!tag</span> <span class="msg-arg">dep:ID</span><br><span class="msg-hl">mod</span> <span class="msg-arg">pro:Name</span> <span class="msg-arg">icon:value</span> <span class="msg-arg">!tag</span> (project metadata, tags toggle)</div>`,
+            `<div class="msg-help msg-standalone"><span class="msg-hl">mod</span> ID <span class="msg-arg">pro:P</span> <span class="msg-arg">pri:N</span> <span class="msg-arg">due:Y</span> <span class="msg-arg">wait:Y</span> <span class="msg-arg">sched:Y</span> <span class="msg-arg">recur:P</span> <span class="msg-arg">!tag</span> <span class="msg-arg">dep:ID</span><br><span class="msg-hl">mod</span> <span class="msg-arg">pro:Name</span> <span class="msg-arg">icon:value</span> <span class="msg-arg">!tag</span> (project metadata, tags toggle)</div>`,
             false,
           );
         else if (c === "icon")
           print(
-            `<div class="msg-help"><span class="msg-hl">icon</span> <span class="msg-arg">term</span><br>Search for Phosphor icon names by keyword. Use with <span class="msg-arg">icon:name</span> in add/modify.</div>`,
+            `<div class="msg-help msg-standalone"><span class="msg-hl">icon</span> <span class="msg-arg">term</span><br>Search for Phosphor icon names by keyword. Use with <span class="msg-arg">icon:name</span> in add/modify.</div>`,
             false,
           );
         else if (c === "list")
           print(
-            `<div class="msg-help"><span class="msg-hl">list</span> [search] <span class="msg-arg">pro:Project</span> <span class="msg-arg">!tag</span> <span class="msg-arg">end:1w</span><br>Virtual: <span class="msg-arg">!overdue</span> <span class="msg-arg">!today</span> <span class="msg-arg">!waiting</span> <span class="msg-arg">!scheduled</span> <span class="msg-arg">!recurring</span> <span class="msg-arg">!blocked</span> <span class="msg-arg">!someday</span> <span class="msg-arg">!done</span> <span class="msg-arg">!all</span></div>`,
+            `<div class="msg-help msg-standalone"><span class="msg-hl">list</span> [search] <span class="msg-arg">pro:Project</span> <span class="msg-arg">!tag</span> <span class="msg-arg">end:1w</span><br>Virtual: <span class="msg-arg">!overdue</span> <span class="msg-arg">!today</span> <span class="msg-arg">!waiting</span> <span class="msg-arg">!scheduled</span> <span class="msg-arg">!recurring</span> <span class="msg-arg">!blocked</span> <span class="msg-arg">!someday</span> <span class="msg-arg">!done</span> <span class="msg-arg">!all</span></div>`,
             false,
           );
         else if (c === "done")
           print(
-            `<div class="msg-help"><span class="msg-hl">done</span> ID<br>Completes a task. If recurring, creates the next instance.</div>`,
+            `<div class="msg-help msg-standalone"><span class="msg-hl">done</span> ID<br>Completes a task. If recurring, creates the next instance.</div>`,
             false,
           );
         else if (c === "skip")
           print(
-            `<div class="msg-help"><span class="msg-hl">skip</span> ID<br>Skip a recurring task. Marks as skipped and creates next instance.</div>`,
+            `<div class="msg-help msg-standalone"><span class="msg-hl">skip</span> ID<br>Skip a recurring task. Marks as skipped and creates next instance.</div>`,
             false,
           );
         else if (c === "delete")
           print(
-            `<div class="msg-help"><span class="msg-hl">delete</span> ID<br>Permanently removes a task.</div>`,
+            `<div class="msg-help msg-standalone"><span class="msg-hl">delete</span> ID<br>Permanently removes a task.</div>`,
             false,
           );
         else if (c === "annotate")
           print(
-            `<div class="msg-help"><span class="msg-hl">annotate</span> ID <span class="msg-arg">note text...</span><br>Adds a timestamped note. Use <span class="msg-arg">-N</span> to remove by index (see info).</div>`,
+            `<div class="msg-help msg-standalone"><span class="msg-hl">annotate</span> ID <span class="msg-arg">note text...</span><br>Adds a timestamped note. Use <span class="msg-arg">-N</span> to remove by index (see info).</div>`,
             false,
           );
         else if (c === "undo")
           print(
-            `<div class="msg-help"><span class="msg-hl">undo</span><br>Reverts the last task operation. Not persisted across page reloads.</div>`,
+            `<div class="msg-help msg-standalone"><span class="msg-hl">undo</span><br>Reverts the last task operation. Not persisted across page reloads.</div>`,
             false,
           );
         else if (c === "info")
           print(
-            `<div class="msg-help"><span class="msg-hl">info</span> ID<br>Shows full task details including annotations and UUID.<br><span class="msg-hl">info</span> <span class="msg-arg">pro:Name</span> — show project details (icon, tags).</div>`,
+            `<div class="msg-help msg-standalone"><span class="msg-hl">info</span> ID<br>Shows full task details including annotations and UUID.<br><span class="msg-hl">info</span> <span class="msg-arg">pro:Name</span> — show project details (icon, tags).</div>`,
             false,
           );
         else if (c === "edit" || c === "ed")
           print(
-            `<div class="msg-help"><span class="msg-hl">edit</span> ID (alias: <span class="msg-hl">ed</span>)<br>Populates the input with a <span class="msg-hl">mod</span> command containing all task properties for quick editing.</div>`,
+            `<div class="msg-help msg-standalone"><span class="msg-hl">edit</span> ID (alias: <span class="msg-hl">ed</span>)<br>Populates the input with a <span class="msg-hl">mod</span> command containing all task properties for quick editing.</div>`,
             false,
           );
         else if (["chain", "tree", "dependencies", "deps"].includes(c))
           print(
-            `<div class="msg-help"><span class="msg-hl">chain</span> ID (aliases: <span class="msg-hl">tree</span>, <span class="msg-hl">deps</span>)<br>Visualizes dependency tree for the specified task.</div>`,
+            `<div class="msg-help msg-standalone"><span class="msg-hl">chain</span> ID (aliases: <span class="msg-hl">tree</span>, <span class="msg-hl">deps</span>)<br>Visualizes dependency tree for the specified task.</div>`,
             false,
           );
         else if (c === "projects" || c === "proj")
           print(
-            `<div class="msg-help"><span class="msg-hl">projects</span><br>Lists all projects with task counts and tags.<br>Toggle tags: <span class="msg-arg">mod pro:Name !reference</span> (use again to remove)<br>Projects with <span class="msg-arg">!reference</span> tag are hidden from next.</div>`,
+            `<div class="msg-help msg-standalone"><span class="msg-hl">projects</span><br>Lists all projects with task counts and tags.<br>Toggle tags: <span class="msg-arg">mod pro:Name !reference</span> (use again to remove)<br>Projects with <span class="msg-arg">!reference</span> tag are hidden from next.</div>`,
             false,
           );
         else if (c === "export")
           print(
-            `<div class="msg-help"><span class="msg-hl">export</span> [search] <span class="msg-arg">pro:Project</span> <span class="msg-arg">!tag</span><br>Exports tasks as JSON. Supports same filters as list.</div>`,
+            `<div class="msg-help msg-standalone"><span class="msg-hl">export</span> [search] <span class="msg-arg">pro:Project</span> <span class="msg-arg">!tag</span><br>Exports tasks as JSON. Supports same filters as list.</div>`,
             false,
           );
         else if (c === "context" || c === "ctx" || c === "c")
           print(
-            `<div class="msg-help"><span class="msg-hl">context</span> <span class="msg-arg">pro:Project</span> <span class="msg-arg">!tag</span> <span class="msg-arg">search</span><br>Set persistent filter context. Filters auto-apply to list/next, attributes inherit to add.<br><span class="msg-hl">context</span> (no args) clears context.</div>`,
+            `<div class="msg-help msg-standalone"><span class="msg-hl">context</span> <span class="msg-arg">pro:Project</span> <span class="msg-arg">!tag</span> <span class="msg-arg">search</span><br>Set persistent filter context. Filters auto-apply to list/next, attributes inherit to add.<br><span class="msg-hl">context</span> (no args) clears context.</div>`,
             false,
           );
         else if (c === "calendar" || c === "cal")
           print(
-            `<div class="msg-help"><span class="msg-hl">cal</span> [search] <span class="msg-arg">pro:Project</span> <span class="msg-arg">!tag</span> <span class="msg-arg">lim:N</span><br>Agenda view of dated tasks. Shows <span class="msg-arg">[due]</span> <span class="msg-arg">[sched]</span> <span class="msg-arg">[wait]</span> dates.<br>Includes overdue from past 7 days. <span class="msg-arg">!done</span> shows completed by end date.</div>`,
+            `<div class="msg-help msg-standalone"><span class="msg-hl">cal</span> [search] <span class="msg-arg">pro:Project</span> <span class="msg-arg">!tag</span> <span class="msg-arg">lim:N</span><br>Agenda view of dated tasks. Shows <span class="msg-arg">[due]</span> <span class="msg-arg">[sched]</span> <span class="msg-arg">[wait]</span> dates.<br>Includes overdue from past 7 days. <span class="msg-arg">!done</span> shows completed by end date.</div>`,
             false,
           );
         else if (c === "link")
           print(
-            `<div class="msg-help"><span class="msg-hl">link</span><br>Link a JSON file for sync (desktop Chrome). Use <span class="msg-arg">load</span> to import, <span class="msg-arg">save</span> to export.</div>`,
+            `<div class="msg-help msg-standalone"><span class="msg-hl">link</span><br>Link a JSON file for sync (desktop Chrome). Use <span class="msg-arg">load</span> to import, <span class="msg-arg">save</span> to export.</div>`,
             false,
           );
         else if (c === "load")
           print(
-            `<div class="msg-help"><span class="msg-hl">load</span><br>Import tasks from linked file. Tasks matched by UUID.</div>`,
+            `<div class="msg-help msg-standalone"><span class="msg-hl">load</span><br>Import tasks from linked file. Tasks matched by UUID.</div>`,
             false,
           );
         else if (c === "save")
           print(
-            `<div class="msg-help"><span class="msg-hl">save</span><br>Export all tasks to linked file (overwrites).</div>`,
+            `<div class="msg-help msg-standalone"><span class="msg-hl">save</span><br>Export all tasks to linked file (overwrites).</div>`,
             false,
           );
         else if (c === "unlink")
           print(
-            `<div class="msg-help"><span class="msg-hl">unlink</span><br>Remove linked file association.</div>`,
+            `<div class="msg-help msg-standalone"><span class="msg-hl">unlink</span><br>Remove linked file association.</div>`,
             false,
           );
         else if (c === "report" || c === "rep")
           print(
-            `<div class="msg-help"><span class="msg-hl">report</span> <span class="msg-arg">stale</span> | <span class="msg-arg">rot [N]</span> | <span class="msg-arg">done [period] [by:project|tag]</span> | <span class="msg-arg">cfd [pro:X] [period] [by:project|tag]</span> | <span class="msg-arg">cycle [pro:X] [period] [by:project|tag]</span><br><span class="msg-arg">stale</span> — projects by staleness (days since activity)<br><span class="msg-arg">rot [N]</span> — oldest N pending tasks (default 10)<br><span class="msg-arg">done [1w] [by:tag]</span> — completed tasks grouped by project or tag<br><span class="msg-arg">cfd</span> — cumulative flow diagram (done vs pending over time)<br><span class="msg-arg">cycle</span> — cycle time distribution (latency from entry to done)</div>`,
+            `<div class="msg-help msg-standalone"><span class="msg-hl">report</span> <span class="msg-arg">stale</span> | <span class="msg-arg">rot [N]</span> | <span class="msg-arg">done [period] [by:project|tag]</span> | <span class="msg-arg">cfd [pro:X] [period] [by:project|tag]</span> | <span class="msg-arg">cycle [pro:X] [period] [by:project|tag]</span><br><span class="msg-arg">stale</span> — projects by staleness (days since activity)<br><span class="msg-arg">rot [N]</span> — oldest N pending tasks (default 10)<br><span class="msg-arg">done [1w] [by:tag]</span> — completed tasks grouped by project or tag<br><span class="msg-arg">cfd</span> — cumulative flow diagram (done vs pending over time)<br><span class="msg-arg">cycle</span> — cycle time distribution (latency from entry to done)</div>`,
             false,
           );
         else if (c === "copy" || c === "cp")
           print(
-            `<div class="msg-help"><span class="msg-hl">copy</span> (alias <span class="msg-hl">cp</span>)<br>Copies the currently displayed task list to clipboard (description, project, tags).</div>`,
+            `<div class="msg-help msg-standalone"><span class="msg-hl">copy</span> (alias <span class="msg-hl">cp</span>)<br>Copies the currently displayed task list to clipboard (description, project, tags).</div>`,
             false,
           );
         else if (c === "paste")
           print(
-            `<div class="msg-help"><span class="msg-hl">paste</span><br>Imports tasks from clipboard. Expects one task per line (same format as add command).</div>`,
+            `<div class="msg-help msg-standalone"><span class="msg-hl">paste</span><br>Imports tasks from clipboard. Expects one task per line (same format as add command).</div>`,
             false,
           );
         else
@@ -1304,7 +1306,7 @@ export const execute = async (str) => {
         await writable.write(JSON.stringify(saveData, null, 2));
         await writable.close();
         print(
-          `<span class="msg-success">Saved ${all.length} tasks to ${handle.name}.</span>`,
+          `<div class="msg-standalone"><span class="msg-success">Saved ${all.length} tasks to ${handle.name}.</span></div>`,
           false,
         );
         markClean();
@@ -1507,12 +1509,12 @@ export const execute = async (str) => {
       const subArgs = args.slice(1);
 
       if (!subCmd || subCmd === "help") {
-        print(`<b>Report Commands:</b>
+        print(`<div class="msg-standalone"><b>Report Commands:</b>
   <span class="cmd">report stale</span> - Project staleness (days since last activity)
   <span class="cmd">report rot [N]</span> - Oldest pending tasks (default: 10)
   <span class="cmd">report done [period] [by:project|tag]</span> - Completed tasks grouped (default: 1w, by:project)
   <span class="cmd">report cfd [pro:X] [period] [by:project|tag]</span> - Cumulative flow diagram (done vs pending over time)
-  <span class="cmd">report cycle [pro:X] [period] [by:project|tag]</span> - Cycle time distribution (entry to done latency)`);
+  <span class="cmd">report cycle [pro:X] [period] [by:project|tag]</span> - Cycle time distribution (entry to done latency)</div>`, false);
       } else if (subCmd === "stale") {
         const all = await dbOps.getAll();
         const projects = await dbOps.getAllProjects();
@@ -1842,7 +1844,7 @@ export const execute = async (str) => {
 
           const label = groupBy === "project" ? "Project" : "Tag";
           const periodLabel = periodArg ? ` — last ${periodArg}` : "";
-          let html = `<div style="margin-bottom:8px;color:var(--base01)">Flow by ${label}${fProj ? ` (${fProj})` : ""}${periodLabel} — ${tasks.length} tasks</div>`;
+          let html = `<div class="msg-standalone" style="margin-bottom:8px;color:var(--base01)">Flow by ${label}${fProj ? ` (${fProj})` : ""}${periodLabel} — ${tasks.length} tasks</div>`;
           html += `<div style="font-size:0.85em;margin-bottom:4px"><span style="color:var(--cyan)">■</span> done <span style="color:var(--orange)">■</span> pending</div>`;
           html += '<div class="table-wrapper"><table><thead><tr>';
           html += `<th>${label}</th><th></th><th>Done</th><th>Ratio</th>`;
@@ -1905,6 +1907,19 @@ export const execute = async (str) => {
             data.push({ date: d, pending, done, total: pending + done });
           }
 
+          // Ensure today is always included (may be skipped when step > 1)
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const todayTs = today.getTime();
+          if (data.length === 0 || data[data.length - 1].date < todayTs) {
+            const dayEnd = todayTs + Day;
+            const pending = tasks.filter(
+              (t) => t.entry <= dayEnd && (t.end > dayEnd || !t.end),
+            ).length;
+            const done = tasks.filter((t) => t.end && t.end <= dayEnd).length;
+            data.push({ date: todayTs, pending, done, total: pending + done });
+          }
+
           // Find max for scaling
           const maxTotal = Math.max(...data.map((d) => d.total), 1);
           const barWidth = 200;
@@ -1912,7 +1927,7 @@ export const execute = async (str) => {
           const periodLabel = periodArg
             ? ` — last ${periodArg}`
             : ` — ${totalDays} days`;
-          let html = `<div style="margin-bottom:8px;color:var(--base01)">Cumulative Flow${fProj ? ` (${fProj})` : ""}${periodLabel}, ${tasks.length} tasks</div>`;
+          let html = `<div class="msg-standalone" style="margin-bottom:8px;color:var(--base01)">Cumulative Flow${fProj ? ` (${fProj})` : ""}${periodLabel}, ${tasks.length} tasks</div>`;
           html += `<div style="font-size:0.85em;margin-bottom:4px"><span style="color:var(--orange)">■</span> pending <span style="color:var(--cyan)">■</span> done</div>`;
 
           // Show last 20 data points max for readability

@@ -237,6 +237,9 @@ tr.row-active .row-desc {
   border-bottom: 1px dashed var(--base02);
   padding-bottom: 10px;
 }
+.msg-standalone {
+  margin-top: 8px;
+}
 .msg-hl {
   color: var(--base1);
   font-weight: bold;

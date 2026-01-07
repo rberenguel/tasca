@@ -12,6 +12,7 @@ export const C = {
   someday: -100.0,
   reference: -100.0,
   routine: -10.0,
+  overdueScale: 1.5, // extra urgency per day overdue
   // Thresholds
   ageThreshold: 100,
   daysWarning: 2,
@@ -53,8 +54,15 @@ export const calculateUrgency = (t, allTasks, projectsMeta = []) => {
   u += ageDays > C.ageThreshold ? C.age : (ageDays / C.ageThreshold) * C.age;
   if (t.due) {
     const daysLeft = (t.due - Date.now()) / (1000 * 60 * 60 * 24);
-    if (daysLeft <= C.daysWarning) u += C.due;
-    else if (daysLeft <= 14) u += C.due * (1 - (daysLeft - C.daysWarning) / 12);
+    if (daysLeft < 0) {
+      // Overdue: base due urgency + extra per day overdue
+      const daysOverdue = Math.abs(daysLeft);
+      u += C.due + daysOverdue * C.overdueScale;
+    } else if (daysLeft <= C.daysWarning) {
+      u += C.due;
+    } else if (daysLeft <= 14) {
+      u += C.due * (1 - (daysLeft - C.daysWarning) / 12);
+    }
   }
   // Check blocking (t blocks o) - if any 'o' is pending and depends on 't'
   const isBlocking = allTasks.some(
