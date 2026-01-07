@@ -1,4 +1,4 @@
-const CACHE_NAME = "tasca-cache-v0.9.5";
+const CACHE_NAME = "tasca-cache-v0.10.0";
 const CACHE_FILES = [
   "./fonts/monoid-bold.woff2",
   "./fonts/monoid-italic.woff2",
@@ -11,9 +11,17 @@ const CACHE_FILES = [
   "./pwa-manifest.json",
   "./src/css/style.css",
   "./src/js/app.js",
+  "./src/js/commands-data.js",
+  "./src/js/commands-misc.js",
+  "./src/js/commands-registry.js",
+  "./src/js/commands-reports.js",
+  "./src/js/commands-state.js",
+  "./src/js/commands-tasks.js",
+  "./src/js/commands-views.js",
   "./src/js/commands.js",
   "./src/js/context.js",
   "./src/js/db.js",
+  "./src/js/icon-tags.js",
   "./src/js/input.js",
   "./src/js/list.js",
   "./src/js/logic.js",
