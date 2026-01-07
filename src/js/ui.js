@@ -219,7 +219,7 @@ export const renderTable = (tasks, allTasks, displayMapRef, projects = []) => {
       tdDesc.appendChild(document.createTextNode(" "));
       const waitSpan = document.createElement("span");
       waitSpan.className = "date-pill date-wait";
-      waitSpan.textContent = `wait:${formatDateHtml(t.wait)}`;
+      waitSpan.innerHTML = `wait:${formatDateHtml(t.wait)}`;
       tdDesc.appendChild(waitSpan);
     }
     // Recur

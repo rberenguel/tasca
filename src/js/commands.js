@@ -178,7 +178,9 @@ export const execute = async (str) => {
     }
     if (!cmd) cmd = rawCmd;
 
-    lastCommandWasPassthrough = cmd === "help" || cmd === "icon";
+    lastCommandWasPassthrough = ["help", "icon", "save", "export", "exp"].includes(
+      cmd,
+    );
 
     if (cmd === "export" || cmd === "exp") {
       await dbOps.cleanupOrphanProjects();
@@ -251,6 +253,7 @@ export const execute = async (str) => {
           await writable.close();
           print(
             `<span class="msg-success">Exported ${filtered.length} tasks to ${handle.name}.</span>`,
+            false,
           );
           if (args.length === 0) {
             markClean();
@@ -268,6 +271,7 @@ export const execute = async (str) => {
           await navigator.share({ files: [file] });
           print(
             `<span class="msg-success">Exported ${filtered.length} tasks.</span>`,
+            false,
           );
           if (args.length === 0) {
             markClean();
@@ -289,6 +293,7 @@ export const execute = async (str) => {
       URL.revokeObjectURL(url);
       print(
         `<span class="msg-success">Exported ${filtered.length} tasks.</span>`,
+        false,
       );
       if (args.length === 0) {
         markClean();
@@ -1300,6 +1305,7 @@ export const execute = async (str) => {
         await writable.close();
         print(
           `<span class="msg-success">Saved ${all.length} tasks to ${handle.name}.</span>`,
+          false,
         );
         markClean();
         await dbOps.setSetting("lastSave", Date.now());
