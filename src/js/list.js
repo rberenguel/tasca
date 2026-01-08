@@ -17,7 +17,7 @@ import {
 } from "./state.js";
 import { mergeFilters, hasContext } from "./context.js";
 
-export const runList = async (args, limit = Infinity) => {
+export const runList = async (args, limit = Infinity, headerHtml = null) => {
   // Clear icon results so copy N works for tasks
   iconResultsRef.value = [];
   // Apply context filters
@@ -30,6 +30,8 @@ export const runList = async (args, limit = Infinity) => {
     showDone = false;
   let forceAll = false;
 
+  // Check effectiveArgs for virtual tags (works from both command and context)
+  let showModified = false;
   for (let token of effectiveArgs) {
     if (token.startsWith("!")) {
       const expanded = expandVirtualTagShorthand(token);
@@ -37,12 +39,32 @@ export const runList = async (args, limit = Infinity) => {
       if (["WAITING", "SCHEDULED", "RECURRING", "ALL"].includes(tag))
         showWaiting = true;
       if (["DONE", "COMPLETED"].includes(tag)) showDone = true;
-    } else if (token.startsWith("sort:")) {
-      // safe
-    } else if (token.startsWith("pro:") || token.startsWith("p:")) {
-      // safe
+      if (tag === "MODIFIED") {
+        showModified = true;
+        showWaiting = true;
+        showDone = true;
+        forceAll = true;
+      }
     } else if (token.startsWith("end:")) {
       forceAll = true; // might need completed tasks
+    }
+  }
+
+  // Check original args (not context) for search terms - ad-hoc search should find waiting tasks
+  for (let token of args) {
+    if (
+      !token.startsWith("!") &&
+      !token.startsWith("sort:") &&
+      !token.startsWith("pro:") &&
+      !token.startsWith("p:") &&
+      !token.startsWith("proj:") &&
+      !token.startsWith("project:") &&
+      !token.startsWith("end:") &&
+      !token.startsWith("lim:")
+    ) {
+      // Search term in direct command - include waiting/scheduled tasks
+      showWaiting = true;
+      break;
     }
   }
 
@@ -86,14 +108,16 @@ export const runList = async (args, limit = Infinity) => {
       if (["WAITING", "SCHEDULED", "RECURRING", "ALL"].includes(tag))
         showWaiting = true;
       if (["DONE", "COMPLETED"].includes(tag)) showDone = true;
-      if (tag !== "ALL") fTags.push(expanded);
+      if (tag !== "ALL" && tag !== "MODIFIED") fTags.push(expanded);
     } else search.push(token.toLowerCase());
   }
 
   // Start with appropriate base set
-  let tasks = showDone
-    ? all.filter((t) => t.status === "completed")
-    : all.filter((t) => t.status === "pending");
+  let tasks = showModified
+    ? all // modified shows all tasks regardless of status
+    : showDone
+      ? all.filter((t) => t.status === "completed")
+      : all.filter((t) => t.status === "pending");
   if (!showWaiting && !showDone)
     tasks = tasks.filter(
       (t) =>
@@ -117,6 +141,13 @@ export const runList = async (args, limit = Infinity) => {
     tasks = tasks.filter((t) =>
       search.every((s) => t.description.toLowerCase().includes(s)),
     );
+  if (showModified) {
+    const lastSave = await dbOps.getSetting("lastSave");
+    if (lastSave) {
+      tasks = tasks.filter((t) => t.modified && t.modified > lastSave);
+    }
+    // If never saved, all tasks are "modified"
+  }
   tasks.forEach((t) => (t.urgency = calculateUrgency(t, all, projects)));
 
   // Sorting
@@ -187,5 +218,5 @@ export const runList = async (args, limit = Infinity) => {
     tasks = tasks.slice(0, limit);
   }
 
-  renderTable(tasks, all, displayMapRef, projects);
+  renderTable(tasks, all, displayMapRef, projects, headerHtml);
 };

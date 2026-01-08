@@ -39,7 +39,7 @@ src/js/
 
 Task commands: `add`, `delete`, `done`, `start`, `stop`, `modify`, `edit/ed`, `annotate`, `info`, `skip`
 Views: `list`, `next`, `calendar/cal`, `projects`, `chain`
-Data: `export/exp`, `import/imp`, `link`, `load`, `save`, `unlink`
+Data: `export/exp`, `import/imp`, `link`, `load`, `save`, `unlink`, `status/stat`
 Context: `context/ctx/c` (GTD persistent filters)
 Reports: `report/rep` with subcommands (for GTD weekly reviews)
 
@@ -52,6 +52,32 @@ edit 1    → Input becomes: mod 1 Task description pro:Project pri:10 !tag due:
 ```
 
 This allows quick inline editing of any property - modify what you need and press Enter.
+
+## Skip Command
+
+`skip` has dual behavior:
+
+- **Recurring tasks**: Marks as skipped, creates next occurrence (same as before)
+- **Non-recurring tasks**: Cancels the task (status becomes "skipped")
+
+This provides a sync-friendly alternative to `delete` - cancelled tasks are preserved with `status: "skipped"` rather than being permanently removed. The `report audit` only considers recurring tasks, so cancelled non-recurring tasks won't affect skip rate metrics.
+
+## List Search
+
+When using `list` with a search term, waiting and scheduled tasks are included in results:
+
+```
+list groceries     → finds "buy groceries" even if it has wait:7d
+list !waiting      → explicit filter also shows waiting tasks
+```
+
+This allows finding specific tasks regardless of their wait/scheduled status. Context search terms do NOT trigger this behavior - only direct command searches.
+
+## Status Command
+
+`status` (or `stat`) shows sync status, similar to `git status`. It displays header info (linked file, last save time, modified projects) then runs `list !modified` to show changed tasks in the normal table format.
+
+Can also use `list !modified` (or `list !m`) directly to see modified tasks.
 
 ## Report Command
 
@@ -123,6 +149,7 @@ Virtual tags are computed filters (not stored on tasks). Used in `list`, `contex
 | `!someday`   | `!sd`                  | Tasks tagged someday            |
 | `!routine`   | `!rt`                  | Tasks tagged routine            |
 | `!reference` | `!ref`, `!refs`        | Tasks in reference projects     |
+| `!modified`  | `!m`, `!mod`           | Tasks modified since last save  |
 
 **Implementation**: Shorthands are expanded via `expandVirtualTagShorthand()` in `logic.js` at filter parse time (in `list.js`, `commands.js`). The `hasVirtualTag()` function only understands full names. This keeps shorthands for filtering only - they don't affect `add`/`modify`.
 

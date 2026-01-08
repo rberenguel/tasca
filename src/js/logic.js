@@ -120,6 +120,8 @@ const VIRTUAL_TAG_SHORTHANDS = {
   RECUR: "RECURRING",
   SD: "SOMEDAY",
   RT: "ROUTINE",
+  MOD: "MODIFIED",
+  M: "MODIFIED",
 };
 
 export const expandVirtualTagShorthand = (tag) => {
@@ -204,6 +206,8 @@ export const VALID_COMMANDS = [
   "load",
   "save",
   "unlink",
+  "status",
+  "stat",
   "start",
   "st",
   "context",

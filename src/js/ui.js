@@ -81,7 +81,13 @@ export const formatProject = (proj) => {
   return iconHtml + html;
 };
 
-export const renderTable = (tasks, allTasks, displayMapRef, projects = []) => {
+export const renderTable = (
+  tasks,
+  allTasks,
+  displayMapRef,
+  projects = [],
+  headerHtml = null,
+) => {
   setProjectMetadata(projects);
 
   // Helper to create table structure
@@ -103,6 +109,14 @@ export const renderTable = (tasks, allTasks, displayMapRef, projects = []) => {
   };
 
   const container = document.createDocumentFragment();
+
+  // Add optional header (e.g. status command info)
+  if (headerHtml) {
+    const headerDiv = document.createElement("div");
+    headerDiv.innerHTML = headerHtml;
+    headerDiv.style.marginBottom = "8px";
+    container.appendChild(headerDiv);
+  }
 
   if (hasContext()) {
     const ctxDiv = document.createElement("div");

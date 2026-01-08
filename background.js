@@ -55,7 +55,10 @@ chrome.action.onClicked.addListener(openTascaTab);
 chrome.commands.onCommand.addListener(async (command) => {
   if (command === "add-from-tab") {
     // Get current tab info BEFORE switching
-    const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const [currentTab] = await chrome.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
     if (!currentTab || currentTab.url.startsWith("chrome://")) return;
 
     const title = currentTab.title || "";
