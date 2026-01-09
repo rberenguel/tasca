@@ -82,6 +82,9 @@ export const execute = async (str) => {
       "save",
       "export",
       "exp",
+      "status",
+      "calendar",
+      "cal",
     ].includes(cmd);
 
     // Build context object for handlers

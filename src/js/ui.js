@@ -1,6 +1,6 @@
 import { getDaysRemaining, C } from "./logic.js";
 import { formatDateHtml } from "./utils.js";
-import { hasContext, formatContextDisplay } from "./context.js";
+import { hasContext, formatContextDisplay, getContext } from "./context.js";
 
 // Convert icon name to full Phosphor class (handles legacy full class format)
 const iconClass = (name) => {
@@ -16,6 +16,89 @@ export const formatInlineCode = (text) => {
   return text.replace(/`([^`]+)`/g, '<span class="inline-code">$1</span>');
 };
 let cachedProjectCounts = {}; // for projects table
+let bannerHidden = false; // temporarily hide banner (reset on context change)
+
+export const resetBannerHidden = () => {
+  bannerHidden = false;
+};
+
+// Ticker animation for project banners (marquee style: right to left)
+let tickerInterval = null;
+const startTicker = (span) => {
+  if (tickerInterval) clearInterval(tickerInterval);
+
+  const banners = JSON.parse(span.dataset.banners);
+  let bannerIndex = 0;
+  let pos = 0;
+  const speed = 1.5;
+
+  span.textContent = banners[bannerIndex];
+
+  // Start animation after element is in DOM
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const containerWidth = span.parentElement?.clientWidth || 300;
+      // Start from right edge
+      pos = containerWidth;
+      span.style.transform = `translateX(${pos}px)`;
+
+      tickerInterval = setInterval(() => {
+        pos -= speed;
+        span.style.transform = `translateX(${pos}px)`;
+
+        // When text has scrolled completely off left side, switch to next
+        const textWidth = span.scrollWidth;
+        if (pos < -textWidth) {
+          bannerIndex = (bannerIndex + 1) % banners.length;
+          span.textContent = banners[bannerIndex];
+          pos = containerWidth;
+        }
+      }, 30);
+    });
+  });
+};
+
+// Typewriter animation for project banners
+let typewriterInterval = null;
+const startTypewriter = (span) => {
+  // Clear any existing interval
+  if (typewriterInterval) clearInterval(typewriterInterval);
+
+  const banners = JSON.parse(span.dataset.banners);
+  let bannerIndex = 0;
+  let charIndex = 0;
+  let deleting = false;
+  let pauseCount = 0;
+
+  typewriterInterval = setInterval(() => {
+    const currentBanner = banners[bannerIndex];
+
+    if (pauseCount > 0) {
+      pauseCount--;
+      return;
+    }
+
+    if (!deleting) {
+      // Typing
+      span.textContent = currentBanner.substring(0, charIndex + 1);
+      charIndex++;
+      if (charIndex >= currentBanner.length) {
+        pauseCount = 50; // Pause at end (~2s at 40ms interval)
+        deleting = true;
+      }
+    } else {
+      // Deleting
+      span.textContent = currentBanner.substring(0, charIndex);
+      charIndex--;
+      if (charIndex <= 0) {
+        deleting = false;
+        bannerIndex = (bannerIndex + 1) % banners.length;
+        charIndex = 0;
+        pauseCount = 10; // Brief pause before next (~0.4s)
+      }
+    }
+  }, 40);
+};
 
 export const setProjectMetadata = (meta) => {
   projectMetadata = {};
@@ -118,11 +201,50 @@ export const renderTable = (
     container.appendChild(headerDiv);
   }
 
+  // Add context banner first, then project banner below it
+  let projectBannerData = null;
   if (hasContext()) {
+    const ctx = getContext();
+    if (ctx?.project && projectMetadata[ctx.project]?.banners?.length > 0) {
+      projectBannerData = projectMetadata[ctx.project];
+    }
+
     const ctxDiv = document.createElement("div");
     ctxDiv.className = "context-banner";
     ctxDiv.textContent = `Context: ${formatContextDisplay()}`;
     container.appendChild(ctxDiv);
+
+    // Add project banner below context (unless temporarily hidden)
+    if (projectBannerData && !bannerHidden) {
+      const proj = projectBannerData;
+      const style = proj.bannerStyle || "ticker";
+      const bannerDiv = document.createElement("div");
+      bannerDiv.className = `project-banner project-banner-${style}`;
+      bannerDiv.style.cursor = "pointer";
+
+      // Both styles use JS animation for rotation
+      const innerSpan = document.createElement("span");
+      innerSpan.className = "project-banner-text";
+      innerSpan.dataset.banners = JSON.stringify(proj.banners);
+      innerSpan.dataset.bannerIndex = "0";
+      bannerDiv.appendChild(innerSpan);
+
+      // Click to hide temporarily
+      bannerDiv.addEventListener("click", () => {
+        bannerHidden = true;
+        bannerDiv.style.display = "none";
+        if (tickerInterval) clearInterval(tickerInterval);
+        if (typewriterInterval) clearInterval(typewriterInterval);
+      });
+
+      if (style === "ticker") {
+        startTicker(innerSpan);
+      } else {
+        startTypewriter(innerSpan);
+      }
+
+      container.appendChild(bannerDiv);
+    }
   }
 
   if (!tasks || tasks.length === 0) {

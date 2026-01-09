@@ -301,5 +301,6 @@ export const handleStatus = async (ctx) => {
   }
 
   // Show modified tasks using normal list display with header
-  await runList(["!modified"], Infinity, html);
+  // preserveFilter=true so Enter returns to previous list
+  await runList(["!modified"], Infinity, html, true);
 };

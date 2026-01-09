@@ -13,12 +13,12 @@ import (
 var (
 	// For HTML: finds href="..." and src="..." attributes.
 	htmlRegex = regexp.MustCompile(`(?:href|src)="([^"]+)"`)
-	// For JS: finds relative imports like from './module.js'.
-	jsRegex = regexp.MustCompile(`(?:import|export)(?:\s+.*?from)?\s+['"]([^"']+\.js)['"]`)
+	// For JS: finds from './module.js' (handles multi-line imports)
+	jsRegex = regexp.MustCompile(`from\s+['"]([^"']+\.js)['"]`)
 	// For CSS: finds url(...) declarations for common font types.
 	cssRegex = regexp.MustCompile(`url\(['"]?([^'")]+(\.(?:woff|woff2|ttf|otf|eot|svg)))['"]?\)`)
-	// For manifest.json: finds "src": "..." and "start_url": "..."
-	jsonRegex = regexp.MustCompile(`"(?:start_url|src)":\s*"([^"]+)"`)
+	// For manifest.json: finds "src": "..."
+	jsonRegex = regexp.MustCompile(`"src":\s*"([^"]+)"`)
 )
 
 func main() {

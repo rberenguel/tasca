@@ -115,11 +115,27 @@ View hidden tasks with `list !someday` or `list pro:Books`.
 
 ## Project Metadata
 
-Projects can have icons and tags:
+Projects can have icons, tags, and banners:
 
 - `annotate pro:Books icon:book !reference` - add icon and tag
 - `mod pro:Books !ref` - toggle tag (add if missing, remove if present)
 - `mod pro:Books icon:` - clear icon
+
+### Project Banners
+
+Banners are animated messages shown above the context banner when a project context is active:
+
+```
+annotate pro:Work banner:Remember weekly review | Check Slack daily
+mod pro:Work banner-style:typewriter   # or "ticker" (default)
+mod pro:Work banner:                   # clear banners
+info pro:Work                          # shows banners and style
+```
+
+Animation styles:
+
+- **ticker** (default): Horizontal scroll, banners joined with ★ separator
+- **typewriter**: Types out each banner character by character, cycles through
 
 ## Date Formats
 

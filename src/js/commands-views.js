@@ -246,7 +246,10 @@ export const handleCalendar = async (args, print) => {
 
   // Render
   if (Object.keys(groups).length === 0) {
-    print(`<span class="msg-info">No dated tasks in range (${limit}d).</span>`);
+    print(
+      `<span class="msg-info">No dated tasks in range (${limit}d).</span>`,
+      false,
+    );
   } else {
     const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const monthNames = [
@@ -300,6 +303,6 @@ export const handleCalendar = async (args, print) => {
       }
     }
     html += "</div>";
-    print(html, true);
+    print(html, false);
   }
 };

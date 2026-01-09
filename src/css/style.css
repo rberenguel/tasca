@@ -342,6 +342,45 @@ tr.row-active .row-desc {
   z-index: 10;
 }
 
+/* Project banners */
+.project-banner {
+  background-color: var(--base03);
+  color: var(--base01);
+  padding: 4px 0;
+  margin-bottom: 8px;
+  font-size: 0.85em;
+  overflow: hidden;
+  white-space: nowrap;
+  width: min(50em, 100%);
+}
+
+/* Ticker animation (JS-based) */
+.project-banner-ticker {
+  position: relative;
+}
+
+.project-banner-ticker .project-banner-text {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+/* Typewriter animation */
+.project-banner-typewriter .project-banner-text::after {
+  content: "▌";
+  animation: blink 0.7s infinite;
+}
+
+@keyframes blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
+}
+
 #update-banner {
   position: fixed;
   bottom: 0;

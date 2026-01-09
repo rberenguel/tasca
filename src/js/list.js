@@ -17,13 +17,20 @@ import {
 } from "./state.js";
 import { mergeFilters, hasContext } from "./context.js";
 
-export const runList = async (args, limit = Infinity, headerHtml = null) => {
+export const runList = async (
+  args,
+  limit = Infinity,
+  headerHtml = null,
+  preserveFilter = false,
+) => {
   // Clear icon results so copy N works for tasks
   iconResultsRef.value = [];
   // Apply context filters
   const effectiveArgs = mergeFilters(args);
-  setLastFilterArgs(effectiveArgs);
-  setLastLimit(limit);
+  if (!preserveFilter) {
+    setLastFilterArgs(effectiveArgs);
+    setLastLimit(limit);
+  }
 
   // Pre-scan args to see if we can optimize
   let showWaiting = false,

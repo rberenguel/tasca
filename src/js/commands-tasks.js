@@ -129,19 +129,35 @@ export const handleModifyProject = async (ctx) => {
     );
 
   let icon = undefined;
+  let bannerStyle = undefined;
+  let clearBanners = false;
   let tagsToToggle = [];
   ctx.args.slice(1).forEach((arg) => {
     if (arg.startsWith("icon:")) {
       let val = arg.split(":")[1];
       icon = !val || val === "" ? null : val;
+    } else if (arg.startsWith("banner-style:")) {
+      const val = arg.split(":")[1]?.toLowerCase();
+      if (val === "ticker" || val === "typewriter") {
+        bannerStyle = val;
+      }
+    } else if (arg === "banner:" || arg.startsWith("banner:")) {
+      // Clear banners via mod
+      const val = arg.split(":")[1];
+      if (!val || val === "") clearBanners = true;
     } else if (arg.startsWith("!")) {
       tagsToToggle.push(arg.substring(1).toLowerCase());
     }
   });
 
-  if (icon === undefined && tagsToToggle.length === 0) {
+  if (
+    icon === undefined &&
+    tagsToToggle.length === 0 &&
+    bannerStyle === undefined &&
+    !clearBanners
+  ) {
     return ctx.print(
-      '<span class="msg-info">No changes (specify icon: or !tag to toggle).</span>',
+      '<span class="msg-info">No changes (specify icon:, !tag, banner-style:, or banner: to clear).</span>',
     );
   }
 
@@ -149,6 +165,8 @@ export const handleModifyProject = async (ctx) => {
   let proj = projects.find((p) => p.name === projName);
   if (!proj) proj = { name: projName };
   if (icon !== undefined) proj.icon = icon;
+  if (bannerStyle !== undefined) proj.bannerStyle = bannerStyle;
+  if (clearBanners) proj.banners = null;
   if (tagsToToggle.length > 0) {
     if (!proj.tags) proj.tags = [];
     tagsToToggle.forEach((tag) => {
@@ -279,15 +297,32 @@ export const handleAnnotateProject = async (ctx) => {
 
   let icon = null;
   let tagsToToggle = [];
-  ctx.args.slice(1).forEach((arg) => {
-    if (arg.startsWith("icon:")) {
-      icon = arg.split(":")[1] || null;
-    } else if (arg.startsWith("!")) {
-      tagsToToggle.push(arg.substring(1).toLowerCase());
-    }
-  });
+  let banners = null;
 
-  if (icon || tagsToToggle.length > 0) {
+  // Check for banner: prefix - everything after it is the banner text
+  const fullArgs = ctx.args.slice(1).join(" ");
+  const bannerMatch = fullArgs.match(/^banner:(.*)$/i);
+  if (bannerMatch) {
+    const bannerText = bannerMatch[1].trim();
+    if (bannerText) {
+      banners = bannerText
+        .split("|")
+        .map((b) => b.trim())
+        .filter((b) => b);
+    } else {
+      banners = []; // Clear banners
+    }
+  } else {
+    ctx.args.slice(1).forEach((arg) => {
+      if (arg.startsWith("icon:")) {
+        icon = arg.split(":")[1] || null;
+      } else if (arg.startsWith("!")) {
+        tagsToToggle.push(arg.substring(1).toLowerCase());
+      }
+    });
+  }
+
+  if (icon || tagsToToggle.length > 0 || banners !== null) {
     const projects = await ctx.dbOps.getAllProjects();
     let proj = projects.find((p) => p.name === projName);
     if (!proj) proj = { name: projName };
@@ -300,13 +335,16 @@ export const handleAnnotateProject = async (ctx) => {
         else proj.tags.push(tag);
       });
     }
+    if (banners !== null) {
+      proj.banners = banners.length > 0 ? banners : null;
+    }
     await ctx.dbOps.updateProject(proj);
     ctx.print(`<span class="msg-success">Project ${projName} updated.</span>`);
     ctx.markDirty();
     await ctx.runListRefresh();
   } else {
     ctx.print(
-      '<span class="msg-info">No changes (specify icon: or !tag).</span>',
+      '<span class="msg-info">No changes (specify icon:, !tag, or banner:).</span>',
     );
   }
 };
@@ -367,6 +405,13 @@ export const handleInfoProject = async (ctx) => {
     html += `<div><b>Icon:</b> <i class="${iconClass(proj.icon)}" style="margin-right:5px"></i>${proj.icon.replace(/^ph-light ph-/, "")}</div>`;
   if (proj?.tags?.length > 0)
     html += `<div><b>Tags:</b> ${proj.tags.join(" ")}</div>`;
+  if (proj?.banners?.length > 0) {
+    html += `<div><b>Banners:</b> ${proj.banners.length}</div>`;
+    proj.banners.forEach((b, i) => {
+      html += `<div style="margin-left:10px; font-size:0.9em; color:var(--base1)"><span style="color:var(--base01)">${i + 1}.</span> ${b}</div>`;
+    });
+    html += `<div><b>Banner style:</b> ${proj.bannerStyle || "ticker"}</div>`;
+  }
   html += `<div><b>Pending tasks:</b> ${taskCount}</div>`;
   html += `</div>`;
   ctx.print(html, true);

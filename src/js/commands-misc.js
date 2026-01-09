@@ -3,6 +3,7 @@
 import { formatDate } from "./utils.js";
 import { resolveCommand } from "./logic.js";
 import { setContext, getInheritedAttributes } from "./context.js";
+import { resetBannerHidden } from "./ui.js";
 import { searchIcons, searchIconsMulti } from "./icon-tags.js";
 import { iconResultsRef } from "./state.js";
 import {
@@ -121,6 +122,7 @@ export const handleAbout = async (ctx) => {
 };
 
 export const handleContext = async (ctx) => {
+  resetBannerHidden(); // Reset banner visibility on context change
   const context = setContext(ctx.args);
   if (context) {
     ctx.print(`<span class="msg-success">Context set: ${context.raw}</span>`);
