@@ -1,9 +1,12 @@
 import { initDB, dbOps } from "./db.js";
-import { print } from "./ui.js";
+import { print, setExecuteRef } from "./ui.js";
 import { fetchIcons, updateCache, lastFilterArgs, markDirty } from "./state.js";
 import { setupInput } from "./input.js";
 import { execute } from "./commands.js";
 import { runList } from "./list.js";
+
+// Set execute reference for dismissible UI elements
+setExecuteRef(execute);
 
 const emptyDbExamples = [
   "add Buy Milk p:home !errand",

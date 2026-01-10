@@ -129,7 +129,7 @@ export const handleContext = async (ctx) => {
   } else {
     ctx.print(`<span class="msg-info">Context cleared.</span>`);
   }
-  ctx.execute("next");
+  await ctx.execute("next");
 };
 
 export const handleIcon = async (ctx) => {
@@ -346,14 +346,14 @@ export const handleHelp = async (ctx) => {
   const sub = ctx.args[0];
   if (!sub) {
     ctx.print(
-      `<div class="msg-standalone"><span style="color:var(--yellow)">Commands:</span> add, list, done, skip, delete, modify, edit, annotate, undo, info, chain, projects, context, calendar, report, status, export, import, icon. Type <span class="msg-hl">help [cmd]</span> for details.</div>`,
+      `<div class="msg-standalone"><span style="color:var(--yellow)">Commands:</span> add, list, done, skip, delete, modify, edit, annotate, undo, info, chain, projects, context, day, calendar, report, status, export, import, icon. Type <span class="msg-hl">help [cmd]</span> for details.</div>`,
       false,
     );
   } else {
     const c = resolveCommand(sub);
     if (c === "add")
       ctx.print(
-        `<div class="msg-help msg-standalone"><span class="msg-hl">add</span> description <span class="msg-arg">pro:Project</span> <span class="msg-arg">pri:N</span> <span class="msg-arg">due:DATE</span> <span class="msg-arg">wait:DATE</span> <span class="msg-arg">sched:DATE</span> <span class="msg-arg">recur:PERIOD</span> <span class="msg-arg">!tag</span><br>DATE: <span class="msg-arg">YYYYMMDD</span> | <span class="msg-arg">today</span> | <span class="msg-arg">tomorrow</span> | <span class="msg-arg">3d</span> | <span class="msg-arg">2w</span> | <span class="msg-arg">1m</span><br>PERIOD: <span class="msg-arg">1d</span> | <span class="msg-arg">1w</span> | <span class="msg-arg">2w</span> | <span class="msg-arg">1m</span> | <span class="msg-arg">1y</span><br>Priority: 1=low, 10=medium, 50=high. Negative for backlog. Use <span class="msg-arg">!someday</span> to hide from next.</div>`,
+        `<div class="msg-help msg-standalone"><span class="msg-hl">add</span> description <span class="msg-arg">pro:Project</span> <span class="msg-arg">pri:N</span> <span class="msg-arg">order:N</span> <span class="msg-arg">due:DATE</span> <span class="msg-arg">wait:DATE</span> <span class="msg-arg">sched:DATE</span> <span class="msg-arg">recur:PERIOD</span> <span class="msg-arg">!tag</span><br>DATE: <span class="msg-arg">YYYYMMDD</span> | <span class="msg-arg">today</span> | <span class="msg-arg">tomorrow</span> | <span class="msg-arg">3d</span> | <span class="msg-arg">2w</span> | <span class="msg-arg">1m</span><br>PERIOD: <span class="msg-arg">1d</span> | <span class="msg-arg">1w</span> | <span class="msg-arg">2w</span> | <span class="msg-arg">1m</span> | <span class="msg-arg">1y</span><br>Priority: 1=low, 10=medium, 50=high. Negative for backlog. Use <span class="msg-arg">!someday</span> to hide from next.<br>Order: custom sort order for <span class="msg-arg">!today</span> view (lower first).</div>`,
         false,
       );
     else if (c === "modify")
@@ -423,7 +423,12 @@ export const handleHelp = async (ctx) => {
       );
     else if (c === "context" || c === "ctx" || c === "c")
       ctx.print(
-        `<div class="msg-help msg-standalone"><span class="msg-hl">context</span> <span class="msg-arg">pro:Project</span> <span class="msg-arg">!tag</span> <span class="msg-arg">search</span><br>Set persistent filter context. Filters auto-apply to list/next, attributes inherit to add.<br><span class="msg-hl">context</span> (no args) clears context.</div>`,
+        `<div class="msg-help msg-standalone"><span class="msg-hl">context</span> <span class="msg-arg">pro:Project</span> <span class="msg-arg">!tag</span> <span class="msg-arg">search</span><br>Set persistent filter context. Filters auto-apply to list/next, attributes inherit to add.<br><span class="msg-hl">context</span> (no args) clears context.<br>Shortcut: <span class="msg-hl">day</span> or <span class="msg-hl">today</span> sets context to <span class="msg-arg">!today</span>.</div>`,
+        false,
+      );
+    else if (c === "day" || c === "today")
+      ctx.print(
+        `<div class="msg-help msg-standalone"><span class="msg-hl">day</span> / <span class="msg-hl">today</span><br>Sets context to <span class="msg-arg">!today</span> — shows all tasks due today (including waiting routines).<br>Tasks are sorted by <span class="msg-arg">order:N</span> (ascending), then urgency.</div>`,
         false,
       );
     else if (c === "calendar" || c === "cal")

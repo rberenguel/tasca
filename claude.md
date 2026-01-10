@@ -40,7 +40,7 @@ src/js/
 Task commands: `add`, `delete`, `done`, `start`, `stop`, `modify`, `edit/ed`, `annotate`, `info`, `skip`
 Views: `list`, `next`, `calendar/cal`, `projects`, `chain`
 Data: `export/exp`, `import/imp`, `link`, `load`, `save`, `unlink`, `status/stat`
-Context: `context/ctx/c` (GTD persistent filters)
+Context: `context/ctx/c` (GTD persistent filters), `day`/`today` (shortcut for `context !today`)
 Reports: `report/rep` with subcommands (for GTD weekly reviews)
 
 ## Edit Command
@@ -73,6 +73,22 @@ list !waiting      → explicit filter also shows waiting tasks
 
 This allows finding specific tasks regardless of their wait/scheduled status. Context search terms do NOT trigger this behavior - only direct command searches.
 
+## Today View
+
+The `day` or `today` commands set context to `!today` with special behavior:
+
+- Shows all tasks due today, **including waiting tasks** (e.g., routines with `wait:`)
+- Tasks are sorted by `order:N` (ascending, lower first), then by urgency
+- The order value is displayed as a small number before the task description
+
+```
+add Morning routine due:today order:1 wait:6h recur:1d
+add Check email due:today order:2
+day                     # shows both, sorted by order
+```
+
+The `order` property can be set with `order:N`, `ord:N`, or `o:N`. Use `order:` (empty) on `mod` to clear it.
+
 ## Status Command
 
 `status` (or `stat`) shows sync status, similar to `git status`. It displays header info (linked file, last save time, modified projects) then runs `list !modified` to show changed tasks in the normal table format.
@@ -99,6 +115,7 @@ Can also use `list !modified` (or `list !m`) directly to see modified tasks.
 - `!tag` - Tags (use `!someday` to hide from next)
 - `due:DATE`, `sched:DATE`, `wait:DATE` - Dates
 - `pri:N` - Priority (1=low, 10=med, 50=high, negative=backlog)
+- `order:N` - Custom sort order for `!today` view (aliases: `ord:N`, `o:N`)
 - `recur:1d/1w/2w/1m/1y` - Recurrence
 - `dep:ID,ID` - Dependencies
 - `url:URL`, `icon:name` - Metadata

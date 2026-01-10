@@ -81,6 +81,7 @@ export const handleExport = async (ctx) => {
       ctx.print(
         `<div class="msg-standalone"><span class="msg-success">Exported ${filtered.length} tasks to ${handle.name}.</span></div>`,
         false,
+        { dismissible: true },
       );
       if (ctx.args.length === 0) {
         markClean();
@@ -99,6 +100,7 @@ export const handleExport = async (ctx) => {
       ctx.print(
         `<div class="msg-standalone"><span class="msg-success">Exported ${filtered.length} tasks.</span></div>`,
         false,
+        { dismissible: true },
       );
       if (ctx.args.length === 0) {
         markClean();
@@ -121,6 +123,7 @@ export const handleExport = async (ctx) => {
   ctx.print(
     `<div class="msg-standalone"><span class="msg-success">Exported ${filtered.length} tasks.</span></div>`,
     false,
+    { dismissible: true },
   );
   if (ctx.args.length === 0) {
     markClean();
@@ -241,6 +244,7 @@ export const handleSave = async (ctx) => {
     ctx.print(
       `<div class="msg-standalone"><span class="msg-success">Saved ${all.length} tasks to ${handle.name}.</span></div>`,
       false,
+      { dismissible: true },
     );
     markClean();
     await ctx.dbOps.setSetting("lastSave", Date.now());

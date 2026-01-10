@@ -7,7 +7,7 @@ import {
   C,
 } from "./logic.js";
 import { renderTable } from "./ui.js";
-import { parseRelativeTime } from "./utils.js";
+import { parseRelativeTime, formatDateOnly } from "./utils.js";
 import {
   displayMapRef,
   iconResultsRef,
@@ -36,6 +36,7 @@ export const runList = async (
   let showWaiting = false,
     showDone = false;
   let forceAll = false;
+  let isTodayView = false;
 
   // Check effectiveArgs for virtual tags (works from both command and context)
   let showModified = false;
@@ -46,6 +47,7 @@ export const runList = async (
       if (["WAITING", "SCHEDULED", "RECURRING", "ALL"].includes(tag))
         showWaiting = true;
       if (["DONE", "COMPLETED"].includes(tag)) showDone = true;
+      if (tag === "TODAY") isTodayView = true;
       if (tag === "MODIFIED") {
         showModified = true;
         showWaiting = true;
@@ -125,12 +127,17 @@ export const runList = async (
     : showDone
       ? all.filter((t) => t.status === "completed")
       : all.filter((t) => t.status === "pending");
-  if (!showWaiting && !showDone)
-    tasks = tasks.filter(
-      (t) =>
-        (!t.wait || t.wait <= Date.now()) &&
-        (!t.sched || t.sched <= Date.now()),
-    );
+  if (!showWaiting && !showDone) {
+    const today = formatDateOnly(Date.now());
+    tasks = tasks.filter((t) => {
+      // In today view, include waiting tasks that are due today
+      if (isTodayView && t.due && formatDateOnly(t.due) === today) return true;
+      // Otherwise apply normal waiting/scheduled filter
+      return (
+        (!t.wait || t.wait <= Date.now()) && (!t.sched || t.sched <= Date.now())
+      );
+    });
+  }
   if (fProj) tasks = tasks.filter((t) => matchesProject(t.project, fProj));
   if (endAfter) tasks = tasks.filter((t) => t.end && t.end >= endAfter);
   if (fTags.length) {
@@ -203,6 +210,21 @@ export const runList = async (
       }
       return 0;
     });
+  } else if (isTodayView) {
+    // Today view: sort by order (ascending, nulls last), then urgency
+    tasks.sort((a, b) => {
+      // Order first (ascending, nulls/undefined last)
+      const aOrder = a.order != null ? a.order : Infinity;
+      const bOrder = b.order != null ? b.order : Infinity;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      // Then urgency (descending)
+      const urgDiff = parseFloat(b.urgency) - parseFloat(a.urgency);
+      if (urgDiff !== 0) return urgDiff;
+      // Tiebreaker: older tasks first
+      const entryDiff = (a.entry || 0) - (b.entry || 0);
+      if (entryDiff !== 0) return entryDiff;
+      return (a.uuid || "").localeCompare(b.uuid || "");
+    });
   } else {
     tasks.sort((a, b) => {
       const urgDiff = parseFloat(b.urgency) - parseFloat(a.urgency);
@@ -217,13 +239,20 @@ export const runList = async (
 
   // In "next" view (limit !== Infinity), hide tasks with negative urgency
   // (blocked, someday, reference, etc.) - these are not actionable
+  // Exception: in !today view, keep waiting tasks that are due today
   if (limit !== Infinity) {
-    tasks = tasks.filter((t) => parseFloat(t.urgency) >= 0);
+    const today = formatDateOnly(Date.now());
+    tasks = tasks.filter((t) => {
+      if (parseFloat(t.urgency) >= 0) return true;
+      // In today view, keep waiting tasks due today even with negative urgency
+      if (isTodayView && t.due && formatDateOnly(t.due) === today) return true;
+      return false;
+    });
   }
 
   if (limit !== Infinity && limit > 0) {
     tasks = tasks.slice(0, limit);
   }
 
-  renderTable(tasks, all, displayMapRef, projects, headerHtml);
+  renderTable(tasks, all, displayMapRef, projects, headerHtml, isTodayView);
 };

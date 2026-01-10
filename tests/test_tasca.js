@@ -26,6 +26,7 @@ import { execute } from "../src/js/commands.js";
 import { parseIds } from "../src/js/commands-state.js";
 import { initDB, dbOps } from "../src/js/db.js";
 import { displayMapRef } from "../src/js/state.js";
+import { getContext } from "../src/js/context.js";
 
 describe("Tasca Logic Tests", function () {
   describe("Urgency Calculation", function () {
@@ -2304,6 +2305,229 @@ describe("Modified Virtual Tag E2E Tests", function () {
       await execute("list !modified");
 
       expect(displayMapRef.value).to.have.length(0);
+    });
+  });
+});
+
+describe("Today View E2E Tests", function () {
+  before(async function () {
+    await initDB();
+    if (!document.getElementById("terminal-output")) {
+      const div = document.createElement("div");
+      div.id = "terminal-output";
+      div.style.display = "none";
+      document.body.appendChild(div);
+    }
+  });
+
+  beforeEach(async function () {
+    await dbOps.purgeAll();
+    clearUndo();
+    displayMapRef.value = [];
+    document.getElementById("terminal-output").innerHTML = "";
+    // Clear context
+    await execute("context");
+  });
+
+  afterEach(async function () {
+    // Clear context after each test
+    await execute("context");
+  });
+
+  describe("Order property parsing", function () {
+    it("should parse order:N when adding a task", async function () {
+      await execute("add test task order:5");
+      const tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(1);
+      expect(tasks[0].order).to.equal(5);
+    });
+
+    it("should parse ord:N alias when adding a task", async function () {
+      await execute("add test task ord:3");
+      const tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(1);
+      expect(tasks[0].order).to.equal(3);
+    });
+
+    it("should parse o:N alias when adding a task", async function () {
+      await execute("add test task o:7");
+      const tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(1);
+      expect(tasks[0].order).to.equal(7);
+    });
+
+    it("should modify order with mod command", async function () {
+      await execute("add test task");
+      await execute("mod 1 order:10");
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].order).to.equal(10);
+    });
+
+    it("should clear order with order:", async function () {
+      await execute("add test task order:5");
+      await execute("mod 1 order:");
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].order).to.be.null;
+    });
+  });
+
+  describe("Order-based sorting in today view", function () {
+    it("should sort by order ascending in list !today", async function () {
+      const today = formatDateOnly(Date.now());
+      await execute(`add task A order:3 due:${today}`);
+      await execute(`add task B order:1 due:${today}`);
+      await execute(`add task C order:2 due:${today}`);
+
+      await execute("list !today");
+
+      // Should be sorted by order: B(1), C(2), A(3)
+      expect(displayMapRef.value).to.have.length(3);
+      const tasks = await dbOps.getAll();
+      const taskB = tasks.find((t) => t.description === "task B");
+      const taskC = tasks.find((t) => t.description === "task C");
+      const taskA = tasks.find((t) => t.description === "task A");
+      expect(displayMapRef.value[0]).to.equal(taskB.uuid);
+      expect(displayMapRef.value[1]).to.equal(taskC.uuid);
+      expect(displayMapRef.value[2]).to.equal(taskA.uuid);
+    });
+
+    it("should put tasks without order after ordered tasks", async function () {
+      const today = formatDateOnly(Date.now());
+      await execute(`add ordered task order:1 due:${today}`);
+      await execute(`add unordered task due:${today}`);
+
+      await execute("list !today");
+
+      expect(displayMapRef.value).to.have.length(2);
+      const tasks = await dbOps.getAll();
+      const orderedTask = tasks.find((t) => t.description === "ordered task");
+      expect(displayMapRef.value[0]).to.equal(orderedTask.uuid);
+    });
+
+    it("should sort by urgency when order is the same", async function () {
+      const today = formatDateOnly(Date.now());
+      await execute(`add high priority order:1 pri:50 due:${today}`);
+      await execute(`add low priority order:1 pri:1 due:${today}`);
+
+      await execute("list !today");
+
+      expect(displayMapRef.value).to.have.length(2);
+      const tasks = await dbOps.getAll();
+      const highPri = tasks.find((t) => t.description === "high priority");
+      // High priority should come first due to higher urgency
+      expect(displayMapRef.value[0]).to.equal(highPri.uuid);
+    });
+  });
+
+  describe("Context !today shows waiting tasks due today", function () {
+    it("should show waiting tasks that are due today", async function () {
+      const today = formatDateOnly(Date.now());
+      // Task with wait:7d but due today
+      await execute(`add routine task wait:7d due:${today}`);
+      // Normal task due today
+      await execute(`add normal task due:${today}`);
+
+      await execute("list !today");
+
+      // Both should appear since they're due today
+      expect(displayMapRef.value).to.have.length(2);
+    });
+
+    it("should not show waiting tasks not due today", async function () {
+      const tomorrow = formatDateOnly(Date.now() + 86400000);
+      await execute(`add future task wait:1d due:${tomorrow}`);
+
+      await execute("list !today");
+
+      // Should not appear
+      expect(displayMapRef.value).to.have.length(0);
+    });
+
+    it("should work in context !today mode", async function () {
+      const today = formatDateOnly(Date.now());
+      await execute(`add waiting routine wait:2d due:${today}`);
+      await execute(`add visible routine due:${today}`);
+      await execute("add other task");
+
+      await execute("context !today");
+
+      // Both today tasks should appear
+      expect(displayMapRef.value).to.have.length(2);
+      const tasks = await dbOps.getAll();
+      const waitingRoutine = tasks.find(
+        (t) => t.description === "waiting routine",
+      );
+      const visibleRoutine = tasks.find(
+        (t) => t.description === "visible routine",
+      );
+      expect(displayMapRef.value).to.include(waitingRoutine.uuid);
+      expect(displayMapRef.value).to.include(visibleRoutine.uuid);
+    });
+  });
+
+  describe("day and today command aliases", function () {
+    it("day command should set context to !today", async function () {
+      await execute("day");
+      const ctx = getContext();
+      expect(ctx).to.not.be.null;
+      expect(ctx.raw).to.equal("!today");
+    });
+
+    it("today command should set context to !today", async function () {
+      await execute("today");
+      const ctx = getContext();
+      expect(ctx).to.not.be.null;
+      expect(ctx.raw).to.equal("!today");
+    });
+
+    it("day command should show tasks due today", async function () {
+      const today = formatDateOnly(Date.now());
+      await execute(`add today task due:${today}`);
+      await execute("add tomorrow task due:1d");
+
+      await execute("day");
+
+      // Only today task should show
+      expect(displayMapRef.value).to.have.length(1);
+      const tasks = await dbOps.getAll();
+      const todayTask = tasks.find((t) => t.description === "today task");
+      expect(displayMapRef.value[0]).to.equal(todayTask.uuid);
+    });
+  });
+
+  describe("Today view UI details", function () {
+    it("should hide (0d) date pill in today view", async function () {
+      const today = formatDateOnly(Date.now());
+      await execute(`add today task due:${today}`);
+
+      await execute("list !today");
+
+      const output = document.getElementById("terminal-output").innerHTML;
+      // Should NOT contain (0d) since it's redundant in today view
+      expect(output).to.not.include("(0d)");
+    });
+
+    it("should show (0d) date pill in regular list view", async function () {
+      const today = formatDateOnly(Date.now());
+      await execute(`add today task due:${today}`);
+
+      await execute("list");
+
+      const output = document.getElementById("terminal-output").innerHTML;
+      // Should contain (0d) in regular list
+      expect(output).to.include("(0d)");
+    });
+
+    it("should still show overdue pills in regular list", async function () {
+      // Create a task that's overdue (due yesterday)
+      const yesterday = formatDateOnly(Date.now() - 86400000);
+      await execute(`add overdue task due:${yesterday}`);
+
+      await execute("list");
+
+      const output = document.getElementById("terminal-output").innerHTML;
+      // Should show (-1d) for overdue task in regular list
+      expect(output).to.include("(-1d)");
     });
   });
 });

@@ -107,7 +107,13 @@ export const setProjectMetadata = (meta) => {
   }
 };
 
-export const print = (content, append = true) => {
+// Store execute reference for dismissible outputs
+let executeRef = null;
+export const setExecuteRef = (fn) => {
+  executeRef = fn;
+};
+
+export const print = (content, append = true, options = {}) => {
   const term = document.getElementById("terminal-output");
   if (!append) term.innerHTML = "";
   const div = document.createElement("div");
@@ -116,6 +122,11 @@ export const print = (content, append = true) => {
     div.innerHTML = content;
   } else if (content instanceof Node) {
     div.appendChild(content);
+  }
+  // Dismissible outputs can be clicked to refresh (like pressing Enter)
+  if (options.dismissible && executeRef) {
+    div.style.cursor = "pointer";
+    div.addEventListener("click", () => executeRef(""));
   }
   term.appendChild(div);
   term.scrollTop = append ? term.scrollHeight : 0;
@@ -170,6 +181,7 @@ export const renderTable = (
   displayMapRef,
   projects = [],
   headerHtml = null,
+  isTodayView = false,
 ) => {
   setProjectMetadata(projects);
 
@@ -276,6 +288,14 @@ export const renderTable = (
     const tdDesc = document.createElement("td");
     tdDesc.className = "row-desc";
 
+    // Order (only shown in today view)
+    if (isTodayView && t.order != null) {
+      const orderSpan = document.createElement("span");
+      orderSpan.className = "order-badge";
+      orderSpan.textContent = t.order;
+      tdDesc.appendChild(orderSpan);
+    }
+
     // Icon
     if (t.icon) {
       const i = document.createElement("i");
@@ -338,17 +358,19 @@ export const renderTable = (
       priSpan.textContent = `pri:${t.priority}`;
       tdDesc.appendChild(priSpan);
     }
-    // Due
+    // Due (skip 0d in today view since it's redundant)
     if (t.due) {
-      tdDesc.appendChild(document.createTextNode(" "));
       const daysCheck = getDaysRemaining(t.due);
-      const dateSpan = document.createElement("span");
-      let cls = "date-far";
-      if (daysCheck < C.daysWarning) cls = "date-urgent";
-      else if (daysCheck < C.daysSoon) cls = "date-soon";
-      dateSpan.className = `date-pill ${cls}`;
-      dateSpan.textContent = `(${daysCheck}d)`;
-      tdDesc.appendChild(dateSpan);
+      if (!(isTodayView && daysCheck === 0)) {
+        tdDesc.appendChild(document.createTextNode(" "));
+        const dateSpan = document.createElement("span");
+        let cls = "date-far";
+        if (daysCheck < C.daysWarning) cls = "date-urgent";
+        else if (daysCheck < C.daysSoon) cls = "date-soon";
+        dateSpan.className = `date-pill ${cls}`;
+        dateSpan.textContent = `(${daysCheck}d)`;
+        tdDesc.appendChild(dateSpan);
+      }
     }
     // Wait
     if (t.wait && t.wait > Date.now()) {

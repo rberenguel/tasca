@@ -213,6 +213,8 @@ export const VALID_COMMANDS = [
   "context",
   "ctx",
   "c",
+  "day",
+  "today",
   "calendar",
   "cal",
   "skip",

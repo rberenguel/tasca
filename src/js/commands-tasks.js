@@ -24,6 +24,7 @@ const createTaskObject = (args, displayMapRef) => {
   let desc = [],
     proj = "",
     priority = null,
+    order = null,
     tags = [],
     depends = [],
     due = null,
@@ -44,6 +45,13 @@ const createTaskObject = (args, displayMapRef) => {
     else if (token.startsWith("pri:") || token.startsWith("priority:")) {
       const val = parseInt(token.split(":")[1], 10);
       if (!isNaN(val)) priority = val;
+    } else if (
+      token.startsWith("o:") ||
+      token.startsWith("ord:") ||
+      token.startsWith("order:")
+    ) {
+      const val = parseInt(token.split(":")[1], 10);
+      if (!isNaN(val)) order = val;
     } else if (token.startsWith("dep:"))
       token
         .split(":")[1]
@@ -73,6 +81,7 @@ const createTaskObject = (args, displayMapRef) => {
     desc: desc.join(" "),
     proj,
     priority,
+    order,
     tags,
     depends,
     due,
@@ -103,6 +112,7 @@ export const handleAdd = async (ctx) => {
     description: tObj.desc,
     project: proj,
     priority: tObj.priority,
+    order: tObj.order,
     tags: tags,
     depends: tObj.depends,
     due: tObj.due,
@@ -194,6 +204,15 @@ export const handleModify = async (ctx) => {
       if (!isNaN(val)) task.priority = val;
       else if (token === "pri:") task.priority = null; // clear priority
     } else if (
+      token.startsWith("o:") ||
+      token.startsWith("ord:") ||
+      token.startsWith("order:")
+    ) {
+      const val = parseInt(token.split(":")[1], 10);
+      if (!isNaN(val)) task.order = val;
+      else if (token === "o:" || token === "ord:" || token === "order:")
+        task.order = null; // clear order
+    } else if (
       token.startsWith("p:") ||
       token.startsWith("pro:") ||
       token.startsWith("proj:") ||
@@ -258,6 +277,7 @@ export const handleEdit = async (ctx) => {
 
   if (t.project) cmdParts.push(`pro:${t.project}`);
   if (t.priority != null) cmdParts.push(`pri:${t.priority}`);
+  if (t.order != null) cmdParts.push(`order:${t.order}`);
   if (t.tags && t.tags.length > 0) {
     t.tags.forEach((tag) => cmdParts.push(`!${tag}`));
   }
@@ -438,6 +458,7 @@ export const handleInfo = async (ctx) => {
     html += `<div><b>URL:</b> <a href="${t.url}" target="_blank" rel="noopener" class="task-link">${t.url}</a></div>`;
   if (t.icon)
     html += `<div><b>Icon:</b> <i class="${iconClass(t.icon)}"></i> ${t.icon.replace(/^ph-light ph-/, "")}</div>`;
+  if (t.order != null) html += `<div><b>Order:</b> ${t.order}</div>`;
   if (t.due) html += `<div><b>Due:</b> ${formatDateHtml(t.due)}</div>`;
   if (t.wait) html += `<div><b>Wait:</b> ${formatDateHtml(t.wait)}</div>`;
   if (t.sched) html += `<div><b>Scheduled:</b> ${formatDate(t.sched)}</div>`;

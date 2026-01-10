@@ -25,6 +25,7 @@ Tasca runs entirely in the browser using IndexedDB for storage. No server requir
 | `chain` / `tree` / `deps` <ID>    | Show dependency tree                     |
 | `projects`                        | List all projects                        |
 | `context` / `ctx` / `c [filters]` | Set/clear persistent context             |
+| `day` / `today`                   | Set context to `!today`                  |
 | `calendar` / `cal [filters]`      | Agenda view of dated tasks               |
 | `report` / `rep <subcommand>`     | GTD weekly review reports                |
 | `export` / `exp [filters]`        | Export tasks as JSON                     |
@@ -45,6 +46,7 @@ Tasca runs entirely in the browser using IndexedDB for storage. No server requir
 | -------------- | --------------------------------------------------- |
 | `pro:Name`     | Project (hierarchical, e.g. `Work.Client`)          |
 | `pri:N`        | Priority (1=low, 10=med, 50=high, negative=backlog) |
+| `order:N`      | Custom sort order for `!today` view (lower first)   |
 | `due:DATE`     | Due date (deadline)                                 |
 | `wait:DATE`    | Hide until date                                     |
 | `sched:DATE`   | Scheduled date (start working on)                   |
@@ -79,6 +81,8 @@ c !urgent               # filter by tag
 c meeting               # text search
 c pro:Work !urgent      # combine filters
 c                       # clear context (no args)
+day                     # shortcut for c !today
+today                   # same as day
 ```
 
 When context is active:
@@ -88,6 +92,23 @@ When context is active:
 - A banner shows the active context above the task list
 
 Context persists in localStorage across sessions.
+
+### Today View
+
+The `day` or `today` commands set context to `!today` with special behavior:
+
+- Shows all tasks due today, including waiting tasks (e.g., routines with `wait:`)
+- Tasks are sorted by `order:N` (ascending, lower first), then by urgency
+- The order value is displayed as a small number before the task description
+
+```
+add Morning routine due:today order:1 wait:6h recur:1d
+add Check email due:today order:2
+add Exercise due:today order:3
+day                     # shows all three, sorted by order
+```
+
+Use `order:` (empty) on `mod` to clear the order value.
 
 ### Calendar
 

@@ -134,6 +134,15 @@ export const commands = {
   context: handleContext,
   ctx: handleContext,
   c: handleContext,
+  // Quick access to today context
+  day: async (ctx) => {
+    ctx.args = ["!today"];
+    await handleContext(ctx);
+  },
+  today: async (ctx) => {
+    ctx.args = ["!today"];
+    await handleContext(ctx);
+  },
   icon: handleIcon,
   copy: handleCopy,
   cp: handleCopy,

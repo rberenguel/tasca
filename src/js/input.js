@@ -191,4 +191,36 @@ export const setupInput = (execute) => {
       ghost.innerHTML = "";
     }
   });
+
+  // Swipe right on output area to accept autocomplete (easier on mobile)
+  const terminalOutput = document.getElementById("terminal-output");
+  let outputTouchStartX = null;
+  let outputTouchStartY = null;
+  terminalOutput.addEventListener("touchstart", (e) => {
+    // Only track if there's a suggestion to accept
+    if (ghost.textContent) {
+      outputTouchStartX = e.touches[0].clientX;
+      outputTouchStartY = e.touches[0].clientY;
+    }
+  });
+  terminalOutput.addEventListener("touchend", (e) => {
+    if (outputTouchStartX === null) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    const diffX = touchEndX - outputTouchStartX;
+    const diffY = Math.abs(touchEndY - outputTouchStartY);
+    outputTouchStartX = null;
+    outputTouchStartY = null;
+
+    // Swipe right (horizontal, not too vertical) to accept autocomplete
+    if (diffX > 50 && diffY < 30) {
+      const gText = ghost.textContent;
+      if (gText) {
+        input.value += gText.substring(input.value.length);
+        ghost.innerHTML = "";
+        input.dispatchEvent(new Event("input"));
+        input.focus();
+      }
+    }
+  });
 };

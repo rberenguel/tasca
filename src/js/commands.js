@@ -22,7 +22,7 @@ import {
 const normalizeArgs = (parts) => {
   const result = [];
   const colonPrefixes =
-    /^(p|pro|proj|project|pri|priority|due|wait|sched|scheduled|recur|url|icon|dep|sort|lim|l|end):$/i;
+    /^(p|pro|proj|project|pri|priority|due|wait|sched|scheduled|recur|url|icon|dep|sort|lim|l|end|o|ord|order):$/i;
   for (let i = 0; i < parts.length; i++) {
     if (colonPrefixes.test(parts[i]) && i + 1 < parts.length) {
       result.push(parts[i] + parts[i + 1]);
