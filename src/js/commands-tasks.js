@@ -33,7 +33,8 @@ const createTaskObject = (args, displayMapRef) => {
     sched = null,
     recur = null,
     url = null,
-    icon = null;
+    icon = null,
+    target = null;
   for (let token of args) {
     if (
       token.startsWith("p:") ||
@@ -74,6 +75,8 @@ const createTaskObject = (args, displayMapRef) => {
       let val = token.split(":")[1];
       // Store just the icon name, not the full class
       icon = val || null;
+    } else if (token.startsWith("x:") || token.startsWith("target:")) {
+      target = token.split(":")[1] || null;
     } else if (token.startsWith("!")) tags.push(token.substring(1));
     else desc.push(token);
   }
@@ -91,6 +94,7 @@ const createTaskObject = (args, displayMapRef) => {
     recur,
     url,
     icon,
+    target,
   };
 };
 
@@ -98,6 +102,16 @@ export const handleAdd = async (ctx) => {
   const tObj = createTaskObject(ctx.args, ctx.displayMapRef);
   if (tObj.desc.length === 0)
     return ctx.print('<span class="msg-error">No description.</span>');
+
+  // Validate target uniqueness
+  if (tObj.target) {
+    const existing = await ctx.dbOps.getByStatus("pending");
+    if (existing.some((t) => t.target === tObj.target)) {
+      return ctx.print(
+        `<span class="msg-error">Target x:${tObj.target} already exists.</span>`,
+      );
+    }
+  }
 
   // Inherit context attributes if not explicitly specified
   const inherited = getInheritedAttributes();
@@ -122,6 +136,7 @@ export const handleAdd = async (ctx) => {
     recur: tObj.recur,
     url: tObj.url,
     icon: tObj.icon,
+    target: tObj.target,
     annotations: [],
     status: "pending",
     entry: uniqueTimestamp(),
@@ -191,14 +206,29 @@ export const handleModifyProject = async (ctx) => {
 };
 
 export const handleModify = async (ctx) => {
-  const id = ctx.targetId || parseInt(ctx.args[0]);
+  const idArg = ctx.targetId || ctx.args[0];
   const tokens = ctx.targetId ? ctx.args : ctx.args.slice(1);
-  if (!id || !ctx.displayMapRef.value[id - 1])
-    return ctx.print('<span class="msg-error">Invalid ID.</span>');
-  const task = await ctx.dbOps.get(ctx.displayMapRef.value[id - 1]);
+
+  // Resolve ID - support both numeric IDs and x:name references
+  let uuid;
+  if (idArg && idArg.startsWith("x:")) {
+    const name = idArg.substring(2);
+    const all = await ctx.dbOps.getByStatus("pending");
+    const match = all.find((t) => t.target === name);
+    uuid = match?.uuid;
+  } else {
+    const id = parseInt(idArg);
+    uuid = id ? ctx.displayMapRef.value[id - 1] : null;
+  }
+
+  if (!uuid) return ctx.print('<span class="msg-error">Invalid ID.</span>');
+  const task = await ctx.dbOps.get(uuid);
   pushUndo({ type: "update", task: structuredClone(task) });
+
   const descParts = [];
-  tokens.forEach((token) => {
+  let newTarget = undefined; // undefined = no change, null = clear, string = new value
+
+  for (const token of tokens) {
     if (token.startsWith("pri:")) {
       const val = parseInt(token.split(":")[1], 10);
       if (!isNaN(val)) task.priority = val;
@@ -234,6 +264,9 @@ export const handleModify = async (ctx) => {
       task.url = val || null;
     } else if (token.startsWith("icon:")) {
       task.icon = token.split(":")[1] || null;
+    } else if (token.startsWith("x:") || token.startsWith("target:")) {
+      const val = token.split(":")[1];
+      newTarget = val || null;
     } else if (token.startsWith("!")) {
       const tag = token.substring(1);
       if (!task.tags) task.tags = [];
@@ -246,17 +279,31 @@ export const handleModify = async (ctx) => {
         .split(":")[1]
         .split(",")
         .forEach((i) => {
-          const uuid = ctx.displayMapRef.value[i - 1];
-          if (uuid) {
-            const idx = task.depends.indexOf(uuid);
+          const depUuid = ctx.displayMapRef.value[i - 1];
+          if (depUuid) {
+            const idx = task.depends.indexOf(depUuid);
             if (idx >= 0) task.depends.splice(idx, 1);
-            else task.depends.push(uuid);
+            else task.depends.push(depUuid);
           }
         });
     } else {
       descParts.push(token);
     }
-  });
+  }
+
+  // Validate target uniqueness if changing
+  if (newTarget !== undefined) {
+    if (newTarget) {
+      const existing = await ctx.dbOps.getByStatus("pending");
+      if (existing.some((t) => t.target === newTarget && t.uuid !== task.uuid)) {
+        return ctx.print(
+          `<span class="msg-error">Target x:${newTarget} already exists.</span>`,
+        );
+      }
+    }
+    task.target = newTarget;
+  }
+
   if (descParts.length > 0) {
     task.description = descParts.join(" ");
   }
@@ -267,13 +314,28 @@ export const handleModify = async (ctx) => {
 
 export const handleEdit = async (ctx) => {
   // Populate input with mod command for quick editing
-  const id = ctx.targetId || parseInt(ctx.args[0]);
-  if (!id || !ctx.displayMapRef.value[id - 1])
+  const idArg = ctx.targetId || ctx.args[0];
+
+  // Resolve ID - support both numeric IDs and x:name references
+  let uuid, displayId;
+  if (idArg && idArg.startsWith("x:")) {
+    const name = idArg.substring(2);
+    const all = await ctx.dbOps.getByStatus("pending");
+    const match = all.find((t) => t.target === name);
+    uuid = match?.uuid;
+    // Find display ID for the mod command
+    displayId = uuid ? ctx.displayMapRef.value.indexOf(uuid) + 1 : null;
+  } else {
+    displayId = parseInt(idArg);
+    uuid = displayId ? ctx.displayMapRef.value[displayId - 1] : null;
+  }
+
+  if (!uuid || !displayId)
     return ctx.print('<span class="msg-error">Invalid ID.</span>');
-  const t = await ctx.dbOps.get(ctx.displayMapRef.value[id - 1]);
+  const t = await ctx.dbOps.get(uuid);
 
   // Build the command string
-  let cmdParts = [`mod ${id}`, t.description];
+  let cmdParts = [`mod ${displayId}`, t.description];
 
   if (t.project) cmdParts.push(`pro:${t.project}`);
   if (t.priority != null) cmdParts.push(`pri:${t.priority}`);
@@ -370,10 +432,22 @@ export const handleAnnotateProject = async (ctx) => {
 };
 
 export const handleAnnotate = async (ctx) => {
-  const id = ctx.targetId || parseInt(ctx.args[0]);
-  if (!id || !ctx.displayMapRef.value[id - 1])
-    return ctx.print('<span class="msg-error">Invalid ID.</span>');
-  const task = await ctx.dbOps.get(ctx.displayMapRef.value[id - 1]);
+  const idArg = ctx.targetId || ctx.args[0];
+
+  // Resolve ID - support both numeric IDs and x:name references
+  let uuid;
+  if (idArg && idArg.startsWith("x:")) {
+    const name = idArg.substring(2);
+    const all = await ctx.dbOps.getByStatus("pending");
+    const match = all.find((t) => t.target === name);
+    uuid = match?.uuid;
+  } else {
+    const id = parseInt(idArg);
+    uuid = id ? ctx.displayMapRef.value[id - 1] : null;
+  }
+
+  if (!uuid) return ctx.print('<span class="msg-error">Invalid ID.</span>');
+  const task = await ctx.dbOps.get(uuid);
   const note = (ctx.targetId ? ctx.args : ctx.args.slice(1)).join(" ");
   if (!note)
     return ctx.print('<span class="msg-error">No annotation text.</span>');
@@ -438,12 +512,25 @@ export const handleInfoProject = async (ctx) => {
 };
 
 export const handleInfo = async (ctx) => {
-  const id = ctx.targetId || parseInt(ctx.args[0]);
-  if (!id || !ctx.displayMapRef.value[id - 1])
-    return ctx.print('<span class="msg-error">Invalid ID.</span>');
-  const t = await ctx.dbOps.get(ctx.displayMapRef.value[id - 1]);
+  const idArg = ctx.targetId || ctx.args[0];
+
+  // Resolve ID - support both numeric IDs and x:name references
+  let uuid, displayId;
+  if (idArg && idArg.startsWith("x:")) {
+    const name = idArg.substring(2);
+    const all = await ctx.dbOps.getByStatus("pending");
+    const match = all.find((t) => t.target === name);
+    uuid = match?.uuid;
+    displayId = uuid ? ctx.displayMapRef.value.indexOf(uuid) + 1 : null;
+  } else {
+    displayId = parseInt(idArg);
+    uuid = displayId ? ctx.displayMapRef.value[displayId - 1] : null;
+  }
+
+  if (!uuid) return ctx.print('<span class="msg-error">Invalid ID.</span>');
+  const t = await ctx.dbOps.get(uuid);
   let html = `<div class="task-info">`;
-  html += `<div style="color:var(--yellow)">Task ${id} - ${t.uuid}</div>`;
+  html += `<div style="color:var(--yellow)">Task ${displayId || "?"} - ${t.uuid}</div>`;
   html += `<div><b>Desc:</b> ${formatInlineCode(t.description)}</div>`;
   html += `<div><b>Status:</b> ${t.status}</div>`;
   if (t.project) {
@@ -458,6 +545,7 @@ export const handleInfo = async (ctx) => {
     html += `<div><b>URL:</b> <a href="${t.url}" target="_blank" rel="noopener" class="task-link">${t.url}</a></div>`;
   if (t.icon)
     html += `<div><b>Icon:</b> <i class="${iconClass(t.icon)}"></i> ${t.icon.replace(/^ph-light ph-/, "")}</div>`;
+  if (t.target) html += `<div><b>Target:</b> ${t.target}</div>`;
   if (t.order != null) html += `<div><b>Order:</b> ${t.order}</div>`;
   if (t.due) html += `<div><b>Due:</b> ${formatDateHtml(t.due)}</div>`;
   if (t.wait) html += `<div><b>Wait:</b> ${formatDateHtml(t.wait)}</div>`;

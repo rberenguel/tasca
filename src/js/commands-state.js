@@ -29,6 +29,39 @@ export const parseIds = (str, displayMapRef) => {
   return [...ids].sort((a, b) => a - b);
 };
 
+// Resolve mixed references: "1", "1,3,5", "1-3", "x:name", or "1,x:bike,3"
+// Returns array of UUIDs
+export const resolveRefs = async (str, displayMapRef, dbOps) => {
+  if (!str) return [];
+  const uuids = new Set();
+  const parts = str.split(",");
+
+  for (const part of parts) {
+    if (part.startsWith("x:")) {
+      // Target reference
+      const name = part.substring(2);
+      const all = await dbOps.getByStatus("pending");
+      const match = all.find((t) => t.target === name);
+      if (match) uuids.add(match.uuid);
+    } else if (part.includes("-") && /^\d+-\d+$/.test(part)) {
+      // Range: "1-3"
+      const [start, end] = part.split("-").map(Number);
+      for (let i = Math.min(start, end); i <= Math.max(start, end); i++) {
+        const uuid = displayMapRef.value[i - 1];
+        if (uuid) uuids.add(uuid);
+      }
+    } else {
+      // Single ID
+      const id = parseInt(part);
+      if (!isNaN(id)) {
+        const uuid = displayMapRef.value[id - 1];
+        if (uuid) uuids.add(uuid);
+      }
+    }
+  }
+  return [...uuids];
+};
+
 // Apply an undo record
 const applyUndo = async (record, dbOps) => {
   if (record.type === "update") {
@@ -55,15 +88,27 @@ export const handleUndo = async (ctx) => {
 };
 
 export const handleStart = async (ctx) => {
-  const id = ctx.targetId || parseInt(ctx.args[0]);
-  if (!id || !ctx.displayMapRef.value[id - 1])
-    return ctx.print('<span class="msg-error">Invalid ID.</span>');
-  const task = await ctx.dbOps.get(ctx.displayMapRef.value[id - 1]);
+  const idArg = ctx.targetId || ctx.args[0];
+
+  // Resolve ID - support both numeric IDs and x:name references
+  let uuid;
+  if (idArg && idArg.startsWith("x:")) {
+    const name = idArg.substring(2);
+    const all = await ctx.dbOps.getByStatus("pending");
+    const match = all.find((t) => t.target === name);
+    uuid = match?.uuid;
+  } else {
+    const id = parseInt(idArg);
+    uuid = id ? ctx.displayMapRef.value[id - 1] : null;
+  }
+
+  if (!uuid) return ctx.print('<span class="msg-error">Invalid ID.</span>');
+  const task = await ctx.dbOps.get(uuid);
   if (task) {
     pushUndo({ type: "update", task: structuredClone(task) });
     task.start = Date.now();
     await ctx.dbOps.update(task);
-    ctx.print(`<span class="msg-success">Started task ${id}.</span>`);
+    ctx.print(`<span class="msg-success">Started task.</span>`);
     ctx.markDirty();
     await ctx.runListRefresh();
   }
@@ -71,15 +116,15 @@ export const handleStart = async (ctx) => {
 
 export const handleDone = async (ctx) => {
   const idArg = ctx.targetId?.toString() || ctx.args[0];
-  const ids = parseIds(idArg, ctx.displayMapRef);
-  if (ids.length === 0)
+  const uuids = await resolveRefs(idArg, ctx.displayMapRef, ctx.dbOps);
+  if (uuids.length === 0)
     return ctx.print('<span class="msg-error">Invalid ID.</span>');
 
   const allUndoRecords = [];
   let recurringCount = 0;
 
-  for (const id of ids) {
-    const task = await ctx.dbOps.get(ctx.displayMapRef.value[id - 1]);
+  for (const uuid of uuids) {
+    const task = await ctx.dbOps.get(uuid);
     if (!task) continue;
 
     allUndoRecords.push({ type: "update", task: structuredClone(task) });
@@ -113,11 +158,11 @@ export const handleDone = async (ctx) => {
   pushUndo({ type: "compound", records: allUndoRecords });
   if (recurringCount > 0) {
     ctx.print(
-      `<span class="msg-success">Completed ${ids.length} task(s). ${recurringCount} recurring task(s) created.</span>`,
+      `<span class="msg-success">Completed ${uuids.length} task(s). ${recurringCount} recurring task(s) created.</span>`,
     );
-  } else if (ids.length > 1) {
+  } else if (uuids.length > 1) {
     ctx.print(
-      `<span class="msg-success">Completed ${ids.length} tasks.</span>`,
+      `<span class="msg-success">Completed ${uuids.length} tasks.</span>`,
     );
   }
   ctx.markDirty();
@@ -126,23 +171,22 @@ export const handleDone = async (ctx) => {
 
 export const handleDelete = async (ctx) => {
   const idArg = ctx.targetId?.toString() || ctx.args[0];
-  const ids = parseIds(idArg, ctx.displayMapRef);
-  if (ids.length === 0)
+  const uuids = await resolveRefs(idArg, ctx.displayMapRef, ctx.dbOps);
+  if (uuids.length === 0)
     return ctx.print('<span class="msg-error">Invalid ID.</span>');
 
   const allUndoRecords = [];
 
-  // Process in reverse order to maintain correct indices during deletion
-  for (const id of [...ids].reverse()) {
-    const task = await ctx.dbOps.get(ctx.displayMapRef.value[id - 1]);
+  for (const uuid of uuids) {
+    const task = await ctx.dbOps.get(uuid);
     if (!task) continue;
     allUndoRecords.push({ type: "delete", task: structuredClone(task) });
-    await ctx.dbOps.delete(ctx.displayMapRef.value[id - 1]);
+    await ctx.dbOps.delete(uuid);
   }
 
   pushUndo({ type: "compound", records: allUndoRecords });
-  if (ids.length > 1) {
-    ctx.print(`<span class="msg-success">Deleted ${ids.length} tasks.</span>`);
+  if (uuids.length > 1) {
+    ctx.print(`<span class="msg-success">Deleted ${uuids.length} tasks.</span>`);
   }
   ctx.markDirty();
   await ctx.runListRefresh();
@@ -150,16 +194,16 @@ export const handleDelete = async (ctx) => {
 
 export const handleSkip = async (ctx) => {
   const idArg = ctx.targetId?.toString() || ctx.args[0];
-  const ids = parseIds(idArg, ctx.displayMapRef);
-  if (ids.length === 0)
+  const uuids = await resolveRefs(idArg, ctx.displayMapRef, ctx.dbOps);
+  if (uuids.length === 0)
     return ctx.print('<span class="msg-error">Invalid ID.</span>');
 
   const allUndoRecords = [];
   let recurringCount = 0;
   let cancelledCount = 0;
 
-  for (const id of ids) {
-    const task = await ctx.dbOps.get(ctx.displayMapRef.value[id - 1]);
+  for (const uuid of uuids) {
+    const task = await ctx.dbOps.get(uuid);
     if (!task) continue;
 
     allUndoRecords.push({ type: "update", task: structuredClone(task) });

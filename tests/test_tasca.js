@@ -9,6 +9,7 @@ import {
   getDaysRemaining,
   expandVirtualTagShorthand,
   resolveCommand,
+  isVirtualTag,
   VALID_COMMANDS,
 } from "../src/js/logic.js";
 import {
@@ -26,7 +27,7 @@ import { execute } from "../src/js/commands.js";
 import { parseIds } from "../src/js/commands-state.js";
 import { initDB, dbOps } from "../src/js/db.js";
 import { displayMapRef } from "../src/js/state.js";
-import { getContext } from "../src/js/context.js";
+import { getContext, getInheritedAttributes } from "../src/js/context.js";
 
 describe("Tasca Logic Tests", function () {
   describe("Urgency Calculation", function () {
@@ -2528,6 +2529,345 @@ describe("Today View E2E Tests", function () {
       const output = document.getElementById("terminal-output").innerHTML;
       // Should show (-1d) for overdue task in regular list
       expect(output).to.include("(-1d)");
+    });
+  });
+
+  describe("Virtual Tag Detection", function () {
+    it("should identify virtual tags by full name", function () {
+      expect(isVirtualTag("today")).to.be.true;
+      expect(isVirtualTag("TODAY")).to.be.true;
+      expect(isVirtualTag("waiting")).to.be.true;
+      expect(isVirtualTag("scheduled")).to.be.true;
+      expect(isVirtualTag("blocked")).to.be.true;
+      expect(isVirtualTag("done")).to.be.true;
+      expect(isVirtualTag("active")).to.be.true;
+      expect(isVirtualTag("recurring")).to.be.true;
+      expect(isVirtualTag("overdue")).to.be.true;
+      expect(isVirtualTag("modified")).to.be.true;
+      expect(isVirtualTag("reference")).to.be.true;
+    });
+
+    it("should identify virtual tags by shorthand", function () {
+      expect(isVirtualTag("t")).to.be.true;
+      expect(isVirtualTag("tod")).to.be.true;
+      expect(isVirtualTag("w")).to.be.true;
+      expect(isVirtualTag("wait")).to.be.true;
+      expect(isVirtualTag("s")).to.be.true;
+      expect(isVirtualTag("sch")).to.be.true;
+      expect(isVirtualTag("b")).to.be.true;
+      expect(isVirtualTag("blk")).to.be.true;
+      expect(isVirtualTag("d")).to.be.true;
+      expect(isVirtualTag("a")).to.be.true;
+      expect(isVirtualTag("r")).to.be.true;
+      expect(isVirtualTag("rec")).to.be.true;
+      expect(isVirtualTag("o")).to.be.true;
+      expect(isVirtualTag("od")).to.be.true;
+      expect(isVirtualTag("m")).to.be.true;
+      expect(isVirtualTag("mod")).to.be.true;
+    });
+
+    it("should not identify regular tags as virtual", function () {
+      expect(isVirtualTag("work")).to.be.false;
+      expect(isVirtualTag("urgent")).to.be.false;
+      expect(isVirtualTag("home")).to.be.false;
+      expect(isVirtualTag("next")).to.be.false;
+      expect(isVirtualTag("someday")).to.be.true; // someday IS a virtual tag
+      expect(isVirtualTag("routine")).to.be.true; // routine IS a virtual tag
+    });
+  });
+
+  describe("Context inherited attributes should filter virtual tags", function () {
+    it("should not inherit virtual tag !today from context", async function () {
+      await execute("context !today");
+      const inherited = getInheritedAttributes();
+      expect(inherited.tags).to.be.undefined;
+    });
+
+    it("should not inherit virtual tag !waiting from context", async function () {
+      await execute("context !waiting");
+      const inherited = getInheritedAttributes();
+      expect(inherited.tags).to.be.undefined;
+    });
+
+    it("should inherit real tags from context", async function () {
+      await execute("context !work");
+      const inherited = getInheritedAttributes();
+      expect(inherited.tags).to.deep.equal(["work"]);
+    });
+
+    it("should inherit project from context", async function () {
+      await execute("context pro:Work");
+      const inherited = getInheritedAttributes();
+      expect(inherited.project).to.equal("Work");
+    });
+
+    it("should filter out virtual tags but keep real tags", async function () {
+      await execute("context !today !work");
+      const inherited = getInheritedAttributes();
+      // Only work should remain, today is virtual
+      expect(inherited.tags).to.deep.equal(["work"]);
+    });
+
+    it("should not add virtual tags to tasks created in context", async function () {
+      await execute("context !today");
+      await execute("add test task in today context");
+
+      const tasks = await dbOps.getAll();
+      const task = tasks.find(
+        (t) => t.description === "test task in today context",
+      );
+      expect(task).to.exist;
+      // Task should NOT have "today" tag
+      expect(task.tags || []).to.not.include("today");
+    });
+  });
+});
+
+describe("Target Identifier (x:) E2E Tests", function () {
+  before(async function () {
+    await initDB();
+    if (!document.getElementById("terminal-output")) {
+      const div = document.createElement("div");
+      div.id = "terminal-output";
+      div.style.display = "none";
+      document.body.appendChild(div);
+    }
+    if (!document.getElementById("cmd-input")) {
+      const input = document.createElement("input");
+      input.id = "cmd-input";
+      input.style.display = "none";
+      document.body.appendChild(input);
+    }
+  });
+
+  beforeEach(async function () {
+    await dbOps.purgeAll();
+    clearUndo();
+    displayMapRef.value = [];
+    document.getElementById("terminal-output").innerHTML = "";
+  });
+
+  describe("Property parsing", function () {
+    it("should parse x: in add command", async function () {
+      await execute("add test task x:bike");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].target).to.equal("bike");
+    });
+
+    it("should parse target: (long form) in add command", async function () {
+      await execute("add test task target:yoga");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].target).to.equal("yoga");
+    });
+
+    it("should parse x: in modify command", async function () {
+      await execute("add test task");
+      await execute("mod 1 x:bike");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].target).to.equal("bike");
+    });
+
+    it("should clear target with x: (empty value)", async function () {
+      await execute("add test task x:bike");
+      await execute("mod 1 x:");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].target).to.be.null;
+    });
+  });
+
+  describe("Uniqueness validation", function () {
+    it("should reject duplicate target on add", async function () {
+      await execute("add first task x:bike");
+      await execute("add second task x:bike");
+
+      const output = document.getElementById("terminal-output").innerHTML;
+      expect(output).to.include("already exists");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(1);
+    });
+
+    it("should reject duplicate target on modify", async function () {
+      await execute("add first task x:bike");
+      await execute("add second task x:yoga");
+      await execute("mod 2 x:bike");
+
+      const output = document.getElementById("terminal-output").innerHTML;
+      expect(output).to.include("already exists");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks[1].target).to.equal("yoga"); // unchanged
+    });
+
+    it("should allow same target after original task completed", async function () {
+      await execute("add first task x:bike");
+      await execute("done 1");
+      await execute("add second task x:bike");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(2);
+      const pending = tasks.find((t) => t.status === "pending");
+      expect(pending.target).to.equal("bike");
+    });
+  });
+
+  describe("Resolution in commands", function () {
+    it("should resolve x:name in done command", async function () {
+      await execute("add test task x:bike");
+      await execute("done x:bike");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].status).to.equal("completed");
+    });
+
+    it("should resolve x:name in delete command", async function () {
+      await execute("add test task x:bike");
+      await execute("delete x:bike");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(0);
+    });
+
+    it("should resolve x:name in skip command", async function () {
+      await execute("add test task x:bike due:today recur:1d");
+      await execute("skip x:bike");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(2);
+      expect(tasks.find((t) => t.status === "skipped")).to.exist;
+    });
+
+    it("should resolve x:name in start command", async function () {
+      await execute("add test task x:bike");
+      await execute("start x:bike");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].start).to.be.a("number");
+    });
+
+    it("should resolve x:name in modify command", async function () {
+      await execute("add test task x:bike");
+      await execute("mod x:bike pri:50");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].priority).to.equal(50);
+    });
+
+    it("should resolve x:name in info command", async function () {
+      await execute("add test task x:bike");
+      await execute("info x:bike");
+
+      const output = document.getElementById("terminal-output").innerHTML;
+      expect(output).to.include("test task");
+      expect(output).to.include("Target:");
+    });
+
+    it("should resolve x:name in annotate command", async function () {
+      await execute("add test task x:bike");
+      await execute("annotate x:bike my note");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].annotations).to.have.length(1);
+      expect(tasks[0].annotations[0].description).to.equal("my note");
+    });
+
+    it("should handle mixed references: done 1,x:bike", async function () {
+      await execute("add task one");
+      await execute("add task two x:bike");
+      await execute("add task three");
+      await execute("done 1,x:bike");
+
+      const tasks = await dbOps.getAll();
+      const completed = tasks.filter((t) => t.status === "completed");
+      expect(completed).to.have.length(2);
+    });
+
+    it("should resolve x:name in reversed syntax (x:name done)", async function () {
+      await execute("add test task x:bike");
+      await execute("x:bike done");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].status).to.equal("completed");
+    });
+  });
+
+  describe("List filtering", function () {
+    it("should filter by x:name", async function () {
+      await execute("add task with target x:bike");
+      await execute("add task without target");
+
+      await execute("list x:bike");
+
+      expect(displayMapRef.value).to.have.length(1);
+      const tasks = await dbOps.getAll();
+      const withTarget = tasks.find((t) => t.target === "bike");
+      expect(displayMapRef.value[0]).to.equal(withTarget.uuid);
+    });
+
+    it("should return empty for non-existent target", async function () {
+      await execute("add some task");
+
+      await execute("list x:nonexistent");
+
+      expect(displayMapRef.value).to.have.length(0);
+    });
+  });
+
+  describe("Recurrence", function () {
+    it("should copy target to next occurrence", async function () {
+      await execute("add recurring task x:bike due:today recur:1d");
+      await execute("done x:bike");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(2);
+
+      const pending = tasks.find((t) => t.status === "pending");
+      expect(pending.target).to.equal("bike");
+    });
+  });
+
+  describe("Visibility", function () {
+    it("should show target in info output", async function () {
+      await execute("add test task x:bike");
+      await execute("list"); // populate displayMapRef
+      await execute("info 1");
+
+      const output = document.getElementById("terminal-output").innerHTML;
+      expect(output).to.include("Target:");
+      expect(output).to.include("bike");
+    });
+
+    it("should NOT show target in edit output", async function () {
+      await execute("add test task x:bike");
+      await execute("list"); // populate displayMapRef
+      await execute("edit 1");
+
+      const input = document.getElementById("cmd-input");
+      expect(input.value).to.include("mod 1");
+      expect(input.value).to.include("test task");
+      expect(input.value).to.not.include("x:bike");
+    });
+  });
+
+  describe("Error handling", function () {
+    it("should error when x:name not found in done", async function () {
+      await execute("add test task");
+      await execute("done x:nonexistent");
+
+      const output = document.getElementById("terminal-output").innerHTML;
+      expect(output).to.include("Invalid ID");
+    });
+
+    it("should error when x:name not found in modify", async function () {
+      await execute("add test task");
+      await execute("mod x:nonexistent pri:50");
+
+      const output = document.getElementById("terminal-output").innerHTML;
+      expect(output).to.include("Invalid ID");
     });
   });
 });

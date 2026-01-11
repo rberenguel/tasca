@@ -8,6 +8,7 @@ import {
 import { markClean } from "./state.js";
 import { updateCache } from "./state.js";
 import { runList } from "./list.js";
+import { makeOutputDismissible } from "./ui.js";
 
 export const handleExport = async (ctx) => {
   await ctx.dbOps.cleanupOrphanProjects();
@@ -307,4 +308,6 @@ export const handleStatus = async (ctx) => {
   // Show modified tasks using normal list display with header
   // preserveFilter=true so Enter returns to previous list
   await runList(["!modified"], Infinity, html, true);
+  // Make the whole output area clickable to dismiss
+  makeOutputDismissible();
 };

@@ -38,6 +38,8 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  touch-action: pan-y;
+  overscroll-behavior-x: none;
 }
 
 .input-line {
@@ -127,11 +129,13 @@ textarea#cmd-input:placeholder-shown {
 #terminal-output {
   flex-grow: 1;
   overflow-y: auto;
-  overflow-y: auto;
+  overflow-x: hidden;
   padding: 0 10px 50px 10px;
   -webkit-overflow-scrolling: touch;
   user-select: text;
   -webkit-user-select: text;
+  touch-action: pan-y;
+  overscroll-behavior-x: none;
 }
 
 /* Custom scrollbar styling */

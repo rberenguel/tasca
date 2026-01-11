@@ -1,5 +1,7 @@
 // GTD Context feature - persisted filter state
 
+import { isVirtualTag } from "./logic.js";
+
 const STORAGE_KEY = "tasca_context";
 
 // Context structure: { raw, project, tags[], search[] }
@@ -94,11 +96,16 @@ export const mergeFilters = (cmdArgs) => {
 };
 
 // Get attributes to inherit for new tasks created in context
+// Filters out virtual tags (like !today, !waiting) which should never be added to tasks
 export const getInheritedAttributes = () => {
   if (!currentContext) return {};
   const attrs = {};
   if (currentContext.project) attrs.project = currentContext.project;
-  if (currentContext.tags.length) attrs.tags = [...currentContext.tags];
+  if (currentContext.tags.length) {
+    // Filter out virtual tags - they're for filtering, not for adding to tasks
+    const realTags = currentContext.tags.filter((tag) => !isVirtualTag(tag));
+    if (realTags.length) attrs.tags = realTags;
+  }
   return attrs;
 };
 

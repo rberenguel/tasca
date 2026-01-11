@@ -22,7 +22,7 @@ import {
 const normalizeArgs = (parts) => {
   const result = [];
   const colonPrefixes =
-    /^(p|pro|proj|project|pri|priority|due|wait|sched|scheduled|recur|url|icon|dep|sort|lim|l|end|o|ord|order):$/i;
+    /^(p|pro|proj|project|pri|priority|due|wait|sched|scheduled|recur|url|icon|dep|sort|lim|l|end|o|ord|order|x|target):$/i;
   for (let i = 0; i < parts.length; i++) {
     if (colonPrefixes.test(parts[i]) && i + 1 < parts.length) {
       result.push(parts[i] + parts[i + 1]);
@@ -54,9 +54,12 @@ export const execute = async (str) => {
     let rawCmd = parts[0];
     let cmd = resolveCommand(rawCmd);
     let args = parts.slice(1);
-    // Match single ID or multi-ID patterns (1, 1,3, 1-3, 1,3-5)
+    // Match single ID, multi-ID patterns (1, 1,3, 1-3, 1,3-5), or target ref (x:name)
     const idPattern = /^[\d,\-]+$/;
-    const isIdPattern = idPattern.test(rawCmd) && /\d/.test(rawCmd);
+    const targetRefPattern = /^x:[a-zA-Z0-9_-]+$/;
+    const isIdPattern =
+      (idPattern.test(rawCmd) && /\d/.test(rawCmd)) ||
+      targetRefPattern.test(rawCmd);
     let targetId = isIdPattern ? rawCmd : null;
 
     // Handle ID(s) COMMAND syntax (e.g., "1 done", "1,3 done", "1-3 done")

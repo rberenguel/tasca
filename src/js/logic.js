@@ -124,6 +124,36 @@ const VIRTUAL_TAG_SHORTHANDS = {
   M: "MODIFIED",
 };
 
+// Set of all virtual tag names (uppercase) for filtering
+const VIRTUAL_TAG_NAMES = new Set([
+  "OVERDUE",
+  "TODAY",
+  "WAITING",
+  "SCHEDULED",
+  "BLOCKED",
+  "DONE",
+  "COMPLETED",
+  "ACTIVE",
+  "STARTED",
+  "RECURRING",
+  "RECUR",
+  "SOMEDAY",
+  "ROUTINE",
+  "MODIFIED",
+  "REF",
+  "REFS",
+  "REFERENCE",
+  "REFERENCES",
+]);
+
+// Check if a tag name (without ! prefix) is a virtual tag
+export const isVirtualTag = (tag) => {
+  const clean = tag.toUpperCase();
+  if (VIRTUAL_TAG_NAMES.has(clean)) return true;
+  // Also check shorthands
+  return VIRTUAL_TAG_SHORTHANDS[clean] !== undefined;
+};
+
 export const expandVirtualTagShorthand = (tag) => {
   const clean = tag.replace(/^[!+]/, "").toUpperCase();
   const expanded = VIRTUAL_TAG_SHORTHANDS[clean];

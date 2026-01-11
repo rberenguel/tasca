@@ -93,6 +93,7 @@ export const runList = async (
   const projects = await dbOps.getAllProjects();
   let search = [],
     fProj = null,
+    fTarget = null,
     fTags = [],
     endAfter = null,
     sortFields = null;
@@ -106,7 +107,9 @@ export const runList = async (
       token.startsWith("project:")
     )
       fProj = token.split(":")[1];
-    else if (token.startsWith("end:")) {
+    else if (token.startsWith("x:") || token.startsWith("target:")) {
+      fTarget = token.split(":")[1];
+    } else if (token.startsWith("end:")) {
       const val = token.split(":")[1];
       endAfter = parseRelativeTime(val);
     } else if (token.startsWith("sort:")) {
@@ -139,6 +142,7 @@ export const runList = async (
     });
   }
   if (fProj) tasks = tasks.filter((t) => matchesProject(t.project, fProj));
+  if (fTarget) tasks = tasks.filter((t) => t.target === fTarget);
   if (endAfter) tasks = tasks.filter((t) => t.end && t.end >= endAfter);
   if (fTags.length) {
     tasks = tasks.filter((t) =>

@@ -30,10 +30,22 @@ export const handleNext = async (args, print) => {
 };
 
 export const handleChain = async (args, print) => {
-  const id = parseInt(args[0]);
-  if (!id || !displayMapRef.value[id - 1])
+  const idArg = args[0];
+
+  // Resolve ID - support both numeric IDs and x:name references
+  let rootUuid;
+  if (idArg && idArg.startsWith("x:")) {
+    const name = idArg.substring(2);
+    const pending = await dbOps.getByStatus("pending");
+    const match = pending.find((t) => t.target === name);
+    rootUuid = match?.uuid;
+  } else {
+    const id = parseInt(idArg);
+    rootUuid = id ? displayMapRef.value[id - 1] : null;
+  }
+
+  if (!rootUuid)
     return print('<span class="msg-error">Invalid ID.</span>');
-  const rootUuid = displayMapRef.value[id - 1];
   const all = await dbOps.getAll();
 
   const pending = all.filter((t) => t.status === "pending");

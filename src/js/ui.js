@@ -113,9 +113,48 @@ export const setExecuteRef = (fn) => {
   executeRef = fn;
 };
 
+// Make the entire terminal output area dismissible (click anywhere to refresh)
+let dismissibleHandler = null;
+export const makeOutputDismissible = () => {
+  if (!executeRef) return;
+  const term = document.getElementById("terminal-output");
+  if (!term) return;
+
+  // Remove any existing handler
+  if (dismissibleHandler) {
+    term.removeEventListener("click", dismissibleHandler);
+  }
+
+  // Add new one-time handler
+  dismissibleHandler = () => {
+    term.removeEventListener("click", dismissibleHandler);
+    term.style.cursor = "";
+    dismissibleHandler = null;
+    executeRef("");
+  };
+
+  term.style.cursor = "pointer";
+  term.addEventListener("click", dismissibleHandler);
+};
+
+// Clear dismissible state (called when output changes)
+export const clearDismissible = () => {
+  if (dismissibleHandler) {
+    const term = document.getElementById("terminal-output");
+    if (term) {
+      term.removeEventListener("click", dismissibleHandler);
+      term.style.cursor = "";
+    }
+    dismissibleHandler = null;
+  }
+};
+
 export const print = (content, append = true, options = {}) => {
   const term = document.getElementById("terminal-output");
-  if (!append) term.innerHTML = "";
+  if (!append) {
+    term.innerHTML = "";
+    clearDismissible();
+  }
   const div = document.createElement("div");
   div.style.marginBottom = "8px";
   if (typeof content === "string") {
@@ -123,10 +162,9 @@ export const print = (content, append = true, options = {}) => {
   } else if (content instanceof Node) {
     div.appendChild(content);
   }
-  // Dismissible outputs can be clicked to refresh (like pressing Enter)
-  if (options.dismissible && executeRef) {
-    div.style.cursor = "pointer";
-    div.addEventListener("click", () => executeRef(""));
+  // Dismissible outputs - make whole output area clickable to refresh
+  if (options.dismissible) {
+    makeOutputDismissible();
   }
   term.appendChild(div);
   term.scrollTop = append ? term.scrollHeight : 0;
