@@ -109,16 +109,16 @@ Same pattern, same edit-omission approach:
 - [x] Copy `target` to next occurrence on recurrence (via spread)
 - [x] Add e2e tests for `x:` resolution
 
-### Phase 2: Completion Triggers (`done:`)
+### Phase 2: Completion Triggers (`done:`) - COMPLETED
 
-- [ ] Add `onDone` property to task schema
-- [ ] Update command parser to capture `done:...` as final property
-- [ ] Modify `done` command to execute trigger after completion
-- [ ] Handle trigger execution errors (warn, don't fail)
-- [ ] Copy `onDone` to next occurrence on recurrence
-- [ ] Update `edit` to omit `onDone` from output
-- [ ] Update `info` to display triggers
-- [ ] Add tests for trigger execution
+- [x] Add `onDone` property to task schema
+- [x] Update command parser to capture `done:...` as final property
+- [x] Modify `done` command to execute trigger after completion
+- [x] Handle trigger execution errors (warn, don't fail)
+- [x] Copy `onDone` to next occurrence on recurrence (via spread)
+- [x] Update `edit` to omit `onDone` from output (already omitted)
+- [x] Update `info` to display triggers
+- [x] Add tests for trigger execution
 
 ### Phase 3: Enhancements (Optional)
 

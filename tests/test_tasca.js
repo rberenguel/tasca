@@ -2664,6 +2664,7 @@ describe("Target Identifier (x:) E2E Tests", function () {
 
     it("should parse x: in modify command", async function () {
       await execute("add test task");
+      await execute("list");
       await execute("mod 1 x:bike");
 
       const tasks = await dbOps.getAll();
@@ -2672,6 +2673,7 @@ describe("Target Identifier (x:) E2E Tests", function () {
 
     it("should clear target with x: (empty value)", async function () {
       await execute("add test task x:bike");
+      await execute("list");
       await execute("mod 1 x:");
 
       const tasks = await dbOps.getAll();
@@ -2694,6 +2696,7 @@ describe("Target Identifier (x:) E2E Tests", function () {
     it("should reject duplicate target on modify", async function () {
       await execute("add first task x:bike");
       await execute("add second task x:yoga");
+      await execute("list");
       await execute("mod 2 x:bike");
 
       const output = document.getElementById("terminal-output").innerHTML;
@@ -2705,6 +2708,7 @@ describe("Target Identifier (x:) E2E Tests", function () {
 
     it("should allow same target after original task completed", async function () {
       await execute("add first task x:bike");
+      await execute("list");
       await execute("done 1");
       await execute("add second task x:bike");
 
@@ -2868,6 +2872,191 @@ describe("Target Identifier (x:) E2E Tests", function () {
 
       const output = document.getElementById("terminal-output").innerHTML;
       expect(output).to.include("Invalid ID");
+    });
+  });
+});
+
+describe("On-Done Triggers (done:/td:) E2E Tests", function () {
+  beforeEach(async function () {
+    await dbOps.purgeAll();
+    clearUndo();
+    displayMapRef.value = [];
+    document.getElementById("terminal-output").innerHTML = "";
+  });
+
+  describe("Property parsing", function () {
+    it("should parse done: in add command", async function () {
+      await execute("add test task done:mod x:bike due:3d");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(1);
+      expect(tasks[0].onDone).to.equal("mod x:bike due:3d");
+    });
+
+    it("should parse td: shorthand in add command", async function () {
+      await execute("add test task td:mod x:bike due:3d");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(1);
+      expect(tasks[0].onDone).to.equal("mod x:bike due:3d");
+    });
+
+    it("should capture everything after done: prefix", async function () {
+      await execute("add test task pro:Work done:add follow up task due:1w !important");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].project).to.equal("Work");
+      expect(tasks[0].onDone).to.equal("add follow up task due:1w !important");
+    });
+
+    it("should parse done: in modify command", async function () {
+      await execute("add test task");
+      await execute("list");
+      await execute("mod 1 done:mod x:bike due:3d");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].onDone).to.equal("mod x:bike due:3d");
+    });
+
+    it("should clear trigger with done: (empty value) in modify", async function () {
+      await execute("add test task done:mod x:bike due:3d");
+
+      const tasksBefore = await dbOps.getAll();
+      expect(tasksBefore[0].onDone).to.equal("mod x:bike due:3d");
+
+      await execute("list");
+      await execute("mod 1 done:");
+
+      const tasksAfter = await dbOps.getAll();
+      expect(tasksAfter[0].onDone).to.be.null;
+    });
+  });
+
+  describe("Trigger execution", function () {
+    it("should execute trigger on task completion", async function () {
+      await execute("add target task x:bike due:today");
+      await execute("add hike done:mod x:bike due:3d");
+      await execute("list");
+      await execute("done 2"); // complete the hike task
+
+      const tasks = await dbOps.getAll();
+      const bike = tasks.find((t) => t.target === "bike");
+      // Due date should be ~3 days from now
+      const threeDays = 3 * 24 * 60 * 60 * 1000;
+      expect(bike.due).to.be.greaterThan(Date.now() + threeDays - 60000);
+    });
+
+    it("should execute mod command via trigger", async function () {
+      await execute("add target task x:target pri:10");
+      await execute("add trigger task done:mod x:target pri:50");
+      await execute("list");
+      await execute("done 2");
+
+      const tasks = await dbOps.getAll();
+      const target = tasks.find((t) => t.target === "target");
+      expect(target.priority).to.equal(50);
+    });
+
+    it("should execute add command via trigger", async function () {
+      await execute("add main task done:add follow up task due:1w");
+      await execute("list");
+      await execute("done 1");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(2);
+      const followUp = tasks.find((t) => t.description === "follow up task");
+      expect(followUp).to.exist;
+      expect(followUp.status).to.equal("pending");
+    });
+
+    it("should warn if trigger target not found", async function () {
+      await execute("add task done:mod x:nonexistent due:3d");
+      await execute("list");
+      await execute("done 1");
+
+      const output = document.getElementById("terminal-output").innerHTML;
+      // Task should still be completed, but with a warning
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].status).to.equal("completed");
+    });
+
+    it("should still complete task even if trigger fails", async function () {
+      await execute("add task done:invalidcommand xyz");
+      await execute("list");
+      await execute("done 1");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].status).to.equal("completed");
+    });
+  });
+
+  describe("Recurrence", function () {
+    it("should copy trigger to next occurrence", async function () {
+      await execute("add target task x:bike due:today");
+      await execute("add recurring hike due:today recur:1w done:mod x:bike due:3d");
+      await execute("list");
+      await execute("done 2"); // complete the hike
+
+      const tasks = await dbOps.getAll();
+      const pendingHike = tasks.find(
+        (t) => t.description === "recurring hike" && t.status === "pending"
+      );
+      expect(pendingHike).to.exist;
+      expect(pendingHike.onDone).to.equal("mod x:bike due:3d");
+    });
+  });
+
+  describe("Visibility", function () {
+    it("should show trigger in info output", async function () {
+      await execute("add test task done:mod x:bike due:3d");
+      await execute("list");
+      await execute("info 1");
+
+      const output = document.getElementById("terminal-output").innerHTML;
+      expect(output).to.include("On done:");
+      expect(output).to.include("mod x:bike due:3d");
+    });
+
+    it("should NOT show trigger in edit output", async function () {
+      await execute("add test task done:mod x:bike due:3d");
+      await execute("list");
+      await execute("edit 1");
+
+      const input = document.getElementById("cmd-input");
+      expect(input.value).to.include("mod 1");
+      expect(input.value).to.include("test task");
+      expect(input.value).to.not.include("done:");
+      expect(input.value).to.not.include("onDone");
+    });
+  });
+
+  describe("Integration with x: targets", function () {
+    it("should defer bike task when hike is completed", async function () {
+      // The primary use case: hiking defers stationary bike
+      await execute("add stationary bike due:today recur:1d x:bike");
+      await execute("add hike done:mod x:bike due:3d");
+      await execute("list");
+
+      // Complete the hike
+      await execute("done 2");
+
+      const tasks = await dbOps.getAll();
+      const bike = tasks.find((t) => t.target === "bike");
+      // Bike should now be due in ~3 days, not today
+      const now = Date.now();
+      const threeDays = 3 * 24 * 60 * 60 * 1000;
+      expect(bike.due).to.be.greaterThan(now + threeDays - 60000);
+    });
+
+    it("should complete another task via trigger", async function () {
+      await execute("add task A x:a");
+      await execute("add task B done:done x:a");
+      await execute("list");
+      await execute("done 2"); // complete task B
+
+      const tasks = await dbOps.getAll();
+      const taskA = tasks.find((t) => t.target === "a");
+      expect(taskA.status).to.equal("completed");
     });
   });
 });

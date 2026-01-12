@@ -34,7 +34,20 @@ const createTaskObject = (args, displayMapRef) => {
     recur = null,
     url = null,
     icon = null,
-    target = null;
+    target = null,
+    onDone = null;
+
+  // Scan for done:/td: trigger (must be last, captures everything after)
+  const argsStr = args.join(" ");
+  const triggerMatch = argsStr.match(/\b(done:|td:)(.*)$/i);
+  if (triggerMatch) {
+    const triggerValue = triggerMatch[2].trim();
+    onDone = triggerValue || null; // empty means clear
+    // Remove the trigger portion from args for normal parsing
+    const triggerStart = argsStr.indexOf(triggerMatch[0]);
+    args = argsStr.substring(0, triggerStart).trim().split(/\s+/).filter(Boolean);
+  }
+
   for (let token of args) {
     if (
       token.startsWith("p:") ||
@@ -95,6 +108,7 @@ const createTaskObject = (args, displayMapRef) => {
     url,
     icon,
     target,
+    onDone,
   };
 };
 
@@ -137,6 +151,7 @@ export const handleAdd = async (ctx) => {
     url: tObj.url,
     icon: tObj.icon,
     target: tObj.target,
+    onDone: tObj.onDone,
     annotations: [],
     status: "pending",
     entry: uniqueTimestamp(),
@@ -207,7 +222,7 @@ export const handleModifyProject = async (ctx) => {
 
 export const handleModify = async (ctx) => {
   const idArg = ctx.targetId || ctx.args[0];
-  const tokens = ctx.targetId ? ctx.args : ctx.args.slice(1);
+  let tokens = ctx.targetId ? ctx.args : ctx.args.slice(1);
 
   // Resolve ID - support both numeric IDs and x:name references
   let uuid;
@@ -224,6 +239,18 @@ export const handleModify = async (ctx) => {
   if (!uuid) return ctx.print('<span class="msg-error">Invalid ID.</span>');
   const task = await ctx.dbOps.get(uuid);
   pushUndo({ type: "update", task: structuredClone(task) });
+
+  // Scan for done:/td: trigger (must be last, captures everything after)
+  let newOnDone = undefined; // undefined = no change, null = clear, string = new value
+  const tokensStr = tokens.join(" ");
+  const triggerMatch = tokensStr.match(/\b(done:|td:)(.*)$/i);
+  if (triggerMatch) {
+    const triggerValue = triggerMatch[2].trim();
+    newOnDone = triggerValue || null; // empty means clear
+    // Remove the trigger portion from tokens for normal parsing
+    const triggerStart = tokensStr.indexOf(triggerMatch[0]);
+    tokens = tokensStr.substring(0, triggerStart).trim().split(/\s+/).filter(Boolean);
+  }
 
   const descParts = [];
   let newTarget = undefined; // undefined = no change, null = clear, string = new value
@@ -302,6 +329,11 @@ export const handleModify = async (ctx) => {
       }
     }
     task.target = newTarget;
+  }
+
+  // Apply trigger change
+  if (newOnDone !== undefined) {
+    task.onDone = newOnDone;
   }
 
   if (descParts.length > 0) {
@@ -551,6 +583,7 @@ export const handleInfo = async (ctx) => {
   if (t.wait) html += `<div><b>Wait:</b> ${formatDateHtml(t.wait)}</div>`;
   if (t.sched) html += `<div><b>Scheduled:</b> ${formatDate(t.sched)}</div>`;
   if (t.recur) html += `<div><b>Recur:</b> ${t.recur}</div>`;
+  if (t.onDone) html += `<div><b>On done:</b> ${t.onDone}</div>`;
   if (t.start) html += `<div><b>Started:</b> ${formatDate(t.start)}</div>`;
   if (t.end) html += `<div><b>Completed:</b> ${formatDate(t.end)}</div>`;
   if (t.tags && t.tags.length > 0)

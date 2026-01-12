@@ -153,6 +153,17 @@ export const handleDone = async (ctx) => {
       allUndoRecords.push({ type: "create", uuid: newUuid });
       recurringCount++;
     }
+
+    // Execute on-done trigger if present
+    if (task.onDone) {
+      try {
+        await ctx.execute(task.onDone);
+      } catch (err) {
+        ctx.print(
+          `<span class="msg-warning">Trigger warning: ${err.message}</span>`,
+        );
+      }
+    }
   }
 
   pushUndo({ type: "compound", records: allUndoRecords });
