@@ -44,8 +44,7 @@ export const handleChain = async (args, print) => {
     rootUuid = id ? displayMapRef.value[id - 1] : null;
   }
 
-  if (!rootUuid)
-    return print('<span class="msg-error">Invalid ID.</span>');
+  if (!rootUuid) return print('<span class="msg-error">Invalid ID.</span>');
   const all = await dbOps.getAll();
 
   const pending = all.filter((t) => t.status === "pending");

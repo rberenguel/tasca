@@ -45,7 +45,11 @@ const createTaskObject = (args, displayMapRef) => {
     onDone = triggerValue || null; // empty means clear
     // Remove the trigger portion from args for normal parsing
     const triggerStart = argsStr.indexOf(triggerMatch[0]);
-    args = argsStr.substring(0, triggerStart).trim().split(/\s+/).filter(Boolean);
+    args = argsStr
+      .substring(0, triggerStart)
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
   }
 
   for (let token of args) {
@@ -249,7 +253,11 @@ export const handleModify = async (ctx) => {
     newOnDone = triggerValue || null; // empty means clear
     // Remove the trigger portion from tokens for normal parsing
     const triggerStart = tokensStr.indexOf(triggerMatch[0]);
-    tokens = tokensStr.substring(0, triggerStart).trim().split(/\s+/).filter(Boolean);
+    tokens = tokensStr
+      .substring(0, triggerStart)
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
   }
 
   const descParts = [];
@@ -322,7 +330,9 @@ export const handleModify = async (ctx) => {
   if (newTarget !== undefined) {
     if (newTarget) {
       const existing = await ctx.dbOps.getByStatus("pending");
-      if (existing.some((t) => t.target === newTarget && t.uuid !== task.uuid)) {
+      if (
+        existing.some((t) => t.target === newTarget && t.uuid !== task.uuid)
+      ) {
         return ctx.print(
           `<span class="msg-error">Target x:${newTarget} already exists.</span>`,
         );

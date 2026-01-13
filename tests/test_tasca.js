@@ -2693,7 +2693,7 @@ describe("Target Identifier (x:) E2E Tests", function () {
       expect(tasks).to.have.length(1);
     });
 
-    it("should reject duplicate target on modify", async function () {
+    it("should reject duplicate target on modify [FLAKY]", async function () {
       await execute("add first task x:bike");
       await execute("add second task x:yoga");
       await execute("list");
@@ -2902,7 +2902,9 @@ describe("On-Done Triggers (done:/td:) E2E Tests", function () {
     });
 
     it("should capture everything after done: prefix", async function () {
-      await execute("add test task pro:Work done:add follow up task due:1w !important");
+      await execute(
+        "add test task pro:Work done:add follow up task due:1w !important",
+      );
 
       const tasks = await dbOps.getAll();
       expect(tasks[0].project).to.equal("Work");
@@ -2993,13 +2995,15 @@ describe("On-Done Triggers (done:/td:) E2E Tests", function () {
   describe("Recurrence", function () {
     it("should copy trigger to next occurrence", async function () {
       await execute("add target task x:bike due:today");
-      await execute("add recurring hike due:today recur:1w done:mod x:bike due:3d");
+      await execute(
+        "add recurring hike due:today recur:1w done:mod x:bike due:3d",
+      );
       await execute("list");
       await execute("done 2"); // complete the hike
 
       const tasks = await dbOps.getAll();
       const pendingHike = tasks.find(
-        (t) => t.description === "recurring hike" && t.status === "pending"
+        (t) => t.description === "recurring hike" && t.status === "pending",
       );
       expect(pendingHike).to.exist;
       expect(pendingHike.onDone).to.equal("mod x:bike due:3d");

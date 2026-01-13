@@ -197,7 +197,9 @@ export const handleDelete = async (ctx) => {
 
   pushUndo({ type: "compound", records: allUndoRecords });
   if (uuids.length > 1) {
-    ctx.print(`<span class="msg-success">Deleted ${uuids.length} tasks.</span>`);
+    ctx.print(
+      `<span class="msg-success">Deleted ${uuids.length} tasks.</span>`,
+    );
   }
   ctx.markDirty();
   await ctx.runListRefresh();

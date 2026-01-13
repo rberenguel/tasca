@@ -129,6 +129,8 @@ export const handleContext = async (ctx) => {
   } else {
     ctx.print(`<span class="msg-info">Context cleared.</span>`);
   }
+  // Allow browser to paint before running next (fixes mobile rendering delay)
+  await new Promise((r) => requestAnimationFrame(r));
   await ctx.execute("next");
 };
 

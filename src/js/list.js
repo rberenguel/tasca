@@ -258,5 +258,52 @@ export const runList = async (
     tasks = tasks.slice(0, limit);
   }
 
-  renderTable(tasks, all, displayMapRef, projects, headerHtml, isTodayView);
+  // In today view, also show overdue tasks in a separate section
+  let overdueTasks = [];
+  if (isTodayView) {
+    const today = formatDateOnly(Date.now());
+    // Get overdue tasks: pending, due before today, not waiting/scheduled
+    overdueTasks = all.filter((t) => {
+      if (t.status !== "pending") return false;
+      if (!t.due) return false;
+      if (formatDateOnly(t.due) >= today) return false; // not overdue
+      // Respect waiting/scheduled
+      if (t.wait && t.wait > Date.now()) return false;
+      if (t.sched && t.sched > Date.now()) return false;
+      // Respect project filter if set
+      if (fProj && !matchesProject(t.project, fProj)) return false;
+      // Respect search filter if set
+      if (
+        search.length &&
+        !search.every((s) => t.description.toLowerCase().includes(s))
+      )
+        return false;
+      return true;
+    });
+    // Calculate urgency for overdue tasks
+    overdueTasks.forEach(
+      (t) => (t.urgency = calculateUrgency(t, all, projects)),
+    );
+    // Sort overdue by order, then urgency (same as today)
+    overdueTasks.sort((a, b) => {
+      const aOrder = a.order != null ? a.order : Infinity;
+      const bOrder = b.order != null ? b.order : Infinity;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      const urgDiff = parseFloat(b.urgency) - parseFloat(a.urgency);
+      if (urgDiff !== 0) return urgDiff;
+      const entryDiff = (a.entry || 0) - (b.entry || 0);
+      if (entryDiff !== 0) return entryDiff;
+      return (a.uuid || "").localeCompare(b.uuid || "");
+    });
+  }
+
+  renderTable(
+    tasks,
+    all,
+    displayMapRef,
+    projects,
+    headerHtml,
+    isTodayView,
+    overdueTasks,
+  );
 };

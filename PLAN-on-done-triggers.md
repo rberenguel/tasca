@@ -9,16 +9,19 @@ Add trigger commands that execute when a task is completed. Primary use case: co
 A stable identifier for referencing tasks across the codebase.
 
 **Syntax:**
+
 - `x:bike` or `target:bike` (long form)
 - Must be unique across all pending tasks
 - Persists across recurrence (copied to next occurrence)
 
 **Visibility:**
+
 - Only shown in `info TASKID` output
 - Hidden from list views, tables, and other presentations
 - Internal detail, not user-facing in normal workflow
 
 **Must work everywhere task references are accepted:**
+
 - `list x:bike` - filter by identifier
 - `done x:bike` - complete by identifier
 - `mod x:bike ...` - modify by identifier
@@ -30,6 +33,7 @@ A stable identifier for referencing tasks across the codebase.
 - Any other command that takes a task ID
 
 **Implementation notes:**
+
 - Store as `target` property on task object
 - Add resolution function: `resolveTaskReference(ref)` that handles both integer IDs and `x:name`
 - Update all commands to use this resolver
@@ -40,18 +44,21 @@ A stable identifier for referencing tasks across the codebase.
 A command string that executes when the task is completed.
 
 **Syntax:**
+
 - `done:mod x:bike due:3d` - modify another task
 - `done:done x:other` - complete another task
 - `done:add followup task due:1w` - create a new task
 - Must be last property in command (captures everything after `done:`)
 
 **Behavior:**
+
 - On task completion, parse trigger as a command and execute it
 - Trigger persists across recurrence (copied to next occurrence)
 - If target not found, warn in output area (don't fail silently)
 - Multiple commands: consider `|` separator for chaining (optional, v2)
 
 **Examples:**
+
 ```
 # Hiking defers bike for 3 days
 add stationary bike due:today recur:1d x:bike
@@ -70,6 +77,7 @@ add task B done:done x:a
 **Problem:** `done:` contains free-form command text, which breaks `edit` parsing.
 
 **Solution:**
+
 - `edit` omits `done:` (and future `start:`, `skip:`) from output
 - `info` displays triggers for inspection
 - To modify triggers: re-add with new trigger, or future `edit-trigger` command
@@ -77,12 +85,14 @@ add task B done:done x:a
 ## Multiple Targets
 
 Support comma-separated targets where it makes sense:
+
 - `done:mod x:bike,x:yoga due:3d` - defer multiple tasks
 - Resolution: expand to multiple operations internally
 
 ## Future: Other Trigger Types
 
 Same pattern, same edit-omission approach:
+
 - `start:` - executes when task is started
 - `skip:` - executes when task is skipped
 
@@ -130,6 +140,7 @@ Same pattern, same edit-omission approach:
 ## Testing
 
 Add tests in `tests/test_tasca.js` for:
+
 - `x:` uniqueness validation
 - `x:` resolution in various commands
 - `x:` persistence across recurrence

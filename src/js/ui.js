@@ -220,6 +220,7 @@ export const renderTable = (
   projects = [],
   headerHtml = null,
   isTodayView = false,
+  overdueTasks = [],
 ) => {
   setProjectMetadata(projects);
 
@@ -297,7 +298,8 @@ export const renderTable = (
     }
   }
 
-  if (!tasks || tasks.length === 0) {
+  const totalTasks = (tasks?.length || 0) + (overdueTasks?.length || 0);
+  if (totalTasks === 0) {
     displayMapRef.value = [];
     const { wrapper } = createTableStruct();
     container.appendChild(wrapper);
@@ -309,10 +311,12 @@ export const renderTable = (
     return print(container, false);
   }
 
-  displayMapRef.value = tasks.map((t) => t.uuid);
+  // Include both today and overdue tasks in displayMapRef for ID resolution
+  displayMapRef.value = [...tasks, ...overdueTasks].map((t) => t.uuid);
   const { wrapper, tbody } = createTableStruct();
 
-  tasks.forEach((t, index) => {
+  // Helper to render a single task row
+  const renderTaskRow = (t, index) => {
     const tr = document.createElement("tr");
     if (t.start && t.status === "pending") tr.className = "row-active";
 
@@ -485,15 +489,46 @@ export const renderTable = (
     tdUrg.textContent = t.urgency;
     tr.appendChild(tdUrg);
 
-    tbody.appendChild(tr);
+    return tr;
+  };
+
+  // Render today tasks
+  tasks.forEach((t, index) => {
+    tbody.appendChild(renderTaskRow(t, index));
   });
 
   container.appendChild(wrapper);
 
+  // Render overdue section if there are overdue tasks
+  if (overdueTasks.length > 0) {
+    // Red separator line
+    const separator = document.createElement("div");
+    separator.className = "overdue-separator";
+    separator.innerHTML = '<span class="overdue-label">overdue</span>';
+    container.appendChild(separator);
+
+    // Overdue table (no header)
+    const overdueWrapper = document.createElement("div");
+    overdueWrapper.className = "table-wrapper";
+    const overdueTable = document.createElement("table");
+    const overdueTbody = document.createElement("tbody");
+    overdueTable.appendChild(overdueTbody);
+    overdueWrapper.appendChild(overdueTable);
+    overdueTasks.forEach((t, index) => {
+      overdueTbody.appendChild(renderTaskRow(t, tasks.length + index));
+    });
+    container.appendChild(overdueWrapper);
+  }
+
   const footer = document.createElement("div");
   footer.style.fontSize = "0.8em";
   footer.style.color = "var(--base01)";
-  footer.textContent = `${tasks.length} tasks shown.`;
+  const total = tasks.length + overdueTasks.length;
+  if (overdueTasks.length > 0) {
+    footer.textContent = `${tasks.length} today + ${overdueTasks.length} overdue = ${total} tasks shown.`;
+  } else {
+    footer.textContent = `${tasks.length} tasks shown.`;
+  }
   container.appendChild(footer);
 
   print(container, false);
