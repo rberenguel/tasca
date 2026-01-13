@@ -1,6 +1,6 @@
 import { initDB, dbOps } from "./db.js";
 import { print, setExecuteRef } from "./ui.js";
-import { fetchIcons, updateCache, lastFilterArgs, markDirty } from "./state.js";
+import { fetchIcons, updateCache, lastFilterArgs, markClean } from "./state.js";
 import { setupInput } from "./input.js";
 import { execute } from "./commands.js";
 import { runList } from "./list.js";
@@ -85,8 +85,8 @@ initDB().then(async () => {
         const tasks = Array.isArray(data) ? data : data.tasks || [];
         const projects = Array.isArray(data) ? [] : data.projects || [];
         const savedAt = Array.isArray(data) ? null : data.savedAt || null;
-        for (const t of tasks) if (t.uuid) await dbOps.update(t);
-        for (const p of projects) if (p.name) await dbOps.updateProject(p);
+        for (const t of tasks) if (t.uuid) await dbOps.update(t, { touch: false });
+        for (const p of projects) if (p.name) await dbOps.updateProject(p, { touch: false });
         if (savedAt) await dbOps.setSetting("lastSave", savedAt);
         const projMsg = projects.length
           ? ` and ${projects.length} projects`
@@ -94,7 +94,7 @@ initDB().then(async () => {
         print(
           `<span class="msg-success">Imported ${tasks.length} tasks${projMsg}.</span>`,
         );
-        markDirty();
+        markClean();
         await execute("next");
       } catch (err) {
         print(`<span class="msg-error">Error: ${err.message}</span>`);
