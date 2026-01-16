@@ -1962,6 +1962,90 @@ describe("Multi-ID Command E2E Tests", function () {
     });
   });
 
+  describe("Multi-ID modify", function () {
+    it("mod 1,2 - should modify multiple tasks", async function () {
+      await execute("add first task");
+      await execute("add second task");
+      await execute("add third task");
+      await execute("mod 1,2 pro:Test");
+
+      const tasks = await dbOps.getAll();
+      const modified = tasks.filter((t) => t.project === "Test");
+      const unmodified = tasks.filter((t) => !t.project);
+
+      expect(modified).to.have.length(2);
+      expect(unmodified).to.have.length(1);
+      expect(unmodified[0].description).to.equal("third task");
+    });
+
+    it("mod 1-3 - should modify range of tasks", async function () {
+      await execute("add task one");
+      await execute("add task two");
+      await execute("add task three");
+      await execute("mod 1-3 pri:10");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks.every((t) => t.priority === 10)).to.be.true;
+    });
+
+    it("mod 1,3-4 - should modify mixed selection", async function () {
+      await execute("add task 1");
+      await execute("add task 2");
+      await execute("add task 3");
+      await execute("add task 4");
+      await execute("mod 1,3-4 !urgent");
+
+      const tasks = await dbOps.getAll();
+      const tagged = tasks.filter((t) => t.tags && t.tags.includes("urgent"));
+      const untagged = tasks.filter(
+        (t) => !t.tags || !t.tags.includes("urgent"),
+      );
+
+      expect(tagged).to.have.length(3);
+      expect(untagged).to.have.length(1);
+      expect(untagged[0].description).to.equal("task 2");
+    });
+
+    it("mod 1-3 should apply multiple modifications", async function () {
+      await execute("add task one");
+      await execute("add task two");
+      await execute("add task three");
+      await execute("mod 1-3 pro:Work pri:5 !important");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks.every((t) => t.project === "Work")).to.be.true;
+      expect(tasks.every((t) => t.priority === 5)).to.be.true;
+      expect(tasks.every((t) => t.tags && t.tags.includes("important"))).to.be
+        .true;
+    });
+
+    it("should undo multi-modify in one step", async function () {
+      await execute("add task one pro:Old");
+      await execute("add task two pro:Old");
+      await execute("add task three pro:Old");
+      await execute("mod 1-3 pro:New");
+
+      let tasks = await dbOps.getAll();
+      expect(tasks.every((t) => t.project === "New")).to.be.true;
+
+      await execute("undo");
+
+      tasks = await dbOps.getAll();
+      expect(tasks.every((t) => t.project === "Old")).to.be.true;
+    });
+
+    it("should reject target on multiple tasks", async function () {
+      await execute("add task one");
+      await execute("add task two");
+      // Target should only work on single task
+      await execute("mod 1,2 x:myTarget");
+
+      const tasks = await dbOps.getAll();
+      // Neither task should have the target since it should be rejected
+      expect(tasks.every((t) => !t.target)).to.be.true;
+    });
+  });
+
   describe("Reversed ID(s) COMMAND syntax", function () {
     it("1,2 done - should complete multiple tasks", async function () {
       await execute("add first task");
@@ -2031,12 +2115,23 @@ describe("Multi-ID Command E2E Tests", function () {
       await execute("add task one");
       await execute("add task two");
       await execute("add task three");
-      // Note: mod only works on single ID, this tests that first ID is used
-      await execute("1 mod updated task");
+      await execute("1,3 mod pro:Test");
 
       const tasks = await dbOps.getAll();
-      const updated = tasks.find((t) => t.description === "updated task");
-      expect(updated).to.not.be.undefined;
+      const modified = tasks.filter((t) => t.project === "Test");
+      expect(modified).to.have.length(2);
+      expect(modified.map((t) => t.description)).to.include("task one");
+      expect(modified.map((t) => t.description)).to.include("task three");
+    });
+
+    it("1-3 mod - should modify range with reversed syntax", async function () {
+      await execute("add task one");
+      await execute("add task two");
+      await execute("add task three");
+      await execute("1-3 mod pri:20");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks.every((t) => t.priority === 20)).to.be.true;
     });
   });
 });

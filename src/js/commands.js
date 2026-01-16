@@ -120,7 +120,8 @@ export const execute = async (str) => {
     }
 
     // Check if this is a project variant of a command
-    if (projectCommands[cmd] && isProjectCommand(args)) {
+    // Skip if targetId exists (e.g., "1,3 mod pro:Test" should modify tasks, not project)
+    if (!targetId && projectCommands[cmd] && isProjectCommand(args)) {
       await projectCommands[cmd](ctx);
       return;
     }

@@ -12,6 +12,7 @@ import {
 import { formatInlineCode } from "./ui.js";
 import { getInheritedAttributes } from "./context.js";
 import { pushUndo } from "./undo.js";
+import { resolveRefs } from "./commands-state.js";
 
 // Convert icon name to full Phosphor class (handles legacy full class format)
 const iconClass = (name) => {
@@ -225,24 +226,13 @@ export const handleModifyProject = async (ctx) => {
 };
 
 export const handleModify = async (ctx) => {
-  const idArg = ctx.targetId || ctx.args[0];
+  const idArg = ctx.targetId?.toString() || ctx.args[0];
   let tokens = ctx.targetId ? ctx.args : ctx.args.slice(1);
 
-  // Resolve ID - support both numeric IDs and x:name references
-  let uuid;
-  if (idArg && idArg.startsWith("x:")) {
-    const name = idArg.substring(2);
-    const all = await ctx.dbOps.getByStatus("pending");
-    const match = all.find((t) => t.target === name);
-    uuid = match?.uuid;
-  } else {
-    const id = parseInt(idArg);
-    uuid = id ? ctx.displayMapRef.value[id - 1] : null;
-  }
-
-  if (!uuid) return ctx.print('<span class="msg-error">Invalid ID.</span>');
-  const task = await ctx.dbOps.get(uuid);
-  pushUndo({ type: "update", task: structuredClone(task) });
+  // Resolve IDs - supports ranges (1-3), comma-separated (1,3,5), and x:name references
+  const uuids = await resolveRefs(idArg, ctx.displayMapRef, ctx.dbOps);
+  if (uuids.length === 0)
+    return ctx.print('<span class="msg-error">Invalid ID.</span>');
 
   // Scan for done:/td: trigger (must be last, captures everything after)
   let newOnDone = undefined; // undefined = no change, null = clear, string = new value
@@ -260,96 +250,172 @@ export const handleModify = async (ctx) => {
       .filter(Boolean);
   }
 
+  // Parse modifications from tokens (done once, applied to all tasks)
   const descParts = [];
   let newTarget = undefined; // undefined = no change, null = clear, string = new value
+  const modifications = [];
 
   for (const token of tokens) {
     if (token.startsWith("pri:")) {
       const val = parseInt(token.split(":")[1], 10);
-      if (!isNaN(val)) task.priority = val;
-      else if (token === "pri:") task.priority = null; // clear priority
+      if (!isNaN(val)) modifications.push({ type: "priority", value: val });
+      else if (token === "pri:")
+        modifications.push({ type: "priority", value: null });
     } else if (
       token.startsWith("o:") ||
       token.startsWith("ord:") ||
       token.startsWith("order:")
     ) {
       const val = parseInt(token.split(":")[1], 10);
-      if (!isNaN(val)) task.order = val;
+      if (!isNaN(val)) modifications.push({ type: "order", value: val });
       else if (token === "o:" || token === "ord:" || token === "order:")
-        task.order = null; // clear order
+        modifications.push({ type: "order", value: null });
     } else if (
       token.startsWith("p:") ||
       token.startsWith("pro:") ||
       token.startsWith("proj:") ||
       token.startsWith("project:")
     )
-      task.project = token.split(":")[1];
+      modifications.push({ type: "project", value: token.split(":")[1] });
     else if (token.startsWith("due:"))
-      task.due = parseDate(token.split(":")[1]);
+      modifications.push({ type: "due", value: parseDate(token.split(":")[1]) });
     else if (token.startsWith("wait:")) {
       const waitStr = token.split(":").slice(1).join(":");
-      task.wait = parseDate(waitStr);
-      task.waitTime = parseWaitTime(waitStr);
+      modifications.push({
+        type: "wait",
+        value: parseDate(waitStr),
+        waitTime: parseWaitTime(waitStr),
+      });
     } else if (token.startsWith("sched:") || token.startsWith("scheduled:"))
-      task.sched = parseDate(token.split(":")[1]);
+      modifications.push({
+        type: "sched",
+        value: parseDate(token.split(":")[1]),
+      });
     else if (token.startsWith("recur:") || token.startsWith("rec:"))
-      task.recur = token.split(":")[1];
+      modifications.push({ type: "recur", value: token.split(":")[1] });
     else if (token.startsWith("url:")) {
       const val = token.substring(4);
-      task.url = val || null;
+      modifications.push({ type: "url", value: val || null });
     } else if (token.startsWith("icon:")) {
-      task.icon = token.split(":")[1] || null;
+      modifications.push({ type: "icon", value: token.split(":")[1] || null });
     } else if (token.startsWith("x:") || token.startsWith("target:")) {
       const val = token.split(":")[1];
       newTarget = val || null;
     } else if (token.startsWith("!")) {
-      const tag = token.substring(1);
-      if (!task.tags) task.tags = [];
-      const idx = task.tags.indexOf(tag);
-      if (idx >= 0) task.tags.splice(idx, 1);
-      else task.tags.push(tag);
+      modifications.push({ type: "tag", value: token.substring(1) });
     } else if (token.startsWith("dep:")) {
-      if (!task.depends) task.depends = [];
-      token
-        .split(":")[1]
-        .split(",")
-        .forEach((i) => {
-          const depUuid = ctx.displayMapRef.value[i - 1];
-          if (depUuid) {
-            const idx = task.depends.indexOf(depUuid);
-            if (idx >= 0) task.depends.splice(idx, 1);
-            else task.depends.push(depUuid);
-          }
-        });
+      const depIds = token.split(":")[1].split(",");
+      const depUuids = depIds
+        .map((i) => ctx.displayMapRef.value[parseInt(i) - 1])
+        .filter(Boolean);
+      modifications.push({ type: "dep", value: depUuids });
     } else {
       descParts.push(token);
     }
   }
 
-  // Validate target uniqueness if changing
+  if (descParts.length > 0) {
+    modifications.push({ type: "description", value: descParts.join(" ") });
+  }
+  if (newOnDone !== undefined) {
+    modifications.push({ type: "onDone", value: newOnDone });
+  }
+
+  // Validate target uniqueness if changing (only allowed for single task)
   if (newTarget !== undefined) {
+    if (uuids.length > 1) {
+      return ctx.print(
+        '<span class="msg-error">Cannot set target on multiple tasks.</span>',
+      );
+    }
     if (newTarget) {
       const existing = await ctx.dbOps.getByStatus("pending");
-      if (
-        existing.some((t) => t.target === newTarget && t.uuid !== task.uuid)
-      ) {
+      if (existing.some((t) => t.target === newTarget && t.uuid !== uuids[0])) {
         return ctx.print(
           `<span class="msg-error">Target x:${newTarget} already exists.</span>`,
         );
       }
     }
-    task.target = newTarget;
+    modifications.push({ type: "target", value: newTarget });
   }
 
-  // Apply trigger change
-  if (newOnDone !== undefined) {
-    task.onDone = newOnDone;
+  // Apply modifications to all tasks
+  const allUndoRecords = [];
+
+  for (const uuid of uuids) {
+    const task = await ctx.dbOps.get(uuid);
+    if (!task) continue;
+
+    allUndoRecords.push({ type: "update", task: structuredClone(task) });
+
+    for (const mod of modifications) {
+      switch (mod.type) {
+        case "priority":
+          task.priority = mod.value;
+          break;
+        case "order":
+          task.order = mod.value;
+          break;
+        case "project":
+          task.project = mod.value;
+          break;
+        case "due":
+          task.due = mod.value;
+          break;
+        case "wait":
+          task.wait = mod.value;
+          task.waitTime = mod.waitTime;
+          break;
+        case "sched":
+          task.sched = mod.value;
+          break;
+        case "recur":
+          task.recur = mod.value;
+          break;
+        case "url":
+          task.url = mod.value;
+          break;
+        case "icon":
+          task.icon = mod.value;
+          break;
+        case "target":
+          task.target = mod.value;
+          break;
+        case "tag": {
+          if (!task.tags) task.tags = [];
+          const idx = task.tags.indexOf(mod.value);
+          if (idx >= 0) task.tags.splice(idx, 1);
+          else task.tags.push(mod.value);
+          break;
+        }
+        case "dep": {
+          if (!task.depends) task.depends = [];
+          for (const depUuid of mod.value) {
+            const depIdx = task.depends.indexOf(depUuid);
+            if (depIdx >= 0) task.depends.splice(depIdx, 1);
+            else task.depends.push(depUuid);
+          }
+          break;
+        }
+        case "description":
+          task.description = mod.value;
+          break;
+        case "onDone":
+          task.onDone = mod.value;
+          break;
+      }
+    }
+
+    await ctx.dbOps.update(task);
   }
 
-  if (descParts.length > 0) {
-    task.description = descParts.join(" ");
+  // Use compound undo for multiple tasks
+  if (allUndoRecords.length === 1) {
+    pushUndo(allUndoRecords[0]);
+  } else if (allUndoRecords.length > 1) {
+    pushUndo({ type: "compound", records: allUndoRecords });
   }
-  await ctx.dbOps.update(task);
+
   ctx.markDirty();
   await ctx.runListRefresh();
 };
