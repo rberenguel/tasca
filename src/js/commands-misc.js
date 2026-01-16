@@ -348,19 +348,19 @@ export const handleHelp = async (ctx) => {
   const sub = ctx.args[0];
   if (!sub) {
     ctx.print(
-      `<div class="msg-standalone"><span style="color:var(--yellow)">Commands:</span> add, list, done, skip, delete, modify, edit, annotate, undo, info, chain, projects, context, day, calendar, report, status, export, import, icon. Type <span class="msg-hl">help [cmd]</span> for details.</div>`,
+      `<div class="msg-standalone"><span style="color:var(--yellow)">Commands:</span> add, list, done, skip, delete, modify, edit, annotate, undo, info, open, chain, projects, context, day, calendar, report, status, export, import, icon. Type <span class="msg-hl">help [cmd]</span> for details.</div>`,
       false,
     );
   } else {
     const c = resolveCommand(sub);
     if (c === "add")
       ctx.print(
-        `<div class="msg-help msg-standalone"><span class="msg-hl">add</span> description <span class="msg-arg">pro:Project</span> <span class="msg-arg">pri:N</span> <span class="msg-arg">order:N</span> <span class="msg-arg">due:DATE</span> <span class="msg-arg">wait:DATE</span> <span class="msg-arg">sched:DATE</span> <span class="msg-arg">recur:PERIOD</span> <span class="msg-arg">!tag</span><br>DATE: <span class="msg-arg">YYYYMMDD</span> | <span class="msg-arg">today</span> | <span class="msg-arg">tomorrow</span> | <span class="msg-arg">3d</span> | <span class="msg-arg">2w</span> | <span class="msg-arg">1m</span><br>PERIOD: <span class="msg-arg">1d</span> | <span class="msg-arg">1w</span> | <span class="msg-arg">2w</span> | <span class="msg-arg">1m</span> | <span class="msg-arg">1y</span><br>Priority: 1=low, 10=medium, 50=high. Negative for backlog. Use <span class="msg-arg">!someday</span> to hide from next.<br>Order: custom sort order for <span class="msg-arg">!today</span> view (lower first).</div>`,
+        `<div class="msg-help msg-standalone"><span class="msg-hl">add</span> description <span class="msg-arg">pro:Project</span> <span class="msg-arg">pri:N</span> <span class="msg-arg">order:N</span> <span class="msg-arg">due:DATE</span> <span class="msg-arg">wait:DATE</span> <span class="msg-arg">sched:DATE</span> <span class="msg-arg">recur:PERIOD</span> <span class="msg-arg">!tag</span> <span class="msg-arg">icon:name</span> <span class="msg-arg">c:COLOR</span><br>DATE: <span class="msg-arg">YYYYMMDD</span> | <span class="msg-arg">today</span> | <span class="msg-arg">tomorrow</span> | <span class="msg-arg">3d</span> | <span class="msg-arg">2w</span> | <span class="msg-arg">1m</span><br>PERIOD: <span class="msg-arg">1d</span> | <span class="msg-arg">1w</span> | <span class="msg-arg">2w</span> | <span class="msg-arg">1m</span> | <span class="msg-arg">1y</span> · COLOR: <span class="msg-arg">b</span>lue <span class="msg-arg">v</span>iolet <span class="msg-arg">o</span>range <span class="msg-arg">c</span>yan <span class="msg-arg">g</span>reen <span class="msg-arg">y</span>ellow <span class="msg-arg">r</span>ed <span class="msg-arg">m</span>agenta<br>Priority: 1=low, 10=medium, 50=high. Negative for backlog. Use <span class="msg-arg">!someday</span> to hide from next.</div>`,
         false,
       );
     else if (c === "modify")
       ctx.print(
-        `<div class="msg-help msg-standalone"><span class="msg-hl">mod</span> ID <span class="msg-arg">pro:P</span> <span class="msg-arg">pri:N</span> <span class="msg-arg">due:Y</span> <span class="msg-arg">wait:Y</span> <span class="msg-arg">sched:Y</span> <span class="msg-arg">recur:P</span> <span class="msg-arg">!tag</span> <span class="msg-arg">dep:ID</span><br><span class="msg-hl">mod</span> <span class="msg-arg">pro:Name</span> <span class="msg-arg">icon:value</span> <span class="msg-arg">!tag</span> (project metadata, tags toggle)</div>`,
+        `<div class="msg-help msg-standalone"><span class="msg-hl">mod</span> ID <span class="msg-arg">pro:P</span> <span class="msg-arg">pri:N</span> <span class="msg-arg">due:Y</span> <span class="msg-arg">wait:Y</span> <span class="msg-arg">sched:Y</span> <span class="msg-arg">recur:P</span> <span class="msg-arg">!tag</span> <span class="msg-arg">dep:ID</span> <span class="msg-arg">icon:name</span> <span class="msg-arg">c:COLOR</span><br>Multi: <span class="msg-arg">mod 1,3</span> or <span class="msg-arg">mod 1-3</span> or <span class="msg-arg">mod 1,3-5</span><br><span class="msg-hl">mod</span> <span class="msg-arg">pro:Name</span> <span class="msg-arg">icon:value</span> <span class="msg-arg">!tag</span> (project metadata, tags toggle)</div>`,
         false,
       );
     else if (c === "icon")
@@ -401,6 +401,11 @@ export const handleHelp = async (ctx) => {
     else if (c === "info")
       ctx.print(
         `<div class="msg-help msg-standalone"><span class="msg-hl">info</span> ID<br>Shows full task details including annotations and UUID.<br><span class="msg-hl">info</span> <span class="msg-arg">pro:Name</span> — show project details (icon, tags).</div>`,
+        false,
+      );
+    else if (c === "open")
+      ctx.print(
+        `<div class="msg-help msg-standalone"><span class="msg-hl">open</span> ID (alias: <span class="msg-hl">o</span>)<br>Opens the task's URL in a new browser tab.</div>`,
         false,
       );
     else if (c === "edit" || c === "ed")

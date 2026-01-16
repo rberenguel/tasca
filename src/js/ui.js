@@ -8,6 +8,18 @@ const iconClass = (name) => {
   return name.startsWith("ph-") ? name : `ph-light ph-${name}`;
 };
 
+// Solarized color mapping for task styling
+const colorMap = {
+  b: "var(--blue)",
+  v: "var(--violet)",
+  o: "var(--orange)",
+  c: "var(--cyan)",
+  g: "var(--green)",
+  y: "var(--yellow)",
+  r: "var(--red)",
+  m: "var(--magenta)",
+};
+
 let projectMetadata = {};
 
 // Format text between backticks as inline code
@@ -343,6 +355,9 @@ export const renderTable = (
       const i = document.createElement("i");
       i.className = iconClass(t.icon);
       i.style.marginRight = "5px";
+      if (t.color?.icon && colorMap[t.color.icon]) {
+        i.style.color = colorMap[t.color.icon];
+      }
       tdDesc.appendChild(i);
     }
 

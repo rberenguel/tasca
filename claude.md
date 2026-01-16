@@ -37,7 +37,7 @@ src/js/
 
 ## Commands Reference
 
-Task commands: `add`, `delete`, `done`, `start`, `stop`, `modify`, `edit/ed`, `annotate`, `info`, `skip`
+Task commands: `add`, `delete`, `done`, `start`, `stop`, `modify`, `edit/ed`, `annotate`, `info`, `skip`, `open/o`
 Views: `list`, `next`, `calendar/cal`, `projects`, `chain`
 Data: `export/exp`, `import/imp`, `link`, `load`, `save`, `unlink`, `status/stat`
 Context: `context/ctx/c` (GTD persistent filters), `day`/`today` (shortcut for `context !today`)
@@ -109,6 +109,31 @@ Can also use `list !modified` (or `list !m`) directly to see modified tasks.
 
 - **`report cycle [pro:X] [period] [by:project|tag]`** - Cycle time analysis (latency from entry to completion). Shows percentiles (p50, p85, p95) and distribution histogram. With `by:project` or `by:tag`, shows table of each group's p50/p85 sorted by worst first. Reference projects shown dimmed at end. Alias: `slo`.
 
+## Open Command
+
+`open` (or `o`) opens the task's URL in a new browser tab:
+
+```
+open 1        # opens URL of task 1
+1 o           # same, reversed syntax
+open x:docs   # open by target reference
+```
+
+Shows an error if the task has no URL.
+
+## Multi-ID Commands
+
+Commands `done`, `delete`, `skip`, and `modify` support multiple IDs:
+
+```
+done 1,3,5      # complete tasks 1, 3, and 5
+delete 1-3      # delete tasks 1 through 3
+mod 1,3-5 !tag  # add tag to tasks 1, 3, 4, 5
+skip 2-4        # skip tasks 2, 3, 4
+```
+
+Undo works atomically - one undo reverts all changes from a multi-ID command.
+
 ## Task Options
 
 - `pro:ProjectName` - Project (hierarchical with dots)
@@ -119,6 +144,32 @@ Can also use `list !modified` (or `list !m`) directly to see modified tasks.
 - `recur:1d/1w/2w/1m/1y` - Recurrence
 - `dep:ID,ID` - Dependencies
 - `url:URL`, `icon:name` - Metadata
+- `c:X` or `color:X` - Icon color (see below)
+
+## Icon Colors
+
+Tasks with icons can have colored icons using `c:` or `color:`:
+
+```
+add Buy milk icon:shopping-cart c:g    # green icon
+mod 1 c:y                               # change to yellow
+mod 1 c:                                # clear color
+```
+
+Color codes (Solarized palette):
+
+| Code | Color   |
+| ---- | ------- |
+| b    | blue    |
+| v    | violet  |
+| o    | orange  |
+| c    | cyan    |
+| g    | green   |
+| y    | yellow  |
+| r    | red     |
+| m    | magenta |
+
+The syntax supports future extensibility: `c:y.r` would set icon=yellow, title=red (title color not yet implemented).
 
 ## Hiding Tasks from Next
 
@@ -201,6 +252,26 @@ Virtual tags are computed filters (not stored on tasks). Used in `list`, `contex
 3. `sw.js` - Service worker cache name (`CACHE_NAME`)
 
 The app has dual manifests: `pwa-manifest.json` for PWA install, `manifest.json` for Chrome extension. The `index.html` references `pwa-manifest.json` via `<link rel="manifest">`. Chrome extensions require `manifest.json` specifically.
+
+## Chrome Extension
+
+The Chrome extension provides quick-add from any tab (Ctrl+Shift+T). Configuration is in `auto-icons.js`:
+
+**DOMAIN_ICONS** - Maps domains to Phosphor icon names:
+
+```javascript
+"docs.google.com": "file-doc",
+"github.com": "github-logo",
+```
+
+**TITLE_TRANSFORMS** - Cleans up page titles by domain:
+
+```javascript
+"docs.google.com": (title) => title.replace(/ - Google Docs$/, ""),
+"github.com": (title) => title.replace(/ · GitHub$/, ""),
+```
+
+Edit `auto-icons.js` to customize without touching `background.js`.
 
 ## Code Style
 

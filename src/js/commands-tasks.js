@@ -20,6 +20,16 @@ const iconClass = (name) => {
   return name.startsWith("ph-") ? name : `ph-light ph-${name}`;
 };
 
+// Parse color syntax: "y" -> { icon: 'y' }, ".y" -> { title: 'y' }, "y.r" -> { icon: 'y', title: 'r' }
+const parseColor = (val) => {
+  if (!val) return null;
+  const parts = val.split(".");
+  const color = {};
+  if (parts[0]) color.icon = parts[0];
+  if (parts[1]) color.title = parts[1];
+  return Object.keys(color).length > 0 ? color : null;
+};
+
 // Parse task object from args
 const createTaskObject = (args, displayMapRef) => {
   let desc = [],
@@ -35,6 +45,7 @@ const createTaskObject = (args, displayMapRef) => {
     recur = null,
     url = null,
     icon = null,
+    color = null,
     target = null,
     onDone = null;
 
@@ -95,6 +106,8 @@ const createTaskObject = (args, displayMapRef) => {
       icon = val || null;
     } else if (token.startsWith("x:") || token.startsWith("target:")) {
       target = token.split(":")[1] || null;
+    } else if (token.startsWith("c:") || token.startsWith("color:")) {
+      color = parseColor(token.split(":")[1]);
     } else if (token.startsWith("!")) tags.push(token.substring(1));
     else desc.push(token);
   }
@@ -112,6 +125,7 @@ const createTaskObject = (args, displayMapRef) => {
     recur,
     url,
     icon,
+    color,
     target,
     onDone,
   };
@@ -155,6 +169,7 @@ export const handleAdd = async (ctx) => {
     recur: tObj.recur,
     url: tObj.url,
     icon: tObj.icon,
+    color: tObj.color,
     target: tObj.target,
     onDone: tObj.onDone,
     annotations: [],
@@ -278,7 +293,10 @@ export const handleModify = async (ctx) => {
     )
       modifications.push({ type: "project", value: token.split(":")[1] });
     else if (token.startsWith("due:"))
-      modifications.push({ type: "due", value: parseDate(token.split(":")[1]) });
+      modifications.push({
+        type: "due",
+        value: parseDate(token.split(":")[1]),
+      });
     else if (token.startsWith("wait:")) {
       const waitStr = token.split(":").slice(1).join(":");
       modifications.push({
@@ -298,6 +316,11 @@ export const handleModify = async (ctx) => {
       modifications.push({ type: "url", value: val || null });
     } else if (token.startsWith("icon:")) {
       modifications.push({ type: "icon", value: token.split(":")[1] || null });
+    } else if (token.startsWith("c:") || token.startsWith("color:")) {
+      modifications.push({
+        type: "color",
+        value: parseColor(token.split(":")[1]),
+      });
     } else if (token.startsWith("x:") || token.startsWith("target:")) {
       const val = token.split(":")[1];
       newTarget = val || null;
@@ -378,6 +401,9 @@ export const handleModify = async (ctx) => {
         case "icon":
           task.icon = mod.value;
           break;
+        case "color":
+          task.color = mod.value;
+          break;
         case "target":
           task.target = mod.value;
           break;
@@ -457,6 +483,10 @@ export const handleEdit = async (ctx) => {
   if (t.recur) cmdParts.push(`recur:${t.recur}`);
   if (t.url) cmdParts.push(`url:${t.url}`);
   if (t.icon) cmdParts.push(`icon:${t.icon}`);
+  if (t.color) {
+    const colorStr = [t.color.icon || "", t.color.title || ""].join(".");
+    cmdParts.push(`c:${colorStr.replace(/\.$/, "")}`);
+  }
   if (t.depends && t.depends.length > 0) {
     // Convert UUIDs to display IDs where possible
     const depIds = t.depends
@@ -653,6 +683,12 @@ export const handleInfo = async (ctx) => {
     html += `<div><b>URL:</b> <a href="${t.url}" target="_blank" rel="noopener" class="task-link">${t.url}</a></div>`;
   if (t.icon)
     html += `<div><b>Icon:</b> <i class="${iconClass(t.icon)}"></i> ${t.icon.replace(/^ph-light ph-/, "")}</div>`;
+  if (t.color) {
+    const parts = [];
+    if (t.color.icon) parts.push(`icon: ${t.color.icon}`);
+    if (t.color.title) parts.push(`title: ${t.color.title}`);
+    html += `<div><b>Color:</b> ${parts.join(", ")}</div>`;
+  }
   if (t.target) html += `<div><b>Target:</b> ${t.target}</div>`;
   if (t.order != null) html += `<div><b>Order:</b> ${t.order}</div>`;
   if (t.due) html += `<div><b>Due:</b> ${formatDateHtml(t.due)}</div>`;

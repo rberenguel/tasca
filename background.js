@@ -1,23 +1,4 @@
-// Domain -> icon mapping (add your own!)
-const DOMAIN_ICONS = {
-  "arxiv.org": "graduation-cap",
-  "github.com": "github-logo",
-  "stackoverflow.com": "stack-overflow-logo",
-  "youtube.com": "youtube-logo",
-  "reddit.com": "reddit-logo",
-  "twitter.com": "x-logo",
-  "x.com": "x-logo",
-  "linkedin.com": "linkedin-logo",
-  "docs.google.com": "file-doc",
-  "sheets.google.com": "table",
-  "drive.google.com": "google-drive-logo",
-  "notion.so": "notion-logo",
-  "figma.com": "figma-logo",
-  "slack.com": "slack-logo",
-  "discord.com": "discord-logo",
-  "amazon.com": "amazon-logo",
-  "wikipedia.org": "article",
-};
+import { DOMAIN_ICONS, TITLE_TRANSFORMS } from "./auto-icons.js";
 
 // Get icon for a URL's domain (checks base domain too)
 function getIconForUrl(url) {
@@ -32,6 +13,22 @@ function getIconForUrl(url) {
     }
   } catch {}
   return null;
+}
+
+// Transform title based on domain (removes cruft like " - Google Docs")
+function transformTitle(url, title) {
+  try {
+    const hostname = new URL(url).hostname;
+    // Check exact match first, then base domain
+    if (TITLE_TRANSFORMS[hostname]) return TITLE_TRANSFORMS[hostname](title);
+    const parts = hostname.split(".");
+    if (parts.length > 2) {
+      const baseDomain = parts.slice(-2).join(".");
+      if (TITLE_TRANSFORMS[baseDomain])
+        return TITLE_TRANSFORMS[baseDomain](title);
+    }
+  } catch {}
+  return title;
 }
 
 // Helper to find or open Tasca tab
@@ -61,8 +58,9 @@ chrome.commands.onCommand.addListener(async (command) => {
     });
     if (!currentTab || currentTab.url.startsWith("chrome://")) return;
 
-    const title = currentTab.title || "";
     const pageUrl = currentTab.url || "";
+    const rawTitle = currentTab.title || "";
+    const title = transformTitle(pageUrl, rawTitle);
     const icon = getIconForUrl(pageUrl);
 
     // Open/focus Tasca tab

@@ -85,8 +85,10 @@ initDB().then(async () => {
         const tasks = Array.isArray(data) ? data : data.tasks || [];
         const projects = Array.isArray(data) ? [] : data.projects || [];
         const savedAt = Array.isArray(data) ? null : data.savedAt || null;
-        for (const t of tasks) if (t.uuid) await dbOps.update(t, { touch: false });
-        for (const p of projects) if (p.name) await dbOps.updateProject(p, { touch: false });
+        for (const t of tasks)
+          if (t.uuid) await dbOps.update(t, { touch: false });
+        for (const p of projects)
+          if (p.name) await dbOps.updateProject(p, { touch: false });
         if (savedAt) await dbOps.setSetting("lastSave", savedAt);
         const projMsg = projects.length
           ? ` and ${projects.length} projects`

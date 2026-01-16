@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Tasca",
-  "version": "0.12.2",
+  "version": "0.13.0",
   "description": "A minimal text-based task manager.",
   "permissions": ["tabs"],
   "action": {
     "default_icon": "icon.png"
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "icons": {
     "128": "icon.png"

@@ -3159,3 +3159,112 @@ describe("On-Done Triggers (done:/td:) E2E Tests", function () {
     });
   });
 });
+
+describe("Color E2E Tests", function () {
+  before(async function () {
+    await initDB();
+    if (!document.getElementById("terminal-output")) {
+      const div = document.createElement("div");
+      div.id = "terminal-output";
+      div.style.display = "none";
+      document.body.appendChild(div);
+    }
+  });
+
+  beforeEach(async function () {
+    await dbOps.purgeAll();
+    clearUndo();
+    displayMapRef.value = [];
+    document.getElementById("terminal-output").innerHTML = "";
+  });
+
+  describe("Add with color", function () {
+    it("should parse c:y as icon color", async function () {
+      await execute("add test task icon:star c:y");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(1);
+      expect(tasks[0].color).to.deep.equal({ icon: "y" });
+    });
+
+    it("should parse color:g as icon color", async function () {
+      await execute("add test task icon:star color:g");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].color).to.deep.equal({ icon: "g" });
+    });
+
+    it("should parse c:.r as title color (future)", async function () {
+      await execute("add test task c:.r");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].color).to.deep.equal({ title: "r" });
+    });
+
+    it("should parse c:y.r as icon and title color", async function () {
+      await execute("add test task c:y.r");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].color).to.deep.equal({ icon: "y", title: "r" });
+    });
+
+    it("should not set color when c: is empty", async function () {
+      await execute("add test task c:");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].color).to.be.null;
+    });
+  });
+
+  describe("Modify color", function () {
+    it("should add color to existing task", async function () {
+      await execute("add test task icon:star");
+      await execute("list");
+      await execute("mod 1 c:b");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].color).to.deep.equal({ icon: "b" });
+    });
+
+    it("should change existing color", async function () {
+      await execute("add test task icon:star c:y");
+      await execute("list");
+      await execute("mod 1 c:m");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].color).to.deep.equal({ icon: "m" });
+    });
+
+    it("should clear color with c:", async function () {
+      await execute("add test task icon:star c:y");
+      await execute("list");
+      await execute("mod 1 c:");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks[0].color).to.be.null;
+    });
+
+    it("should work with multi-ID modify", async function () {
+      await execute("add task one icon:star");
+      await execute("add task two icon:heart");
+      await execute("add task three icon:moon");
+      await execute("mod 1-3 c:v");
+
+      const tasks = await dbOps.getAll();
+      expect(tasks.every((t) => t.color?.icon === "v")).to.be.true;
+    });
+  });
+
+  describe("All color codes", function () {
+    const colors = ["b", "v", "o", "c", "g", "y", "r", "m"];
+
+    colors.forEach((color) => {
+      it(`should accept color code '${color}'`, async function () {
+        await execute(`add test task c:${color}`);
+
+        const tasks = await dbOps.getAll();
+        expect(tasks[0].color).to.deep.equal({ icon: color });
+      });
+    });
+  });
+});
