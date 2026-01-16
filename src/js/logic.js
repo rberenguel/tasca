@@ -228,6 +228,8 @@ export const VALID_COMMANDS = [
   "annotate",
   "info",
   "i",
+  "open",
+  "o",
   "chain",
   "projects",
   "proj",

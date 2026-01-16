@@ -675,3 +675,29 @@ export const handleInfo = async (ctx) => {
   html += `</div>`;
   ctx.print(html, true);
 };
+
+export const handleOpen = async (ctx) => {
+  const idArg = ctx.targetId || ctx.args[0];
+
+  // Resolve ID - support both numeric IDs and x:name references
+  let uuid;
+  if (idArg && idArg.startsWith("x:")) {
+    const name = idArg.substring(2);
+    const all = await ctx.dbOps.getByStatus("pending");
+    const match = all.find((t) => t.target === name);
+    uuid = match?.uuid;
+  } else {
+    const id = parseInt(idArg);
+    uuid = id ? ctx.displayMapRef.value[id - 1] : null;
+  }
+
+  if (!uuid) return ctx.print('<span class="msg-error">Invalid ID.</span>');
+  const task = await ctx.dbOps.get(uuid);
+
+  if (!task.url) {
+    return ctx.print('<span class="msg-error">Task has no URL.</span>');
+  }
+
+  window.open(task.url, "_blank", "noopener");
+  ctx.print(`<span class="msg-success">Opened ${task.url}</span>`);
+};

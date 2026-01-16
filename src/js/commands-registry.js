@@ -18,6 +18,7 @@ import {
   handleAnnotateProject,
   handleInfo,
   handleInfoProject,
+  handleOpen,
 } from "./commands-tasks.js";
 import {
   handleExport,
@@ -68,6 +69,8 @@ export const commands = {
   annotate: handleAnnotate,
   info: handleInfo,
   i: handleInfo,
+  open: handleOpen,
+  o: handleOpen,
 
   // Views
   list: async (ctx) => {
