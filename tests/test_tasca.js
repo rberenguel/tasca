@@ -529,6 +529,68 @@ describe("Utils Tests", function () {
       expect(d.getHours()).to.equal(14);
       expect(d.getMinutes()).to.equal(0);
     });
+
+    it("should parse named days (mon-sun)", function () {
+      const dayNames = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+      const today = new Date().getDay();
+
+      for (let i = 0; i < 7; i++) {
+        const result = parseDate(dayNames[i]);
+        expect(result).to.not.be.null;
+
+        const d = new Date(result);
+        // Should be the correct day of week
+        expect(d.getDay()).to.equal(i);
+
+        // Should be in the future (1-7 days from now)
+        const now = new Date();
+        const diffDays = Math.round((d - now) / (1000 * 60 * 60 * 24));
+        expect(diffDays).to.be.at.least(1);
+        expect(diffDays).to.be.at.most(7);
+
+        // Should be end of day
+        expect(d.getHours()).to.equal(23);
+        expect(d.getMinutes()).to.equal(59);
+      }
+    });
+
+    it("should parse named day with time (mon@09:00)", function () {
+      const result = parseDate("mon@09:00");
+      expect(result).to.not.be.null;
+
+      const d = new Date(result);
+      // Should be Monday
+      expect(d.getDay()).to.equal(1);
+      // Should have the specified time
+      expect(d.getHours()).to.equal(9);
+      expect(d.getMinutes()).to.equal(0);
+
+      // Should be in the future
+      expect(d.getTime()).to.be.greaterThan(Date.now());
+    });
+
+    it("should treat same day as next week", function () {
+      const dayNames = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+      const today = new Date().getDay();
+      const todayName = dayNames[today];
+
+      const result = parseDate(todayName);
+      const d = new Date(result);
+
+      // Should be exactly 7 days from now (same day next week)
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      const target = new Date(d);
+      target.setHours(0, 0, 0, 0);
+      const diffDays = Math.round((target - now) / (1000 * 60 * 60 * 24));
+      expect(diffDays).to.equal(7);
+    });
+
+    it("should be case insensitive for named days", function () {
+      expect(parseDate("MON")).to.not.be.null;
+      expect(parseDate("Mon")).to.not.be.null;
+      expect(parseDate("FRI")).to.not.be.null;
+    });
   });
 
   describe("parseWaitTime", function () {

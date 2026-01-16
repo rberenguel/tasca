@@ -51,6 +51,18 @@ export const parseDate = (str) => {
     return endOfDay(d);
   }
 
+  // Named days: mon, tue, wed, thu, fri, sat, sun (always next occurrence)
+  const dayNames = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+  const dayIndex = dayNames.indexOf(s);
+  if (dayIndex !== -1) {
+    const d = new Date();
+    const today = d.getDay();
+    let daysUntil = dayIndex - today;
+    if (daysUntil <= 0) daysUntil += 7; // Always next occurrence
+    d.setDate(d.getDate() + daysUntil);
+    return endOfDay(d);
+  }
+
   // Relative hours: Nh (e.g., 3h = 3 hours from now)
   const hourMatch = s.match(/^(\d+)h$/);
   if (hourMatch) {

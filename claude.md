@@ -209,6 +209,7 @@ Animation styles:
 
 - Absolute: `YYYYMMDD` (e.g., `20250115`)
 - Relative: `today`, `tomorrow`, `Nd`, `Nw`, `Nm` (e.g., `3d`, `2w`)
+- Named days: `mon`, `tue`, `wed`, `thu`, `fri`, `sat`, `sun` (always next occurrence)
 
 ## Testing
 

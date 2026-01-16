@@ -55,7 +55,7 @@ Tasca runs entirely in the browser using IndexedDB for storage. No server requir
 | `url:URL`      | Link URL (shown as clickable icon)                  |
 | `!tag`         | Tag (toggles on `mod`)                              |
 
-DATE formats: `YYYYMMDD`, `today`, `tomorrow`, `3d` (days), `2w` (weeks), `1m` (months)
+DATE formats: `YYYYMMDD`, `today`, `tomorrow`, `3d` (days), `2w` (weeks), `1m` (months), `mon`-`sun` (next occurrence)
 
 ### Filters
 
