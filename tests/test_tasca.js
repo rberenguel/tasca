@@ -2867,7 +2867,9 @@ describe("Today View E2E Tests", function () {
           this.skip();
           return;
         }
-        await execute(`add ready task wait:${waitDate}@${String(pastTime.getHours()).padStart(2, "0")}:${String(pastTime.getMinutes()).padStart(2, "0")}`);
+        await execute(
+          `add ready task wait:${waitDate}@${String(pastTime.getHours()).padStart(2, "0")}:${String(pastTime.getMinutes()).padStart(2, "0")}`,
+        );
         await execute("day");
         expect(displayMapRef.value).to.have.length(1);
       });
@@ -2945,7 +2947,9 @@ describe("Today View E2E Tests", function () {
         // Complete main task using ID 1
         await execute("done 1");
         const tasksAfter = await dbOps.getAll();
-        const mainTaskAfter = tasksAfter.find((t) => t.description === "main task");
+        const mainTaskAfter = tasksAfter.find(
+          (t) => t.description === "main task",
+        );
         expect(mainTaskAfter.status).to.equal("completed");
       });
 
@@ -2979,7 +2983,13 @@ describe("Today View E2E Tests", function () {
     describe("collectStartedTasks", function () {
       it("should collect pending started tasks", function () {
         const tasks = [
-          { uuid: "1", start: now, status: "pending", description: "task 1", entry: now },
+          {
+            uuid: "1",
+            start: now,
+            status: "pending",
+            description: "task 1",
+            entry: now,
+          },
           { uuid: "2", status: "pending", description: "task 2", entry: now },
         ];
         const result = collectStartedTasks(tasks, [], { today });
@@ -2989,7 +2999,14 @@ describe("Today View E2E Tests", function () {
 
       it("should include reference project tasks", function () {
         const tasks = [
-          { uuid: "1", start: now, status: "pending", project: "Books", description: "task 1", entry: now },
+          {
+            uuid: "1",
+            start: now,
+            status: "pending",
+            project: "Books",
+            description: "task 1",
+            entry: now,
+          },
         ];
         const projects = [{ name: "Books", tags: ["reference"] }];
         const result = collectStartedTasks(tasks, projects, { today });
@@ -3006,9 +3023,27 @@ describe("Today View E2E Tests", function () {
         // Wait time in the future (should be excluded)
         const futureWait = now + 3600000;
         const tasks = [
-          { uuid: "1", wait: pastWait, status: "pending", description: "task 1", entry: now },
-          { uuid: "2", wait: futureWait, status: "pending", description: "task 2", entry: now },
-          { uuid: "3", wait: now - 86400000, status: "pending", description: "task 3", entry: now }, // yesterday
+          {
+            uuid: "1",
+            wait: pastWait,
+            status: "pending",
+            description: "task 1",
+            entry: now,
+          },
+          {
+            uuid: "2",
+            wait: futureWait,
+            status: "pending",
+            description: "task 2",
+            entry: now,
+          },
+          {
+            uuid: "3",
+            wait: now - 86400000,
+            status: "pending",
+            description: "task 3",
+            entry: now,
+          }, // yesterday
         ];
         // Only collect if the past wait is today
         const pastWaitDate = formatDateOnly(pastWait);
@@ -3024,7 +3059,13 @@ describe("Today View E2E Tests", function () {
         const endOfDay = new Date();
         endOfDay.setHours(23, 59, 59, 999);
         const tasks = [
-          { uuid: "1", wait: endOfDay.getTime(), status: "pending", description: "task 1", entry: now },
+          {
+            uuid: "1",
+            wait: endOfDay.getTime(),
+            status: "pending",
+            description: "task 1",
+            entry: now,
+          },
         ];
         const result = collectReadyTasks(tasks, [], { today });
         expect(result).to.have.length(0);
