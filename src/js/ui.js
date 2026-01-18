@@ -590,14 +590,6 @@ export const renderTable = (
       recurSpan.textContent = `↻${t.recur}`;
       tdDesc.appendChild(recurSpan);
     }
-    // Active
-    if (t.start && t.status === "pending") {
-      tdDesc.appendChild(document.createTextNode(" "));
-      const activeSpan = document.createElement("span");
-      activeSpan.className = "active-icon";
-      activeSpan.textContent = "▶";
-      tdDesc.appendChild(activeSpan);
-    }
     // Deps
     if (t.depends && t.depends.length > 0) {
       const activeDeps = allTasks.filter(

@@ -3901,7 +3901,7 @@ describe("Checklist E2E Tests", function () {
 
     it("getChecklistParentUuid should return parent UUID", function () {
       expect(getChecklistParentUuid({ checklist: "abc-123" })).to.equal(
-        "abc-123"
+        "abc-123",
       );
       expect(getChecklistParentUuid({ checklist: "parent" })).to.be.null;
       expect(getChecklistParentUuid({})).to.be.null;
@@ -3973,13 +3973,13 @@ describe("Checklist E2E Tests", function () {
       // Verify checklist is set up
       const originalTasks = await dbOps.getAll();
       const originalParent = originalTasks.find(
-        (t) => t.description === "Deploy release"
+        (t) => t.description === "Deploy release",
       );
       const originalMember1 = originalTasks.find(
-        (t) => t.description === "Run tests"
+        (t) => t.description === "Run tests",
       );
       const originalMember2 = originalTasks.find(
-        (t) => t.description === "Update changelog"
+        (t) => t.description === "Update changelog",
       );
 
       expect(isChecklistParent(originalParent)).to.be.true;
@@ -4010,13 +4010,13 @@ describe("Checklist E2E Tests", function () {
       // Verify checklist properties are preserved
       const importedTasks = await dbOps.getAll();
       const importedParent = importedTasks.find(
-        (t) => t.description === "Deploy release"
+        (t) => t.description === "Deploy release",
       );
       const importedMember1 = importedTasks.find(
-        (t) => t.description === "Run tests"
+        (t) => t.description === "Run tests",
       );
       const importedMember2 = importedTasks.find(
-        (t) => t.description === "Update changelog"
+        (t) => t.description === "Update changelog",
       );
 
       expect(importedTasks).to.have.length(3);
