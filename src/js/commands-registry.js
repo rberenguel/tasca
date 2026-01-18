@@ -45,6 +45,7 @@ import {
   handleCalendar,
 } from "./commands-views.js";
 import { handleReport } from "./commands-reports.js";
+import { handleChecklist, handleUnchecklist } from "./commands-checklist.js";
 import { runList } from "./list.js";
 
 // Command registry
@@ -158,6 +159,12 @@ export const commands = {
   help: handleHelp,
   about: handleAbout,
   clear: handleClear,
+
+  // Checklists
+  checklist: handleChecklist,
+  cl: handleChecklist,
+  unchecklist: handleUnchecklist,
+  ucl: handleUnchecklist,
 };
 
 // Special handlers that need project detection

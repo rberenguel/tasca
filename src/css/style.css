@@ -452,3 +452,25 @@ tr.row-active .row-desc {
 #update-banner a:hover {
   color: var(--blue);
 }
+
+/* Checklist styles */
+.checklist-parent-row {
+  /* Parent row styling if needed */
+}
+
+.checklist-member-row td {
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
+}
+
+.checklist-member-desc {
+  padding-left: 24px !important;
+}
+
+.checklist-dimmed {
+  opacity: 0.5;
+}
+
+.checklist-summary {
+  font-weight: normal;
+}

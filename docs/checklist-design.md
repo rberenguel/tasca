@@ -143,30 +143,30 @@ Show member tasks individually on their due dates (not the parent). Optionally a
 
 ## Implementation Phases
 
-### Phase 1: Data Model & Commands
-- [ ] Add `checklist` command (parse multi-ID, set properties)
-- [ ] Add `unchecklist` command
-- [ ] Add validation: prevent `recur` on parents
-- [ ] Add validation: prevent parent-of-parent
-- [ ] Update `info` command for parent/member/orphan display
-- [ ] Add `!checklist` virtual tag
+### Phase 1: Data Model & Commands ✓
+- [x] Add `checklist` command (parse multi-ID, set properties)
+- [x] Add `unchecklist` command
+- [x] Add validation: prevent `recur` on parents
+- [x] Add validation: prevent parent-of-parent
+- [x] Update `info` command for parent/member/orphan display
+- [x] Add `!checklist` virtual tag
 
-### Phase 2: Rendering
-- [ ] Modify `today.js` to group checklist members under parents
-- [ ] Add checkbox icons for member states
-- [ ] Add dimming for waiting/scheduled members
-- [ ] Modify `next` view for summary format
-- [ ] Update `list` rendering for full expansion
+### Phase 2: Rendering ✓
+- [x] Group checklist members under parents in list.js
+- [x] Add checkbox icons for member states (☐ pending, ☑ done, ⊘ skipped, ⏱ waiting)
+- [x] Add dimming for waiting/scheduled members
+- [x] Modify `next` view for summary format `(done/total)`
+- [x] Update list/today rendering with full expansion in ui.js
 
 ### Phase 3: Auto-completion
-- [ ] Implement auto-completion check function
+- [x] Implement auto-completion check function (in commands-checklist.js)
 - [ ] Hook into `done` command
 - [ ] Hook into `skip` command
 - [ ] Hook into `delete` command
 
 ### Phase 4: Edge Cases & Polish
-- [ ] Orphan detection and broken-link display
-- [ ] Undo support for checklist operations
+- [x] Orphan detection in `info` command (shows broken-link message)
+- [x] Undo support for checklist operations
 - [ ] Export/import handling
 - [ ] Calendar view (if needed)
 

@@ -1,4 +1,5 @@
-import { getDaysRemaining, C } from "./logic.js";
+import { getDaysRemaining, C, hasVirtualTag } from "./logic.js";
+import { isChecklistParent } from "./commands-checklist.js";
 import { formatDateHtml } from "./utils.js";
 import { hasContext, formatContextDisplay, getContext } from "./context.js";
 
@@ -269,6 +270,8 @@ export const renderTable = (
   headerHtml = null,
   isTodayView = false,
   sections = { started: [], overdue: [], ready: [] },
+  checklistGroups = new Map(),
+  isNextView = false,
 ) => {
   setProjectMetadata(projects);
 
@@ -361,16 +364,99 @@ export const renderTable = (
     return print(container, false);
   }
 
-  // Include all sections in displayMapRef for ID resolution
-  displayMapRef.value = [...tasks, ...started, ...overdue, ...ready].map(
-    (t) => t.uuid,
-  );
+  // Build display map including checklist members (calculated after rendering)
+  // For now, set to tasks; will be updated after rendering with members
   const { wrapper, tbody } = createTableStruct();
 
+  // Helper to render a checklist member row (indented, with checkbox)
+  const renderChecklistMemberRow = (t, displayIndex) => {
+    const tr = document.createElement("tr");
+    tr.className = "checklist-member-row";
+
+    // Check if waiting/scheduled (should be dimmed)
+    const now = Date.now();
+    const isWaiting = t.wait && t.wait > now;
+    const isScheduled = t.sched && t.sched > now;
+    const isDimmed = isWaiting || isScheduled;
+    if (isDimmed) tr.classList.add("checklist-dimmed");
+
+    // Cell 1: ID (members get their own ID for editing)
+    const tdId = document.createElement("td");
+    tdId.className = "row-id";
+    tdId.textContent = displayIndex + 1;
+    tr.appendChild(tdId);
+
+    // Cell 2: Checkbox + Description
+    const tdDesc = document.createElement("td");
+    tdDesc.className = "row-desc checklist-member-desc";
+
+    // Checkbox icon based on status
+    const checkbox = document.createElement("i");
+    if (t.status === "completed") {
+      checkbox.className = "ph-fill ph-check-square";
+      checkbox.style.color = "var(--green)";
+    } else if (t.status === "skipped") {
+      checkbox.className = "ph-light ph-prohibit";
+      checkbox.style.color = "var(--base01)";
+    } else if (isDimmed) {
+      checkbox.className = "ph-light ph-clock";
+      checkbox.style.color = "var(--base01)";
+    } else {
+      checkbox.className = "ph-light ph-square";
+      checkbox.style.color = "var(--base0)";
+    }
+    checkbox.style.marginRight = "6px";
+    tdDesc.appendChild(checkbox);
+
+    // Task icon (if any)
+    if (t.icon) {
+      const i = document.createElement("i");
+      i.className = iconClass(t.icon);
+      i.style.marginRight = "5px";
+      if (t.color?.icon && colorMap[t.color.icon]) {
+        i.style.color = colorMap[t.color.icon];
+      }
+      tdDesc.appendChild(i);
+    }
+
+    // Description
+    const descSpan = document.createElement("span");
+    descSpan.innerHTML = formatInlineCode(t.description);
+    tdDesc.appendChild(descSpan);
+
+    // Show wait time if waiting
+    if (isWaiting) {
+      tdDesc.appendChild(document.createTextNode(" "));
+      const waitSpan = document.createElement("span");
+      waitSpan.className = "date-pill date-wait";
+      waitSpan.innerHTML = `wait:${formatDateHtml(t.wait)}`;
+      tdDesc.appendChild(waitSpan);
+    }
+
+    // Recur indicator
+    if (t.recur) {
+      tdDesc.appendChild(document.createTextNode(" "));
+      const recurSpan = document.createElement("span");
+      recurSpan.className = "recur-icon";
+      recurSpan.textContent = `↻${t.recur}`;
+      tdDesc.appendChild(recurSpan);
+    }
+
+    tr.appendChild(tdDesc);
+
+    // Cell 3: Empty urgency cell
+    const tdUrg = document.createElement("td");
+    tdUrg.className = "row-urgency";
+    tr.appendChild(tdUrg);
+
+    return tr;
+  };
+
   // Helper to render a single task row
-  const renderTaskRow = (t, index) => {
+  const renderTaskRow = (t, index, checklistSummary = null) => {
     const tr = document.createElement("tr");
     if (t.start && t.status === "pending") tr.className = "row-active";
+    if (isChecklistParent(t)) tr.classList.add("checklist-parent-row");
 
     // Cell 1: ID
     const tdId = document.createElement("td");
@@ -390,8 +476,16 @@ export const renderTable = (
       tdDesc.appendChild(orderSpan);
     }
 
-    // Icon
-    if (t.icon) {
+    // Checklist parent icon
+    if (isChecklistParent(t)) {
+      const i = document.createElement("i");
+      i.className = "ph-light ph-list-checks";
+      i.style.marginRight = "5px";
+      i.style.color = "var(--cyan)";
+      tdDesc.appendChild(i);
+    }
+    // Task icon (in addition to checklist icon if present)
+    else if (t.icon) {
       const i = document.createElement("i");
       i.className = iconClass(t.icon);
       i.style.marginRight = "5px";
@@ -405,6 +499,17 @@ export const renderTable = (
     const descSpan = document.createElement("span");
     descSpan.innerHTML = formatInlineCode(t.description); // formatInlineCode still returns HTML string
     tdDesc.appendChild(descSpan);
+
+    // Checklist summary (for next view)
+    if (checklistSummary) {
+      tdDesc.appendChild(document.createTextNode(" "));
+      const summarySpan = document.createElement("span");
+      summarySpan.className = "checklist-summary";
+      summarySpan.style.color = "var(--cyan)";
+      summarySpan.style.fontSize = "0.9em";
+      summarySpan.textContent = `(${checklistSummary.done}/${checklistSummary.total})`;
+      tdDesc.appendChild(summarySpan);
+    }
 
     // Metadata
     // Link
@@ -554,9 +659,47 @@ export const renderTable = (
     return tr;
   };
 
-  // Render today tasks
-  tasks.forEach((t, index) => {
-    tbody.appendChild(renderTaskRow(t, index));
+  // Build display map including checklist members
+  const displayOrder = [];
+  tasks.forEach((t) => {
+    displayOrder.push(t.uuid);
+    // In full view, include members in display order after parent
+    if (!isNextView && isChecklistParent(t) && checklistGroups.has(t.uuid)) {
+      const group = checklistGroups.get(t.uuid);
+      group.members.forEach((m) => displayOrder.push(m.uuid));
+    }
+  });
+  // Add sections to display order
+  [...started, ...overdue, ...ready].forEach((t) => displayOrder.push(t.uuid));
+  // Set displayMapRef for ID resolution
+  displayMapRef.value = displayOrder;
+
+  // Render tasks with checklist handling
+  let displayIndex = 0;
+  tasks.forEach((t) => {
+    const group = checklistGroups.get(t.uuid);
+
+    if (isChecklistParent(t) && group) {
+      if (isNextView) {
+        // Next view: show summary count
+        const done = group.doneMembers || 0;
+        const total = (group.totalPending || 0) + done;
+        tbody.appendChild(renderTaskRow(t, displayIndex, { done, total }));
+        displayIndex++;
+      } else {
+        // Full view: expand checklist
+        tbody.appendChild(renderTaskRow(t, displayIndex, null));
+        displayIndex++;
+        // Render members
+        group.members.forEach((member) => {
+          tbody.appendChild(renderChecklistMemberRow(member, displayIndex));
+          displayIndex++;
+        });
+      }
+    } else {
+      tbody.appendChild(renderTaskRow(t, displayIndex, null));
+      displayIndex++;
+    }
   });
 
   container.appendChild(wrapper);
@@ -585,7 +728,8 @@ export const renderTable = (
   };
 
   // Render sections in order: started, overdue, ready
-  let nextIndex = tasks.length;
+  // Use displayIndex (which includes checklist members) not tasks.length
+  let nextIndex = displayIndex;
   nextIndex = renderSection(started, "started", nextIndex);
   nextIndex = renderSection(overdue, "overdue", nextIndex);
   nextIndex = renderSection(ready, "ready", nextIndex);

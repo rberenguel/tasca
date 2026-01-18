@@ -122,6 +122,7 @@ const VIRTUAL_TAG_SHORTHANDS = {
   RT: "ROUTINE",
   MOD: "MODIFIED",
   M: "MODIFIED",
+  CL: "CHECKLIST",
 };
 
 // Set of all virtual tag names (uppercase) for filtering
@@ -144,6 +145,7 @@ const VIRTUAL_TAG_NAMES = new Set([
   "REFS",
   "REFERENCE",
   "REFERENCES",
+  "CHECKLIST",
 ]);
 
 // Check if a tag name (without ! prefix) is a virtual tag
@@ -200,6 +202,10 @@ export const hasVirtualTag = (t, tag, allTasks, projectsMeta = []) => {
         ["reference", "ref"].includes(tag.toLowerCase()),
       ) ?? false
     );
+  }
+  if (tagClean === "CHECKLIST") {
+    // Matches both parents (checklist === "parent") and members (checklist === UUID)
+    return !!t.checklist;
   }
   return false;
 };
@@ -262,6 +268,10 @@ export const VALID_COMMANDS = [
   "track",
   "tra",
   "t",
+  "checklist",
+  "cl",
+  "unchecklist",
+  "ucl",
 ];
 
 export const resolveCommand = (str) => {

@@ -14,6 +14,12 @@ import { getInheritedAttributes } from "./context.js";
 import { pushUndo } from "./undo.js";
 
 import { resolveRefs } from "./commands-state.js";
+import {
+  isChecklistParent,
+  isChecklistMember,
+  getChecklistParentUuid,
+  getChecklistMembers,
+} from "./commands-checklist.js";
 
 const parseTrackValue = (args) => {
   if (!args || args.length === 0) return { type: "day", value: null };
@@ -384,6 +390,19 @@ export const handleModify = async (ctx) => {
       }
     }
     modifications.push({ type: "target", value: newTarget });
+  }
+
+  // Check for recur on checklist parents
+  const hasRecurMod = modifications.some((m) => m.type === "recur" && m.value);
+  if (hasRecurMod) {
+    for (const uuid of uuids) {
+      const task = await ctx.dbOps.get(uuid);
+      if (task && isChecklistParent(task)) {
+        return ctx.print(
+          '<span class="msg-error">Cannot add recurrence to checklist parent.</span>'
+        );
+      }
+    }
   }
 
   // Apply modifications to all tasks
@@ -773,6 +792,31 @@ export const handleInfo = async (ctx) => {
     html += `<div><b>Tags:</b> ${t.tags.join(" ")}</div>`;
   if (t.depends && t.depends.length > 0)
     html += `<div><b>Depends:</b> ${t.depends.length} task(s)</div>`;
+
+  // Checklist info
+  if (isChecklistParent(t)) {
+    const members = await getChecklistMembers(t.uuid, ctx.dbOps);
+    const pendingMembers = members.filter(
+      (m) => m.status === "pending" || (m.recur && m.status !== "pending")
+    );
+    html += `<div style="margin-top:5px; border-top:1px dashed var(--base01); padding-top:5px"><b>Checklist:</b> ${pendingMembers.length} member(s)</div>`;
+    pendingMembers
+      .sort((a, b) => (a.order || 999) - (b.order || 999))
+      .forEach((m, i) => {
+        const statusIcon = m.status === "completed" ? "☑" : m.status === "skipped" ? "⊘" : "☐";
+        html += `<div style="margin-left:10px; font-size:0.9em; color:var(--base1)"><span style="color:var(--base01)">${statusIcon}</span> ${m.description}</div>`;
+      });
+  } else if (isChecklistMember(t)) {
+    const parentUuid = getChecklistParentUuid(t);
+    const parent = await ctx.dbOps.get(parentUuid);
+    if (parent) {
+      const parentDisplayId = ctx.displayMapRef.value.indexOf(parentUuid) + 1;
+      html += `<div><b>Checklist:</b> member of "${parent.description.substring(0, 40)}${parent.description.length > 40 ? "..." : ""}" (${parentDisplayId || "?"})</div>`;
+    } else {
+      html += `<div><b>Checklist:</b> <span style="color:var(--red)"><i class="ph-light ph-link-break"></i> orphan (parent deleted)</span></div>`;
+    }
+  }
+
   if (t.annotations && t.annotations.length > 0) {
     html += `<div style="margin-top:5px; border-top:1px dashed var(--base01); padding-top:5px"><b>Annotations:</b></div>`;
     t.annotations.forEach((a, i) => {

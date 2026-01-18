@@ -22,6 +22,11 @@ import {
   collectReadyTasks,
   sortTodayTasks,
 } from "./today.js";
+import {
+  isChecklistParent,
+  isChecklistMember,
+  getChecklistParentUuid,
+} from "./commands-checklist.js";
 
 export const runList = async (
   args,
@@ -261,13 +266,100 @@ export const runList = async (
     sections.ready = collectReadyTasks(all, projects, filterOpts);
   }
 
+  // Group checklist members under their parents
+  // In "next" view (limited, not today), show summary; in full view or today, expand members
+  const isNextView = limit !== Infinity && limit > 0 && !isTodayView;
+  const checklistGroups = new Map(); // parentUuid -> { parent, members: [] }
+
+  // Separate parents, members, and regular tasks
+  const parentTasks = tasks.filter((t) => isChecklistParent(t));
+  const memberTasks = tasks.filter((t) => isChecklistMember(t));
+  const regularTasks = tasks.filter((t) => !isChecklistParent(t) && !isChecklistMember(t));
+
+  // Collect parent UUIDs from both: parents in filtered list AND parents of members in filtered list
+  const parentUuidsToShow = new Set();
+
+  // Parents that passed the filter
+  for (const parent of parentTasks) {
+    parentUuidsToShow.add(parent.uuid);
+  }
+
+  // Parents of members that passed the filter (even if parent didn't pass filter)
+  for (const member of memberTasks) {
+    const parentUuid = getChecklistParentUuid(member);
+    if (parentUuid) parentUuidsToShow.add(parentUuid);
+  }
+
+  // Build checklist groups - fetch ALL pending members from `all`, not just filtered ones
+  for (const parentUuid of parentUuidsToShow) {
+    let parent = parentTasks.find((t) => t.uuid === parentUuid);
+    if (!parent) {
+      parent = all.find((t) => t.uuid === parentUuid);
+    }
+    if (!parent) continue;
+
+    // Calculate urgency for parent if not set
+    if (!parent.urgency) {
+      parent.urgency = calculateUrgency(parent, all, projects);
+    }
+
+    // Fetch ALL pending members for this parent (not just filtered ones)
+    const allPendingMembers = all.filter(
+      (t) => t.checklist === parentUuid && t.status === "pending"
+    );
+
+    // Calculate urgency for members
+    allPendingMembers.forEach((m) => {
+      if (!m.urgency) m.urgency = calculateUrgency(m, all, projects);
+    });
+
+    // Sort by order
+    allPendingMembers.sort((a, b) => (a.order || 999) - (b.order || 999));
+
+    // Count for summary view
+    const doneMembers = all.filter(
+      (t) => t.checklist === parentUuid && t.status === "completed"
+    ).length;
+
+    checklistGroups.set(parentUuid, {
+      parent,
+      members: allPendingMembers,
+      totalPending: allPendingMembers.length,
+      doneMembers,
+    });
+  }
+
+  // Regular tasks only (parents and members handled via checklistGroups)
+  const filteredTasks = regularTasks;
+
+  // Add parent tasks back in their urgency order position
+  const tasksWithChecklists = [...filteredTasks];
+  for (const group of checklistGroups.values()) {
+    tasksWithChecklists.push(group.parent);
+  }
+
+  // Re-sort to maintain order (urgency or today sort)
+  if (isTodayView) {
+    sortTodayTasks(tasksWithChecklists);
+  } else if (!sortFields) {
+    tasksWithChecklists.sort((a, b) => {
+      const urgDiff = parseFloat(b.urgency) - parseFloat(a.urgency);
+      if (urgDiff !== 0) return urgDiff;
+      const entryDiff = (a.entry || 0) - (b.entry || 0);
+      if (entryDiff !== 0) return entryDiff;
+      return (a.uuid || "").localeCompare(b.uuid || "");
+    });
+  }
+
   renderTable(
-    tasks,
+    tasksWithChecklists,
     all,
     displayMapRef,
     projects,
     headerHtml,
     isTodayView,
     sections,
+    checklistGroups,
+    isNextView,
   );
 };

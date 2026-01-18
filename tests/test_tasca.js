@@ -34,6 +34,13 @@ import {
   collectReadyTasks,
   sortTodayTasks,
 } from "../src/js/today.js";
+import {
+  isChecklistParent,
+  isChecklistMember,
+  getChecklistParentUuid,
+  getChecklistMembers,
+  shouldAutoComplete,
+} from "../src/js/commands-checklist.js";
 
 describe("Tasca Logic Tests", function () {
   describe("Urgency Calculation", function () {
@@ -3635,6 +3642,322 @@ describe("Color E2E Tests", function () {
         const tasks = await dbOps.getAll();
         expect(tasks[0].color).to.deep.equal({ icon: color });
       });
+    });
+  });
+});
+
+describe("Checklist E2E Tests", function () {
+  before(async function () {
+    await initDB();
+    if (!document.getElementById("terminal-output")) {
+      const div = document.createElement("div");
+      div.id = "terminal-output";
+      div.style.display = "none";
+      document.body.appendChild(div);
+    }
+  });
+
+  beforeEach(async function () {
+    await dbOps.purgeAll();
+    clearUndo();
+    displayMapRef.value = [];
+    document.getElementById("terminal-output").innerHTML = "";
+  });
+
+  describe("checklist command", function () {
+    it("should create a checklist with parent and members", async function () {
+      await execute("add Deploy release");
+      await execute("add Run tests");
+      await execute("add Update changelog");
+      await execute("add Tag release");
+      await execute("list");
+      await execute("checklist 1 2,3,4");
+
+      const tasks = await dbOps.getAll();
+      const parent = tasks.find((t) => t.description === "Deploy release");
+      const members = tasks.filter((t) => t.description !== "Deploy release");
+
+      expect(isChecklistParent(parent)).to.be.true;
+      expect(members.every((m) => isChecklistMember(m))).to.be.true;
+      expect(members.every((m) => m.checklist === parent.uuid)).to.be.true;
+    });
+
+    it("should set order on members based on command sequence", async function () {
+      await execute("add Parent task");
+      await execute("add First");
+      await execute("add Second");
+      await execute("add Third");
+      await execute("list");
+      await execute("cl 1 2,3,4");
+
+      const tasks = await dbOps.getAll();
+      const first = tasks.find((t) => t.description === "First");
+      const second = tasks.find((t) => t.description === "Second");
+      const third = tasks.find((t) => t.description === "Third");
+
+      expect(first.order).to.equal(1);
+      expect(second.order).to.equal(2);
+      expect(third.order).to.equal(3);
+    });
+
+    it("should support range syntax for members", async function () {
+      await execute("add Parent");
+      await execute("add Member 1");
+      await execute("add Member 2");
+      await execute("add Member 3");
+      await execute("list");
+      await execute("checklist 1 2-4");
+
+      const tasks = await dbOps.getAll();
+      const members = tasks.filter((t) => isChecklistMember(t));
+
+      expect(members).to.have.length(3);
+    });
+
+    it("should fail if parent has recur", async function () {
+      await execute("add Recurring task due:today recur:1w");
+      await execute("add Member task");
+      await execute("list");
+      await execute("checklist 1 2");
+
+      // Parent should not have checklist property
+      const tasks = await dbOps.getAll();
+      const parent = tasks.find((t) => t.description === "Recurring task");
+      expect(isChecklistParent(parent)).to.be.false;
+    });
+
+    it("should fail if member is already a parent", async function () {
+      await execute("add Parent 1");
+      await execute("add Parent 2");
+      await execute("add Child");
+      await execute("list");
+      await execute("checklist 1 3"); // Parent 1 has Child
+      await execute("list");
+      await execute("checklist 2 1"); // Try to make Parent 1 a child of Parent 2
+
+      const tasks = await dbOps.getAll();
+      const parent1 = tasks.find((t) => t.description === "Parent 1");
+
+      // Parent 1 should still be a parent, not a member
+      expect(isChecklistParent(parent1)).to.be.true;
+      expect(isChecklistMember(parent1)).to.be.false;
+    });
+  });
+
+  describe("unchecklist command", function () {
+    it("should remove task from checklist", async function () {
+      await execute("add Parent");
+      await execute("add Member");
+      await execute("list");
+      await execute("cl 1 2");
+
+      let tasks = await dbOps.getAll();
+      let member = tasks.find((t) => t.description === "Member");
+      expect(isChecklistMember(member)).to.be.true;
+
+      await execute("list");
+      await execute("ucl 2");
+
+      tasks = await dbOps.getAll();
+      member = tasks.find((t) => t.description === "Member");
+      expect(isChecklistMember(member)).to.be.false;
+      expect(member.checklist).to.be.undefined;
+    });
+
+    it("should clear order when removing from checklist", async function () {
+      await execute("add Parent");
+      await execute("add Member");
+      await execute("list");
+      await execute("cl 1 2");
+      await execute("list");
+      await execute("unchecklist 2");
+
+      const tasks = await dbOps.getAll();
+      const member = tasks.find((t) => t.description === "Member");
+      expect(member.order).to.be.undefined;
+    });
+
+    it("should support multi-ID syntax", async function () {
+      await execute("add Parent");
+      await execute("add Member 1");
+      await execute("add Member 2");
+      await execute("add Member 3");
+      await execute("list");
+      await execute("cl 1 2-4");
+      await execute("list");
+      await execute("ucl 2,4");
+
+      const tasks = await dbOps.getAll();
+      const m1 = tasks.find((t) => t.description === "Member 1");
+      const m2 = tasks.find((t) => t.description === "Member 2");
+      const m3 = tasks.find((t) => t.description === "Member 3");
+
+      expect(isChecklistMember(m1)).to.be.false;
+      expect(isChecklistMember(m2)).to.be.true;
+      expect(isChecklistMember(m3)).to.be.false;
+    });
+  });
+
+  describe("!checklist virtual tag", function () {
+    it("should match checklist parents", async function () {
+      await execute("add Parent");
+      await execute("add Member");
+      await execute("add Regular task");
+      await execute("list");
+      await execute("cl 1 2");
+
+      const tasks = await dbOps.getAll();
+      const parent = tasks.find((t) => t.description === "Parent");
+      const regular = tasks.find((t) => t.description === "Regular task");
+
+      expect(hasVirtualTag(parent, "!checklist", tasks)).to.be.true;
+      expect(hasVirtualTag(regular, "!checklist", tasks)).to.be.false;
+    });
+
+    it("should match checklist members", async function () {
+      await execute("add Parent");
+      await execute("add Member");
+      await execute("list");
+      await execute("cl 1 2");
+
+      const tasks = await dbOps.getAll();
+      const member = tasks.find((t) => t.description === "Member");
+
+      expect(hasVirtualTag(member, "!checklist", tasks)).to.be.true;
+    });
+
+    it("should expand !cl shorthand", function () {
+      expect(expandVirtualTagShorthand("!cl")).to.equal("!checklist");
+    });
+  });
+
+  describe("modify validation", function () {
+    it("should prevent adding recur to checklist parent", async function () {
+      await execute("add Parent");
+      await execute("add Member");
+      await execute("list");
+      await execute("cl 1 2");
+      await execute("list");
+      await execute("mod 1 recur:1w due:today");
+
+      const tasks = await dbOps.getAll();
+      const parent = tasks.find((t) => t.description === "Parent");
+
+      // Parent should not have recur (remains null from creation, not set to "1w")
+      expect(parent.recur).to.not.equal("1w");
+    });
+  });
+
+  describe("undo support", function () {
+    it("should undo checklist creation", async function () {
+      await execute("add Parent");
+      await execute("add Member");
+      await execute("list");
+      await execute("cl 1 2");
+
+      let tasks = await dbOps.getAll();
+      expect(tasks.some((t) => isChecklistParent(t))).to.be.true;
+
+      await execute("undo");
+
+      tasks = await dbOps.getAll();
+      expect(tasks.some((t) => isChecklistParent(t))).to.be.false;
+      expect(tasks.some((t) => isChecklistMember(t))).to.be.false;
+    });
+
+    it("should undo unchecklist", async function () {
+      await execute("add Parent");
+      await execute("add Member");
+      await execute("list");
+      await execute("cl 1 2");
+      await execute("list");
+      await execute("ucl 2");
+
+      let tasks = await dbOps.getAll();
+      let member = tasks.find((t) => t.description === "Member");
+      expect(isChecklistMember(member)).to.be.false;
+
+      await execute("undo");
+
+      tasks = await dbOps.getAll();
+      member = tasks.find((t) => t.description === "Member");
+      expect(isChecklistMember(member)).to.be.true;
+    });
+  });
+
+  describe("helper functions", function () {
+    it("isChecklistParent should identify parents", function () {
+      expect(isChecklistParent({ checklist: "parent" })).to.be.true;
+      expect(isChecklistParent({ checklist: "some-uuid" })).to.be.false;
+      expect(isChecklistParent({})).to.be.false;
+      expect(isChecklistParent(null)).to.be.false;
+    });
+
+    it("isChecklistMember should identify members", function () {
+      expect(isChecklistMember({ checklist: "some-uuid" })).to.be.true;
+      expect(isChecklistMember({ checklist: "parent" })).to.be.false;
+      expect(isChecklistMember({})).to.be.false;
+    });
+
+    it("getChecklistParentUuid should return parent UUID", function () {
+      expect(getChecklistParentUuid({ checklist: "abc-123" })).to.equal(
+        "abc-123"
+      );
+      expect(getChecklistParentUuid({ checklist: "parent" })).to.be.null;
+      expect(getChecklistParentUuid({})).to.be.null;
+    });
+
+    it("getChecklistMembers should return members of parent", async function () {
+      await execute("add Parent");
+      await execute("add Member 1");
+      await execute("add Member 2");
+      await execute("add Unrelated");
+      await execute("list");
+      await execute("cl 1 2,3");
+
+      const tasks = await dbOps.getAll();
+      const parent = tasks.find((t) => t.description === "Parent");
+      const members = await getChecklistMembers(parent.uuid, dbOps);
+
+      expect(members).to.have.length(2);
+      expect(members.every((m) => m.checklist === parent.uuid)).to.be.true;
+    });
+
+    it("shouldAutoComplete should return true when all members done and none recurring", async function () {
+      await execute("add Parent");
+      await execute("add Member 1");
+      await execute("add Member 2");
+      await execute("list");
+      await execute("cl 1 2,3");
+
+      const tasks = await dbOps.getAll();
+      const parent = tasks.find((t) => t.description === "Parent");
+
+      // Initially false (members pending)
+      expect(await shouldAutoComplete(parent.uuid, dbOps)).to.be.false;
+
+      // Complete members
+      await execute("list");
+      await execute("done 2,3");
+
+      expect(await shouldAutoComplete(parent.uuid, dbOps)).to.be.true;
+    });
+
+    it("shouldAutoComplete should return false when any member is recurring", async function () {
+      await execute("add Parent");
+      await execute("add Member 1 due:today recur:1d");
+      await execute("add Member 2");
+      await execute("list");
+      await execute("cl 1 2,3");
+
+      await execute("list");
+      await execute("done 2,3");
+
+      const tasks = await dbOps.getAll();
+      const parent = tasks.find((t) => t.description === "Parent");
+
+      // Should be false because recurring member creates new pending instance
+      expect(await shouldAutoComplete(parent.uuid, dbOps)).to.be.false;
     });
   });
 });
