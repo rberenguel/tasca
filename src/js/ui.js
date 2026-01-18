@@ -20,6 +20,42 @@ const colorMap = {
   m: "var(--magenta)",
 };
 
+const getTrackMarker = (task) => {
+  if (!task.track || task.track.length === 0) return null;
+
+  const now = new Date();
+  const todayStart = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  ).getTime();
+  const todayNext = todayStart + 86400000;
+
+  const todayEvents = task.track.filter(
+    (t) => t.entry >= todayStart && t.entry < todayNext,
+  );
+
+  if (todayEvents.length === 0) return null;
+
+  // Most recent event determines type
+  const last = todayEvents[todayEvents.length - 1];
+
+  if (last.type === "day") {
+    // Subtle cyan dot
+    return `<span style="color:var(--cyan); margin-left:4px" title="Tracked today">•</span>`;
+  } else if (last.type === "pct") {
+    // Last percentage
+    return `<span style="color:var(--cyan); font-size:0.8em; margin-left:4px" title="Progress: ${last.value}%">${last.value}%</span>`;
+  } else if (last.type === "min") {
+    // Sum of all minutes TODAY
+    const totalMinutes = todayEvents
+      .filter((t) => t.type === "min")
+      .reduce((acc, t) => acc + t.value, 0);
+    return `<span style="color:var(--cyan); font-size:0.8em; margin-left:4px" title="Today: ${totalMinutes}m">${totalMinutes}m</span>`;
+  }
+  return null;
+};
+
 let projectMetadata = {};
 
 // Format text between backticks as inline code
@@ -477,6 +513,13 @@ export const renderTable = (
       annoSpan.className = "anno-count";
       annoSpan.textContent = `msg:${t.annotations.length}`;
       tdDesc.appendChild(annoSpan);
+    }
+    // Tracking Marker
+    const trackHtml = getTrackMarker(t);
+    if (trackHtml) {
+      const trackSpan = document.createElement("span");
+      trackSpan.innerHTML = trackHtml;
+      tdDesc.appendChild(trackSpan);
     }
     // Done info
     if (t.end) {

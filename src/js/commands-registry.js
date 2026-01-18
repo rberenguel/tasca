@@ -18,6 +18,8 @@ import {
   handleAnnotateProject,
   handleInfo,
   handleInfoProject,
+  // handleAnnotateProject, handleInfo, handleInfoProject are already imported above
+  handleTrack,
   handleOpen,
 } from "./commands-tasks.js";
 import {
@@ -69,6 +71,9 @@ export const commands = {
   annotate: handleAnnotate,
   info: handleInfo,
   i: handleInfo,
+  track: handleTrack,
+  tra: handleTrack,
+  t: handleTrack,
   open: handleOpen,
   o: handleOpen,
 

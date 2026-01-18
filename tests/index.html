@@ -5,9 +5,16 @@
     <title>Tasca Tests</title>
     <link rel="stylesheet" href="mocha.css" />
     <style>
-      /* Hide terminal output created by E2E tests */
-      #terminal-output {
-        display: none;
+      body {
+        background-color: #111;
+        color: #ddd;
+        font-family: monospace;
+      }
+      #mocha .test.fail pre {
+        color: #fdd;
+      }
+      #mocha .test.pass.fast .duration {
+        color: #ddd;
       }
     </style>
   </head>
@@ -19,7 +26,8 @@
     <!-- Test runner setup -->
     <script src="test_runner.js"></script>
 
-    <!-- Tests, as a module -->
+    <!-- Tests -->
     <script type="module" src="test_tasca.js"></script>
+    <script type="module" src="test_track.js"></script>
   </body>
 </html>

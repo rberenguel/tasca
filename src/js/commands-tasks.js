@@ -12,7 +12,31 @@ import {
 import { formatInlineCode } from "./ui.js";
 import { getInheritedAttributes } from "./context.js";
 import { pushUndo } from "./undo.js";
+
 import { resolveRefs } from "./commands-state.js";
+
+const parseTrackValue = (args) => {
+  if (!args || args.length === 0) return { type: "day", value: null };
+
+  const joined = args.join(" ").toLowerCase();
+
+  // Check for percentage (e.g., "50%", "50 pct", "50pct")
+  const pctMatch = joined.match(/^(\d+)\s*(%|pct)$/);
+  if (pctMatch) {
+    return { type: "pct", value: parseInt(pctMatch[1], 10) };
+  }
+
+  // Check for minutes (e.g., "30m", "30 m", "30 min")
+  const minMatch = joined.match(/^(\d+)\s*(m|min)$/);
+  if (minMatch) {
+    return { type: "min", value: parseInt(minMatch[1], 10) };
+  }
+
+  // Fallback to day if no specific format matches but args exist?
+  // Or should we error? The user said "Track 'happened' track NUM and nothing else".
+  // So if there are args, they should probably match one of the formats.
+  return null;
+};
 
 // Convert icon name to full Phosphor class (handles legacy full class format)
 const iconClass = (name) => {
@@ -617,6 +641,53 @@ export const handleAnnotate = async (ctx) => {
   await ctx.dbOps.update(task);
   ctx.markDirty();
   await ctx.runListRefresh();
+  await ctx.runListRefresh();
+};
+
+export const handleTrack = async (ctx) => {
+  const idArg = ctx.targetId || ctx.args[0];
+
+  // Resolve ID
+  let uuid;
+  if (idArg && idArg.startsWith("x:")) {
+    const name = idArg.substring(2);
+    const all = await ctx.dbOps.getByStatus("pending"); // Tracking usually on pending/active? Or any?
+    const match = all.find((t) => t.target === name);
+    uuid = match?.uuid;
+  } else {
+    const id = parseInt(idArg);
+    uuid = id ? ctx.displayMapRef.value[id - 1] : null;
+  }
+
+  if (!uuid) return ctx.print('<span class="msg-error">Invalid ID.</span>');
+
+  const task = await ctx.dbOps.get(uuid);
+  if (!task) return ctx.print('<span class="msg-error">Task not found.</span>');
+
+  // Parse tracking data
+  // If targetId was used (e.g. "1 track 50%"), args are ["50%"]
+  // If standard (e.g. "track 1 50%"), args are ["1", "50%"], triggering idArg detection, remaining args are value
+  const trackArgs = ctx.targetId ? ctx.args : ctx.args.slice(1);
+  const trackData = parseTrackValue(trackArgs);
+
+  if (!trackData) {
+    return ctx.print(
+      '<span class="msg-error">Invalid usage. Use: track NUM [N% | Nm | (empty)]</span>',
+    );
+  }
+
+  pushUndo({ type: "update", task: structuredClone(task) });
+
+  if (!task.track) task.track = [];
+  task.track.push({
+    entry: Date.now(),
+    type: trackData.type,
+    value: trackData.value,
+  });
+
+  await ctx.dbOps.update(task);
+  ctx.print(`<span class="msg-success">Tracked ${trackData.type}.</span>`);
+  // No need to refresh list for tracking unless we visualize it there
 };
 
 export const handleInfoProject = async (ctx) => {
@@ -706,6 +777,21 @@ export const handleInfo = async (ctx) => {
     html += `<div style="margin-top:5px; border-top:1px dashed var(--base01); padding-top:5px"><b>Annotations:</b></div>`;
     t.annotations.forEach((a, i) => {
       html += `<div style="margin-left:10px; font-size:0.9em; color:var(--base1)"><span style="color:var(--base01)">${i + 1}.</span> ${formatDate(a.entry)}: ${formatInlineCode(a.description)}</div>`;
+    });
+  }
+  if (t.track && t.track.length > 0) {
+    html += `<div style="margin-top:5px; border-top:1px dashed var(--base01); padding-top:5px"><b>Tracking:</b></div>`;
+    // Show last 10 entries? or all? Let's show all for now, concise.
+    t.track.forEach((tr, i) => {
+      let valStr = "";
+      if (tr.type === "pct") valStr = `${tr.value}%`;
+      else if (tr.type === "min") valStr = `${tr.value}m`;
+      else if (tr.type === "day") valStr = "worked";
+
+      html +=
+        `<div style="margin-left:10px; font-size:0.9em; color:var(--base1)">` +
+        `<span style="color:var(--base01)">${formatDate(tr.entry)}</span>: ${valStr}` +
+        `</div>`;
     });
   }
   html += `</div>`;
