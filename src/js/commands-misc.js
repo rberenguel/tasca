@@ -348,7 +348,7 @@ export const handleHelp = async (ctx) => {
   const sub = ctx.args[0];
   if (!sub) {
     ctx.print(
-      `<div class="msg-standalone"><span style="color:var(--yellow)">Commands:</span> add, list, done, skip, delete, modify, edit, annotate, undo, info, open, chain, projects, context, day, calendar, report, status, export, import, icon. Type <span class="msg-hl">help [cmd]</span> for details.</div>`,
+      `<div class="msg-standalone"><span style="color:var(--yellow)">Commands:</span> add, list, done, skip, delete, modify, edit, annotate, undo, info, open, track, chain, projects, context, day, calendar, report, status, export, import, icon. Type <span class="msg-hl">help [cmd]</span> for details.</div>`,
       false,
     );
   } else {
@@ -481,6 +481,11 @@ export const handleHelp = async (ctx) => {
     else if (c === "paste")
       ctx.print(
         `<div class="msg-help msg-standalone"><span class="msg-hl">paste</span><br>Imports tasks from clipboard. Expects one task per line (same format as add command).</div>`,
+        false,
+      );
+    else if (c === "track")
+      ctx.print(
+        `<div class="msg-help msg-standalone"><span class="msg-hl">track</span> ID [value] (aliases: <span class="msg-hl">t</span>, <span class="msg-hl">tra</span>)<br>Track effort on a task.<br>Usage: <span class="msg-arg">track 1 30m</span> (minutes), <span class="msg-arg">track 1 50%</span> (percentage), or <span class="msg-arg">track 1</span> (worked on today).</div>`,
         false,
       );
     else

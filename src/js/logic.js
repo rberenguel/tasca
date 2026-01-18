@@ -259,6 +259,9 @@ export const VALID_COMMANDS = [
   "paste",
   "undo",
   "icon",
+  "track",
+  "tra",
+  "t",
 ];
 
 export const resolveCommand = (str) => {

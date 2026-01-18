@@ -1,4 +1,3 @@
-
 const { expect } = chai;
 import { handleTrack, handleInfo } from "../src/js/commands-tasks.js";
 import { initDB, dbOps } from "../src/js/db.js";
@@ -39,7 +38,7 @@ describe("Track Command Tests", function () {
       tags: [],
     };
     await dbOps.add(task);
-    
+
     // Verify it exists immediately
     const check = await dbOps.get("test-uuid-1");
     expect(check).to.not.be.undefined;
@@ -52,13 +51,13 @@ describe("Track Command Tests", function () {
   it("should track minutes", async function () {
     mockCtx.targetId = "1";
     mockCtx.args = ["30m"];
-    
+
     // Debug
     const taskBefore = await dbOps.get(taskUuid);
     if (!taskBefore) console.error("Task missing before track minutes test");
 
     await handleTrack(mockCtx);
-    
+
     // Check if print called with success
     if (!lastPrint.includes("Tracked min")) {
       console.error("handleTrack output:", lastPrint);
@@ -75,7 +74,7 @@ describe("Track Command Tests", function () {
   it("should track percentage", async function () {
     mockCtx.targetId = "1";
     mockCtx.args = ["50%"];
-    
+
     await handleTrack(mockCtx);
     expect(lastPrint).to.include("Tracked pct");
 
@@ -88,7 +87,7 @@ describe("Track Command Tests", function () {
   it("should track daily (nothing)", async function () {
     mockCtx.targetId = "1";
     mockCtx.args = [];
-    
+
     await handleTrack(mockCtx);
     expect(lastPrint).to.include("Tracked day");
 
@@ -101,11 +100,11 @@ describe("Track Command Tests", function () {
   it("should show tracking in info", async function () {
     mockCtx.targetId = "1";
     mockCtx.args = [];
-    
+
     // mockCtx must have a valid displayMapRef for handleInfo
     // The previous tests shouldn't have mutated it, but let's ensure
-    displayMapRef.value = [taskUuid]; 
-    
+    displayMapRef.value = [taskUuid];
+
     await handleInfo(mockCtx);
     expect(lastPrint).to.include("Tracking:");
     expect(lastPrint).to.include("30m");

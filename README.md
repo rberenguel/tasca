@@ -22,6 +22,7 @@ Tasca runs entirely in the browser using IndexedDB for storage. No server requir
 | `annotate <ID> -N`                | Remove annotation by index               |
 | `undo`                            | Revert last task operation               |
 | `info` / `i <ID>`                 | Show task details                        |
+| `track` / `t <ID> [val]`          | Track effort (30m, 50%, or today)        |
 | `open` / `o <ID>`                 | Open task URL in new tab                 |
 | `chain` / `tree` / `deps` <ID>    | Show dependency tree                     |
 | `projects`                        | List all projects                        |
