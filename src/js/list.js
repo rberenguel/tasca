@@ -274,7 +274,9 @@ export const runList = async (
   // Separate parents, members, and regular tasks
   const parentTasks = tasks.filter((t) => isChecklistParent(t));
   const memberTasks = tasks.filter((t) => isChecklistMember(t));
-  const regularTasks = tasks.filter((t) => !isChecklistParent(t) && !isChecklistMember(t));
+  const regularTasks = tasks.filter(
+    (t) => !isChecklistParent(t) && !isChecklistMember(t),
+  );
 
   // Collect parent UUIDs from both: parents in filtered list AND parents of members in filtered list
   const parentUuidsToShow = new Set();
@@ -305,7 +307,7 @@ export const runList = async (
 
     // Fetch ALL pending members for this parent (not just filtered ones)
     const allPendingMembers = all.filter(
-      (t) => t.checklist === parentUuid && t.status === "pending"
+      (t) => t.checklist === parentUuid && t.status === "pending",
     );
 
     // Calculate urgency for members
@@ -318,7 +320,7 @@ export const runList = async (
 
     // Count for summary view
     const doneMembers = all.filter(
-      (t) => t.checklist === parentUuid && t.status === "completed"
+      (t) => t.checklist === parentUuid && t.status === "completed",
     ).length;
 
     checklistGroups.set(parentUuid, {

@@ -25,6 +25,8 @@ Tasca runs entirely in the browser using IndexedDB for storage. No server requir
 | `track` / `t <ID> [val]`          | Track effort (30m, 50%, or today)        |
 | `open` / `o <ID>`                 | Open task URL in new tab                 |
 | `chain` / `tree` / `deps` <ID>    | Show dependency tree                     |
+| `checklist` / `cl <P> <M>`        | Group tasks into a checklist             |
+| `unchecklist` / `ucl <IDs>`       | Remove tasks from checklist              |
 | `projects`                        | List all projects                        |
 | `context` / `ctx` / `c [filters]` | Set/clear persistent context             |
 | `day` / `today`                   | Set context to `!today`                  |
@@ -69,7 +71,7 @@ Use with `list` or `export`:
 - `end:1w` — completed in last week (use with `!done`). Supports `d`ays, `w`eeks, `m`onths.
 - `sort:field` — sort by field: `start`, `end`, `pri`, `pro`, `due`, `urg`. Use `-` for reverse (e.g., `sort:-end`). Combine with commas: `sort:pro,pri`.
 
-Virtual tags: `!overdue`, `!today`, `!waiting`, `!scheduled`, `!recurring`, `!blocked`, `!active`, `!someday`, `!done`, `!all`
+Virtual tags: `!overdue`, `!today`, `!waiting`, `!scheduled`, `!recurring`, `!blocked`, `!active`, `!checklist`, `!someday`, `!done`, `!all`
 
 Example: `list !done end:1w` — review tasks completed in the last week.
 
@@ -85,6 +87,47 @@ open 1-3                # open URLs from tasks 1, 2, 3
 ```
 
 Undo works atomically — one undo reverts all changes from a multi-ID command.
+
+### Checklists
+
+Group related tasks under a parent for routines or multi-step processes:
+
+```
+add Deploy release
+add Run tests
+add Update changelog
+add Tag release
+list
+cl 1 2,3,4              # tasks 2,3,4 become members of task 1
+```
+
+Members are displayed under their parent with checkbox icons:
+
+- ☐ pending
+- ☑ done
+- ⊘ skipped
+- ⏱ waiting/scheduled
+
+**Auto-completion**: When all members are done or skipped and none are recurring, the parent auto-completes.
+
+**Recurring checklists**: If any member has `recur`, the parent stays open. Great for daily routines.
+
+```
+add Morning routine
+add Meditate due:today recur:1d
+add Exercise due:today recur:1d
+list
+cl 1 2,3                # parent stays open as members recur
+```
+
+Use `ucl` (unchecklist) to remove tasks from a checklist:
+
+```
+ucl 2                   # task 2 becomes a regular task
+ucl 2,3,4               # multiple tasks
+```
+
+Filter checklists with `list !checklist` or `list !cl`.
 
 ### Contexts (GTD)
 

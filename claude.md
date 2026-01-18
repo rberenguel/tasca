@@ -16,17 +16,18 @@ Tasca is a local-first Progressive Web App (PWA) task manager inspired by Taskwa
 
 ```
 src/js/
-├── app.js       # Entry point & initialization
-├── commands.js  # Command parsing & handlers (largest file)
-├── context.js   # GTD context feature (persistent filters)
-├── db.js        # IndexedDB abstraction layer
-├── input.js     # Input handling, autocomplete, history
-├── list.js      # Task filtering, sorting, display logic
-├── logic.js     # Business logic (urgency calc, filtering)
-├── state.js     # Shared application state
-├── today.js     # Today view sections (started, overdue, ready)
-├── ui.js        # UI rendering (tables, formatting)
-└── utils.js     # Utilities (date parsing, UUIDs, recurrence)
+├── app.js                # Entry point & initialization
+├── commands.js           # Command parsing & handlers (largest file)
+├── commands-checklist.js # Checklist feature (grouping tasks)
+├── context.js            # GTD context feature (persistent filters)
+├── db.js                 # IndexedDB abstraction layer
+├── input.js              # Input handling, autocomplete, history
+├── list.js               # Task filtering, sorting, display logic
+├── logic.js              # Business logic (urgency calc, filtering)
+├── state.js              # Shared application state
+├── today.js              # Today view sections (started, overdue, ready)
+├── ui.js                 # UI rendering (tables, formatting)
+└── utils.js              # Utilities (date parsing, UUIDs, recurrence)
 ```
 
 ## Key Files
@@ -39,7 +40,7 @@ src/js/
 
 ## Commands Reference
 
-Task commands: `add`, `delete`, `done`, `start`, `stop`, `modify`, `edit/ed`, `annotate`, `info`, `skip`, `open/o`
+Task commands: `add`, `delete`, `done`, `start`, `stop`, `modify`, `edit/ed`, `annotate`, `info`, `skip`, `open/o`, `checklist/cl`, `unchecklist/ucl`
 Views: `list`, `next`, `calendar/cal`, `projects`, `chain`
 Data: `export/exp`, `import/imp`, `link`, `load`, `save`, `unlink`, `status/stat`
 Context: `context/ctx/c` (GTD persistent filters), `day`/`today` (shortcut for `context !today`)
@@ -137,6 +138,45 @@ skip 2-4        # skip tasks 2, 3, 4
 ```
 
 Undo works atomically - one undo reverts all changes from a multi-ID command.
+
+## Checklists
+
+Group related tasks under a parent container:
+
+```
+add Deploy release
+add Run tests
+add Update changelog
+list
+cl 1 2,3                # tasks 2,3 become members of task 1
+```
+
+**Data model**:
+
+- Parent: `checklist: "parent"` property
+- Members: `checklist: PARENT_UUID` property, `order: N` for sequencing
+
+**Rendering**:
+
+- Today/list views: members expanded under parent with checkbox icons (☐ pending, ☑ done, ⊘ skipped, ⏱ waiting)
+- Next view: summary format showing `(done/total)` count
+- Calendar view: members shown individually with checklist icon indicator
+
+**Auto-completion**: Parent auto-completes when all members are done/skipped AND no member has `recur` set. Recurring checklists (e.g., daily routines) never auto-complete.
+
+**Commands**:
+
+- `checklist PARENT_ID MEMBER_IDS` (alias: `cl`) - create/update checklist
+- `unchecklist MEMBER_IDS` (alias: `ucl`) - remove tasks from checklist
+
+**Constraints**:
+
+- Parents cannot have `recur` set
+- A task cannot be both a parent and a member
+
+**Virtual tag**: `!checklist` (shorthand: `!cl`) matches parents and members.
+
+**Implementation**: `commands-checklist.js` contains all checklist logic.
 
 ## Task Options
 
@@ -240,6 +280,7 @@ Virtual tags are computed filters (not stored on tasks). Used in `list`, `contex
 | `!done`      | `!d`                   | Completed tasks                 |
 | `!active`    | `!a`, `!act`           | Started tasks                   |
 | `!recurring` | `!r`, `!rec`, `!recur` | Tasks with recurrence           |
+| `!checklist` | `!cl`                  | Checklist parents and members   |
 | `!someday`   | `!sd`                  | Tasks tagged someday            |
 | `!routine`   | `!rt`                  | Tasks tagged routine            |
 | `!reference` | `!ref`, `!refs`        | Tasks in reference projects     |

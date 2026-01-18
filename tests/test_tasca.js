@@ -3960,4 +3960,73 @@ describe("Checklist E2E Tests", function () {
       expect(await shouldAutoComplete(parent.uuid, dbOps)).to.be.false;
     });
   });
+
+  describe("export/import round-trip", function () {
+    it("should preserve checklist properties through export and re-import", async function () {
+      // Create a checklist
+      await execute("add Deploy release");
+      await execute("add Run tests");
+      await execute("add Update changelog");
+      await execute("list");
+      await execute("cl 1 2,3");
+
+      // Verify checklist is set up
+      const originalTasks = await dbOps.getAll();
+      const originalParent = originalTasks.find(
+        (t) => t.description === "Deploy release"
+      );
+      const originalMember1 = originalTasks.find(
+        (t) => t.description === "Run tests"
+      );
+      const originalMember2 = originalTasks.find(
+        (t) => t.description === "Update changelog"
+      );
+
+      expect(isChecklistParent(originalParent)).to.be.true;
+      expect(isChecklistMember(originalMember1)).to.be.true;
+      expect(originalMember1.checklist).to.equal(originalParent.uuid);
+      expect(originalMember1.order).to.equal(1);
+      expect(originalMember2.order).to.equal(2);
+
+      // Simulate export (JSON.stringify is what export uses)
+      const exportData = {
+        tasks: originalTasks,
+        projects: [],
+        savedAt: Date.now(),
+      };
+      const exportedJson = JSON.stringify(exportData);
+
+      // Clear database
+      await dbOps.purgeAll();
+      let clearedTasks = await dbOps.getAll();
+      expect(clearedTasks).to.have.length(0);
+
+      // Simulate import (parse JSON and update each task)
+      const importedData = JSON.parse(exportedJson);
+      for (const t of importedData.tasks) {
+        if (t.uuid) await dbOps.update(t, { touch: false });
+      }
+
+      // Verify checklist properties are preserved
+      const importedTasks = await dbOps.getAll();
+      const importedParent = importedTasks.find(
+        (t) => t.description === "Deploy release"
+      );
+      const importedMember1 = importedTasks.find(
+        (t) => t.description === "Run tests"
+      );
+      const importedMember2 = importedTasks.find(
+        (t) => t.description === "Update changelog"
+      );
+
+      expect(importedTasks).to.have.length(3);
+      expect(isChecklistParent(importedParent)).to.be.true;
+      expect(importedParent.checklist).to.equal("parent");
+      expect(isChecklistMember(importedMember1)).to.be.true;
+      expect(importedMember1.checklist).to.equal(importedParent.uuid);
+      expect(importedMember1.order).to.equal(1);
+      expect(importedMember2.checklist).to.equal(importedParent.uuid);
+      expect(importedMember2.order).to.equal(2);
+    });
+  });
 });

@@ -10,6 +10,7 @@ import {
 import { formatInlineCode, renderProjectsTable } from "./ui.js";
 import { displayMapRef } from "./state.js";
 import { mergeFilters } from "./context.js";
+import { isChecklistMember } from "./commands-checklist.js";
 
 // Helper to convert icon name to Phosphor class
 const iconClass = (name) =>
@@ -299,7 +300,10 @@ export const handleCalendar = async (args, print) => {
       for (const e of groups[dayKey]) {
         const t = e.task;
         const typeLabel = `<span style="color:var(--base01)">[${e.type}]</span>`;
-        let desc = formatInlineCode(t.description);
+        const clIcon = isChecklistMember(t)
+          ? `<i class="ph-light ph-list-checks" style="color:var(--base01);margin-right:4px"></i>`
+          : "";
+        let desc = clIcon + formatInlineCode(t.description);
         if (t.priority)
           desc += ` <span style="color:var(--magenta)">pri:${t.priority}</span>`;
         if (t.project) {

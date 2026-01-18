@@ -348,7 +348,7 @@ export const handleHelp = async (ctx) => {
   const sub = ctx.args[0];
   if (!sub) {
     ctx.print(
-      `<div class="msg-standalone"><span style="color:var(--yellow)">Commands:</span> add, list, done, skip, delete, modify, edit, annotate, undo, info, open, track, chain, projects, context, day, calendar, report, status, export, import, icon. Type <span class="msg-hl">help [cmd]</span> for details.</div>`,
+      `<div class="msg-standalone"><span style="color:var(--yellow)">Commands:</span> add, list, done, skip, delete, modify, edit, annotate, undo, info, open, track, chain, checklist, projects, context, day, calendar, report, status, export, import, icon. Type <span class="msg-hl">help [cmd]</span> for details.</div>`,
       false,
     );
   } else {
@@ -370,7 +370,7 @@ export const handleHelp = async (ctx) => {
       );
     else if (c === "list")
       ctx.print(
-        `<div class="msg-help msg-standalone"><span class="msg-hl">list</span> [search] <span class="msg-arg">pro:Project</span> <span class="msg-arg">!tag</span> <span class="msg-arg">end:1w</span><br>Virtual: <span class="msg-arg">!overdue</span> <span class="msg-arg">!today</span> <span class="msg-arg">!waiting</span> <span class="msg-arg">!scheduled</span> <span class="msg-arg">!recurring</span> <span class="msg-arg">!blocked</span> <span class="msg-arg">!someday</span> <span class="msg-arg">!done</span> <span class="msg-arg">!all</span></div>`,
+        `<div class="msg-help msg-standalone"><span class="msg-hl">list</span> [search] <span class="msg-arg">pro:Project</span> <span class="msg-arg">!tag</span> <span class="msg-arg">end:1w</span><br>Virtual: <span class="msg-arg">!overdue</span> <span class="msg-arg">!today</span> <span class="msg-arg">!waiting</span> <span class="msg-arg">!scheduled</span> <span class="msg-arg">!recurring</span> <span class="msg-arg">!blocked</span> <span class="msg-arg">!checklist</span> <span class="msg-arg">!someday</span> <span class="msg-arg">!done</span> <span class="msg-arg">!all</span></div>`,
         false,
       );
     else if (c === "done")
@@ -486,6 +486,16 @@ export const handleHelp = async (ctx) => {
     else if (c === "track")
       ctx.print(
         `<div class="msg-help msg-standalone"><span class="msg-hl">track</span> ID [value] (aliases: <span class="msg-hl">t</span>, <span class="msg-hl">tra</span>)<br>Track effort on a task.<br>Usage: <span class="msg-arg">track 1 30m</span> (minutes), <span class="msg-arg">track 1 50%</span> (percentage), or <span class="msg-arg">track 1</span> (worked on today).</div>`,
+        false,
+      );
+    else if (c === "checklist" || c === "cl")
+      ctx.print(
+        `<div class="msg-help msg-standalone"><span class="msg-hl">checklist</span> PARENT_ID MEMBER_IDS (alias: <span class="msg-hl">cl</span>)<br>Group tasks into a checklist. Members show under parent with checkbox icons.<br>Usage: <span class="msg-arg">cl 1 2,3,4</span> or <span class="msg-arg">cl 1 2-5</span><br>Auto-completes parent when all members are done/skipped (non-recurring only).</div>`,
+        false,
+      );
+    else if (c === "unchecklist" || c === "ucl")
+      ctx.print(
+        `<div class="msg-help msg-standalone"><span class="msg-hl">unchecklist</span> MEMBER_IDS (alias: <span class="msg-hl">ucl</span>)<br>Remove tasks from their checklist. Clears checklist and order properties.<br>Usage: <span class="msg-arg">ucl 2</span> or <span class="msg-arg">ucl 2,3,4</span></div>`,
         false,
       );
     else

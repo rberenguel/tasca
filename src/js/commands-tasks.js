@@ -399,7 +399,7 @@ export const handleModify = async (ctx) => {
       const task = await ctx.dbOps.get(uuid);
       if (task && isChecklistParent(task)) {
         return ctx.print(
-          '<span class="msg-error">Cannot add recurrence to checklist parent.</span>'
+          '<span class="msg-error">Cannot add recurrence to checklist parent.</span>',
         );
       }
     }
@@ -797,13 +797,14 @@ export const handleInfo = async (ctx) => {
   if (isChecklistParent(t)) {
     const members = await getChecklistMembers(t.uuid, ctx.dbOps);
     const pendingMembers = members.filter(
-      (m) => m.status === "pending" || (m.recur && m.status !== "pending")
+      (m) => m.status === "pending" || (m.recur && m.status !== "pending"),
     );
     html += `<div style="margin-top:5px; border-top:1px dashed var(--base01); padding-top:5px"><b>Checklist:</b> ${pendingMembers.length} member(s)</div>`;
     pendingMembers
       .sort((a, b) => (a.order || 999) - (b.order || 999))
       .forEach((m, i) => {
-        const statusIcon = m.status === "completed" ? "☑" : m.status === "skipped" ? "⊘" : "☐";
+        const statusIcon =
+          m.status === "completed" ? "☑" : m.status === "skipped" ? "⊘" : "☐";
         html += `<div style="margin-left:10px; font-size:0.9em; color:var(--base1)"><span style="color:var(--base01)">${statusIcon}</span> ${m.description}</div>`;
       });
   } else if (isChecklistMember(t)) {

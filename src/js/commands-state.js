@@ -6,6 +6,11 @@ import {
   uniqueTimestamp,
 } from "./utils.js";
 import { pushUndo, popUndo } from "./undo.js";
+import {
+  isChecklistMember,
+  getChecklistParentUuid,
+  maybeAutoCompleteParent,
+} from "./commands-checklist.js";
 
 // Parse multi-ID syntax: "1", "1,3,5", "1-3", or "1,3-5,7"
 // Returns array of valid display IDs (1-indexed)
@@ -122,10 +127,17 @@ export const handleDone = async (ctx) => {
 
   const allUndoRecords = [];
   let recurringCount = 0;
+  const affectedParentUuids = new Set();
 
   for (const uuid of uuids) {
     const task = await ctx.dbOps.get(uuid);
     if (!task) continue;
+
+    // Track parent if this is a checklist member
+    if (isChecklistMember(task)) {
+      const parentUuid = getChecklistParentUuid(task);
+      if (parentUuid) affectedParentUuids.add(parentUuid);
+    }
 
     allUndoRecords.push({ type: "update", task: structuredClone(task) });
     task.status = "completed";
@@ -166,8 +178,22 @@ export const handleDone = async (ctx) => {
     }
   }
 
+  // Check for checklist parent auto-completion
+  let autoCompletedCount = 0;
+  for (const parentUuid of affectedParentUuids) {
+    const undoRecord = await maybeAutoCompleteParent(parentUuid, ctx.dbOps);
+    if (undoRecord) {
+      allUndoRecords.push(undoRecord);
+      autoCompletedCount++;
+    }
+  }
+
   pushUndo({ type: "compound", records: allUndoRecords });
-  if (recurringCount > 0) {
+  if (autoCompletedCount > 0) {
+    ctx.print(
+      `<span class="msg-success">Completed. Checklist auto-completed.</span>`,
+    );
+  } else if (recurringCount > 0) {
     ctx.print(
       `<span class="msg-success">Completed ${uuids.length} task(s). ${recurringCount} recurring task(s) created.</span>`,
     );
@@ -187,16 +213,38 @@ export const handleDelete = async (ctx) => {
     return ctx.print('<span class="msg-error">Invalid ID.</span>');
 
   const allUndoRecords = [];
+  const affectedParentUuids = new Set();
 
   for (const uuid of uuids) {
     const task = await ctx.dbOps.get(uuid);
     if (!task) continue;
+
+    // Track parent if this is a checklist member
+    if (isChecklistMember(task)) {
+      const parentUuid = getChecklistParentUuid(task);
+      if (parentUuid) affectedParentUuids.add(parentUuid);
+    }
+
     allUndoRecords.push({ type: "delete", task: structuredClone(task) });
     await ctx.dbOps.delete(uuid);
   }
 
+  // Check for checklist parent auto-completion
+  let autoCompletedCount = 0;
+  for (const parentUuid of affectedParentUuids) {
+    const undoRecord = await maybeAutoCompleteParent(parentUuid, ctx.dbOps);
+    if (undoRecord) {
+      allUndoRecords.push(undoRecord);
+      autoCompletedCount++;
+    }
+  }
+
   pushUndo({ type: "compound", records: allUndoRecords });
-  if (uuids.length > 1) {
+  if (autoCompletedCount > 0) {
+    ctx.print(
+      `<span class="msg-success">Deleted. Checklist auto-completed.</span>`,
+    );
+  } else if (uuids.length > 1) {
     ctx.print(
       `<span class="msg-success">Deleted ${uuids.length} tasks.</span>`,
     );
@@ -214,10 +262,17 @@ export const handleSkip = async (ctx) => {
   const allUndoRecords = [];
   let recurringCount = 0;
   let cancelledCount = 0;
+  const affectedParentUuids = new Set();
 
   for (const uuid of uuids) {
     const task = await ctx.dbOps.get(uuid);
     if (!task) continue;
+
+    // Track parent if this is a checklist member
+    if (isChecklistMember(task)) {
+      const parentUuid = getChecklistParentUuid(task);
+      if (parentUuid) affectedParentUuids.add(parentUuid);
+    }
 
     allUndoRecords.push({ type: "update", task: structuredClone(task) });
 
@@ -254,20 +309,36 @@ export const handleSkip = async (ctx) => {
     }
   }
 
+  // Check for checklist parent auto-completion
+  let autoCompletedCount = 0;
+  for (const parentUuid of affectedParentUuids) {
+    const undoRecord = await maybeAutoCompleteParent(parentUuid, ctx.dbOps);
+    if (undoRecord) {
+      allUndoRecords.push(undoRecord);
+      autoCompletedCount++;
+    }
+  }
+
   pushUndo({ type: "compound", records: allUndoRecords });
 
-  const total = recurringCount + cancelledCount;
-  if (total === 1 && recurringCount === 1) {
+  if (autoCompletedCount > 0) {
     ctx.print(
-      '<span class="msg-success">Skipped. Next occurrence created.</span>',
+      `<span class="msg-success">Skipped. Checklist auto-completed.</span>`,
     );
-  } else if (total === 1 && cancelledCount === 1) {
-    ctx.print('<span class="msg-success">Cancelled.</span>');
   } else {
-    let msg = [];
-    if (recurringCount > 0) msg.push(`${recurringCount} skipped`);
-    if (cancelledCount > 0) msg.push(`${cancelledCount} cancelled`);
-    ctx.print(`<span class="msg-success">${msg.join(", ")}.</span>`);
+    const total = recurringCount + cancelledCount;
+    if (total === 1 && recurringCount === 1) {
+      ctx.print(
+        '<span class="msg-success">Skipped. Next occurrence created.</span>',
+      );
+    } else if (total === 1 && cancelledCount === 1) {
+      ctx.print('<span class="msg-success">Cancelled.</span>');
+    } else {
+      let msg = [];
+      if (recurringCount > 0) msg.push(`${recurringCount} skipped`);
+      if (cancelledCount > 0) msg.push(`${cancelledCount} cancelled`);
+      ctx.print(`<span class="msg-success">${msg.join(", ")}.</span>`);
+    }
   }
   ctx.markDirty();
   await ctx.runListRefresh();
