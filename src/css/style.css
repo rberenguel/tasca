@@ -391,22 +391,46 @@ tr.row-active .row-desc {
   }
 }
 
-/* Overdue section separator (today view) */
-.overdue-separator {
+/* Today view section separators */
+.overdue-separator,
+.started-separator,
+.ready-separator {
   border-top: 1px solid var(--red);
   margin: 12px 0 8px 0;
   position: relative;
 }
 
-.overdue-label {
+.overdue-label,
+.started-label,
+.ready-label {
   position: absolute;
   top: -0.6em;
   left: 0;
   background: var(--base03);
-  color: var(--red);
   font-size: 0.75em;
   padding: 0 6px;
   text-transform: lowercase;
+}
+
+.overdue-separator {
+  border-color: var(--red);
+}
+.overdue-label {
+  color: var(--red);
+}
+
+.started-separator {
+  border-color: var(--cyan);
+}
+.started-label {
+  color: var(--cyan);
+}
+
+.ready-separator {
+  border-color: var(--blue);
+}
+.ready-label {
+  color: var(--blue);
 }
 
 #update-banner {

@@ -713,27 +713,50 @@ export const handleInfo = async (ctx) => {
 };
 
 export const handleOpen = async (ctx) => {
-  const idArg = ctx.targetId || ctx.args[0];
+  const idArg = ctx.targetId?.toString() || ctx.args[0];
+  const uuids = await resolveRefs(idArg, ctx.displayMapRef, ctx.dbOps);
 
-  // Resolve ID - support both numeric IDs and x:name references
-  let uuid;
-  if (idArg && idArg.startsWith("x:")) {
-    const name = idArg.substring(2);
-    const all = await ctx.dbOps.getByStatus("pending");
-    const match = all.find((t) => t.target === name);
-    uuid = match?.uuid;
-  } else {
-    const id = parseInt(idArg);
-    uuid = id ? ctx.displayMapRef.value[id - 1] : null;
+  if (uuids.length === 0) {
+    return ctx.print('<span class="msg-error">Invalid ID.</span>');
   }
 
-  if (!uuid) return ctx.print('<span class="msg-error">Invalid ID.</span>');
-  const task = await ctx.dbOps.get(uuid);
+  const opened = [];
+  const noUrl = [];
 
-  if (!task.url) {
-    return ctx.print('<span class="msg-error">Task has no URL.</span>');
+  for (const uuid of uuids) {
+    const task = await ctx.dbOps.get(uuid);
+    if (!task) continue;
+
+    if (!task.url) {
+      noUrl.push(task.description);
+      continue;
+    }
+
+    window.open(task.url, "_blank", "noopener");
+    opened.push(task.url);
   }
 
-  window.open(task.url, "_blank", "noopener");
-  ctx.print(`<span class="msg-success">Opened ${task.url}</span>`);
+  // Report results
+  const messages = [];
+  if (opened.length > 0) {
+    if (opened.length === 1) {
+      messages.push(`<span class="msg-success">Opened ${opened[0]}</span>`);
+    } else {
+      messages.push(
+        `<span class="msg-success">Opened ${opened.length} URLs</span>`,
+      );
+    }
+  }
+  if (noUrl.length > 0) {
+    if (noUrl.length === 1) {
+      messages.push(
+        `<span class="msg-error">Task has no URL: ${noUrl[0]}</span>`,
+      );
+    } else {
+      messages.push(
+        `<span class="msg-error">${noUrl.length} tasks have no URL</span>`,
+      );
+    }
+  }
+  ctx.print(messages.join("<br>"));
 };

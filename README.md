@@ -22,6 +22,7 @@ Tasca runs entirely in the browser using IndexedDB for storage. No server requir
 | `annotate <ID> -N`                | Remove annotation by index               |
 | `undo`                            | Revert last task operation               |
 | `info` / `i <ID>`                 | Show task details                        |
+| `open` / `o <ID>`                 | Open task URL in new tab                 |
 | `chain` / `tree` / `deps` <ID>    | Show dependency tree                     |
 | `projects`                        | List all projects                        |
 | `context` / `ctx` / `c [filters]` | Set/clear persistent context             |
@@ -71,6 +72,19 @@ Virtual tags: `!overdue`, `!today`, `!waiting`, `!scheduled`, `!recurring`, `!bl
 
 Example: `list !done end:1w` — review tasks completed in the last week.
 
+### Multi-ID Commands
+
+Commands `done`, `delete`, `skip`, `modify`, and `open` support multiple IDs:
+
+```
+done 1,3,5              # complete tasks 1, 3, and 5
+delete 1-3              # delete tasks 1 through 3
+mod 1,3-5 !tag          # add tag to tasks 1, 3, 4, 5
+open 1-3                # open URLs from tasks 1, 2, 3
+```
+
+Undo works atomically — one undo reverts all changes from a multi-ID command.
+
 ### Contexts (GTD)
 
 Set a persistent filter context that auto-applies to `list`/`next` and inherits to new tasks:
@@ -100,6 +114,10 @@ The `day` or `today` commands set context to `!today` with special behavior:
 - Shows all tasks due today, including waiting tasks (e.g., routines with `wait:`)
 - Tasks are sorted by `order:N` (ascending, lower first), then by urgency
 - The order value is displayed as a small number before the task description
+- Additional sections appear below the main list:
+  - **started** (cyan): Active tasks not due today — good for ongoing work
+  - **overdue** (red): Past due tasks not yet started
+  - **ready** (blue): Tasks whose wait period ended earlier today
 
 ```
 add Morning routine due:today order:1 wait:6h recur:1d

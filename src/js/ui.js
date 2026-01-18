@@ -232,7 +232,7 @@ export const renderTable = (
   projects = [],
   headerHtml = null,
   isTodayView = false,
-  overdueTasks = [],
+  sections = { started: [], overdue: [], ready: [] },
 ) => {
   setProjectMetadata(projects);
 
@@ -310,7 +310,9 @@ export const renderTable = (
     }
   }
 
-  const totalTasks = (tasks?.length || 0) + (overdueTasks?.length || 0);
+  const { started = [], overdue = [], ready = [] } = sections;
+  const totalTasks =
+    (tasks?.length || 0) + started.length + overdue.length + ready.length;
   if (totalTasks === 0) {
     displayMapRef.value = [];
     const { wrapper } = createTableStruct();
@@ -323,8 +325,10 @@ export const renderTable = (
     return print(container, false);
   }
 
-  // Include both today and overdue tasks in displayMapRef for ID resolution
-  displayMapRef.value = [...tasks, ...overdueTasks].map((t) => t.uuid);
+  // Include all sections in displayMapRef for ID resolution
+  displayMapRef.value = [...tasks, ...started, ...overdue, ...ready].map(
+    (t) => t.uuid,
+  );
   const { wrapper, tbody } = createTableStruct();
 
   // Helper to render a single task row
@@ -514,35 +518,50 @@ export const renderTable = (
 
   container.appendChild(wrapper);
 
-  // Render overdue section if there are overdue tasks
-  if (overdueTasks.length > 0) {
-    // Red separator line
+  // Helper to render a section with a separator
+  const renderSection = (sectionTasks, name, startIndex) => {
+    if (sectionTasks.length === 0) return startIndex;
+
     const separator = document.createElement("div");
-    separator.className = "overdue-separator";
-    separator.innerHTML = '<span class="overdue-label">overdue</span>';
+    separator.className = `${name}-separator`;
+    separator.innerHTML = `<span class="${name}-label">${name}</span>`;
     container.appendChild(separator);
 
-    // Overdue table (no header)
-    const overdueWrapper = document.createElement("div");
-    overdueWrapper.className = "table-wrapper";
-    const overdueTable = document.createElement("table");
-    const overdueTbody = document.createElement("tbody");
-    overdueTable.appendChild(overdueTbody);
-    overdueWrapper.appendChild(overdueTable);
-    overdueTasks.forEach((t, index) => {
-      overdueTbody.appendChild(renderTaskRow(t, tasks.length + index));
+    const sectionWrapper = document.createElement("div");
+    sectionWrapper.className = "table-wrapper";
+    const sectionTable = document.createElement("table");
+    const sectionTbody = document.createElement("tbody");
+    sectionTable.appendChild(sectionTbody);
+    sectionWrapper.appendChild(sectionTable);
+    sectionTasks.forEach((t, index) => {
+      sectionTbody.appendChild(renderTaskRow(t, startIndex + index));
     });
-    container.appendChild(overdueWrapper);
-  }
+    container.appendChild(sectionWrapper);
+
+    return startIndex + sectionTasks.length;
+  };
+
+  // Render sections in order: started, overdue, ready
+  let nextIndex = tasks.length;
+  nextIndex = renderSection(started, "started", nextIndex);
+  nextIndex = renderSection(overdue, "overdue", nextIndex);
+  nextIndex = renderSection(ready, "ready", nextIndex);
 
   const footer = document.createElement("div");
   footer.style.fontSize = "0.8em";
   footer.style.color = "var(--base01)";
-  const total = tasks.length + overdueTasks.length;
-  if (overdueTasks.length > 0) {
-    footer.textContent = `${tasks.length} today + ${overdueTasks.length} overdue = ${total} tasks shown.`;
+
+  // Build footer text
+  const parts = [];
+  if (tasks.length > 0) parts.push(`${tasks.length} today`);
+  if (started.length > 0) parts.push(`${started.length} started`);
+  if (overdue.length > 0) parts.push(`${overdue.length} overdue`);
+  if (ready.length > 0) parts.push(`${ready.length} ready`);
+
+  if (parts.length > 1) {
+    footer.textContent = `${parts.join(" + ")} = ${totalTasks} tasks shown.`;
   } else {
-    footer.textContent = `${tasks.length} tasks shown.`;
+    footer.textContent = `${totalTasks} tasks shown.`;
   }
   container.appendChild(footer);
 

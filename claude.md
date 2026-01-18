@@ -24,6 +24,7 @@ src/js/
 ├── list.js      # Task filtering, sorting, display logic
 ├── logic.js     # Business logic (urgency calc, filtering)
 ├── state.js     # Shared application state
+├── today.js     # Today view sections (started, overdue, ready)
 ├── ui.js        # UI rendering (tables, formatting)
 └── utils.js     # Utilities (date parsing, UUIDs, recurrence)
 ```
@@ -32,6 +33,7 @@ src/js/
 
 - `commands.js` - All command implementations (`add`, `done`, `list`, `modify`, etc.)
 - `logic.js` - Urgency algorithm, virtual tags (`!overdue`, `!today`, etc.)
+- `today.js` - Today view section collection (started, overdue, ready)
 - `db.js` - Database schema (tasks, projects, settings stores)
 - `utils.js` - Date parsing (`Nd`, `Nw`, `today`), recurrence logic
 
@@ -117,13 +119,15 @@ Can also use `list !modified` (or `list !m`) directly to see modified tasks.
 open 1        # opens URL of task 1
 1 o           # same, reversed syntax
 open x:docs   # open by target reference
+open 1,3,5    # open multiple tasks
+open 1-3      # open range of tasks
 ```
 
-Shows an error if the task has no URL.
+Shows an error if any task has no URL.
 
 ## Multi-ID Commands
 
-Commands `done`, `delete`, `skip`, and `modify` support multiple IDs:
+Commands `done`, `delete`, `skip`, `modify`, and `open` support multiple IDs:
 
 ```
 done 1,3,5      # complete tasks 1, 3, and 5
@@ -213,9 +217,14 @@ Animation styles:
 
 ## Testing
 
-Run tests by opening `tests/index.html` in browser. Tests cover urgency calculation, filtering, virtual tags, date handling, and recurrence.
+Run tests by opening `tests/index.html` in browser. Tests cover urgency calculation, filtering, virtual tags, date handling, recurrence, and E2E command tests.
 
-**Important**: When adding new logic (especially in `logic.js`, `utils.js`), add corresponding tests in `tests/test_tasca.js`. Export new functions and import them in the test file.
+**IMPORTANT**:
+
+- Always run tests after making changes to verify nothing is broken
+- When adding new logic (especially in `logic.js`, `utils.js`, `today.js`), add corresponding tests in `tests/test_tasca.js`
+- Export new functions and import them in the test file
+- The test file uses Mocha/Chai and runs in the browser
 
 ## Virtual Tags
 

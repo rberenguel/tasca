@@ -16,6 +16,12 @@ import {
   updateCache,
 } from "./state.js";
 import { mergeFilters, hasContext } from "./context.js";
+import {
+  collectStartedTasks,
+  collectOverdueTasks,
+  collectReadyTasks,
+  sortTodayTasks,
+} from "./today.js";
 
 export const runList = async (
   args,
@@ -216,19 +222,7 @@ export const runList = async (
     });
   } else if (isTodayView) {
     // Today view: sort by order (ascending, nulls last), then urgency
-    tasks.sort((a, b) => {
-      // Order first (ascending, nulls/undefined last)
-      const aOrder = a.order != null ? a.order : Infinity;
-      const bOrder = b.order != null ? b.order : Infinity;
-      if (aOrder !== bOrder) return aOrder - bOrder;
-      // Then urgency (descending)
-      const urgDiff = parseFloat(b.urgency) - parseFloat(a.urgency);
-      if (urgDiff !== 0) return urgDiff;
-      // Tiebreaker: older tasks first
-      const entryDiff = (a.entry || 0) - (b.entry || 0);
-      if (entryDiff !== 0) return entryDiff;
-      return (a.uuid || "").localeCompare(b.uuid || "");
-    });
+    sortTodayTasks(tasks);
   } else {
     tasks.sort((a, b) => {
       const urgDiff = parseFloat(b.urgency) - parseFloat(a.urgency);
@@ -258,43 +252,13 @@ export const runList = async (
     tasks = tasks.slice(0, limit);
   }
 
-  // In today view, also show overdue tasks in a separate section
-  let overdueTasks = [];
+  // In today view, collect additional sections
+  let sections = { started: [], overdue: [], ready: [] };
   if (isTodayView) {
-    const today = formatDateOnly(Date.now());
-    // Get overdue tasks: pending, due before today, not waiting/scheduled
-    overdueTasks = all.filter((t) => {
-      if (t.status !== "pending") return false;
-      if (!t.due) return false;
-      if (formatDateOnly(t.due) >= today) return false; // not overdue
-      // Respect waiting/scheduled
-      if (t.wait && t.wait > Date.now()) return false;
-      if (t.sched && t.sched > Date.now()) return false;
-      // Respect project filter if set
-      if (fProj && !matchesProject(t.project, fProj)) return false;
-      // Respect search filter if set
-      if (
-        search.length &&
-        !search.every((s) => t.description.toLowerCase().includes(s))
-      )
-        return false;
-      return true;
-    });
-    // Calculate urgency for overdue tasks
-    overdueTasks.forEach(
-      (t) => (t.urgency = calculateUrgency(t, all, projects)),
-    );
-    // Sort overdue by order, then urgency (same as today)
-    overdueTasks.sort((a, b) => {
-      const aOrder = a.order != null ? a.order : Infinity;
-      const bOrder = b.order != null ? b.order : Infinity;
-      if (aOrder !== bOrder) return aOrder - bOrder;
-      const urgDiff = parseFloat(b.urgency) - parseFloat(a.urgency);
-      if (urgDiff !== 0) return urgDiff;
-      const entryDiff = (a.entry || 0) - (b.entry || 0);
-      if (entryDiff !== 0) return entryDiff;
-      return (a.uuid || "").localeCompare(b.uuid || "");
-    });
+    const filterOpts = { project: fProj, search };
+    sections.started = collectStartedTasks(all, projects, filterOpts);
+    sections.overdue = collectOverdueTasks(all, projects, filterOpts);
+    sections.ready = collectReadyTasks(all, projects, filterOpts);
   }
 
   renderTable(
@@ -304,6 +268,6 @@ export const runList = async (
     projects,
     headerHtml,
     isTodayView,
-    overdueTasks,
+    sections,
   );
 };

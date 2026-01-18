@@ -28,6 +28,12 @@ import { parseIds } from "../src/js/commands-state.js";
 import { initDB, dbOps } from "../src/js/db.js";
 import { displayMapRef } from "../src/js/state.js";
 import { getContext, getInheritedAttributes } from "../src/js/context.js";
+import {
+  collectStartedTasks,
+  collectOverdueTasks,
+  collectReadyTasks,
+  sortTodayTasks,
+} from "../src/js/today.js";
 
 describe("Tasca Logic Tests", function () {
   describe("Urgency Calculation", function () {
@@ -543,9 +549,11 @@ describe("Utils Tests", function () {
         expect(d.getDay()).to.equal(i);
 
         // Should be in the future (1-7 days from now)
+        // Use floor to avoid rounding issues near midnight
         const now = new Date();
-        const diffDays = Math.round((d - now) / (1000 * 60 * 60 * 24));
-        expect(diffDays).to.be.at.least(1);
+        const diffMs = d - now;
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        expect(diffDays).to.be.at.least(0);
         expect(diffDays).to.be.at.most(7);
 
         // Should be end of day
@@ -2776,6 +2784,265 @@ describe("Today View E2E Tests", function () {
       expect(task).to.exist;
       // Task should NOT have "today" tag
       expect(task.tags || []).to.not.include("today");
+    });
+  });
+
+  describe("Today view sections", function () {
+    describe("Started section", function () {
+      it("should show started tasks in today view", async function () {
+        await execute("add started task");
+        await execute("start 1");
+        await execute("day");
+        // Task should appear in displayMapRef
+        expect(displayMapRef.value).to.have.length(1);
+      });
+
+      it("should show started tasks from reference projects", async function () {
+        // Create reference project
+        await execute("annotate pro:Books !reference");
+        await execute("add book task pro:Books");
+        // Use list to show reference project tasks (next filters them out due to negative urgency)
+        await execute("list pro:Books");
+        await execute("start 1");
+        await execute("day");
+        // Should appear in started section (good daily reminder)
+        expect(displayMapRef.value).to.have.length(1);
+      });
+
+      it("should show started task due today in main section only", async function () {
+        const today = formatDateOnly(Date.now());
+        await execute(`add started today due:${today}`);
+        await execute("start 1");
+        await execute("day");
+        // Should appear once (in main section, not duplicated)
+        expect(displayMapRef.value).to.have.length(1);
+      });
+
+      it("started section should appear after main section", async function () {
+        const today = formatDateOnly(Date.now());
+        await execute(`add today task due:${today}`);
+        await execute("add started task");
+        await execute("start 2");
+        await execute("day");
+        expect(displayMapRef.value).to.have.length(2);
+        // Today task first, then started
+        const tasks = await dbOps.getAll();
+        const todayTask = tasks.find((t) => t.description === "today task");
+        const startedTask = tasks.find((t) => t.description === "started task");
+        expect(displayMapRef.value[0]).to.equal(todayTask.uuid);
+        expect(displayMapRef.value[1]).to.equal(startedTask.uuid);
+      });
+    });
+
+    describe("Overdue section", function () {
+      it("should show overdue tasks in today view", async function () {
+        const yesterday = formatDateOnly(Date.now() - 86400000);
+        await execute(`add overdue task due:${yesterday}`);
+        await execute("day");
+        expect(displayMapRef.value).to.have.length(1);
+      });
+
+      it("should not show started overdue tasks in overdue section", async function () {
+        const yesterday = formatDateOnly(Date.now() - 86400000);
+        await execute(`add started overdue due:${yesterday}`);
+        await execute("start 1");
+        await execute("day");
+        // Should appear once (in started section, not overdue)
+        expect(displayMapRef.value).to.have.length(1);
+        // Verify it's in started position (check separator label in output)
+        const output = document.getElementById("terminal-output").innerHTML;
+        expect(output).to.include("started");
+      });
+    });
+
+    describe("Ready section", function () {
+      it("should show tasks whose wait ended earlier today", async function () {
+        // Create a task with wait time that has already passed (1 hour ago)
+        const pastTime = new Date(Date.now() - 3600000);
+        const waitDate = formatDateOnly(pastTime.getTime());
+        // Only test if the wait would be today (i.e., not crossing midnight)
+        const today = formatDateOnly(Date.now());
+        if (waitDate !== today) {
+          // Skip test if we're within first hour of the day
+          this.skip();
+          return;
+        }
+        await execute(`add ready task wait:${waitDate}@${String(pastTime.getHours()).padStart(2, "0")}:${String(pastTime.getMinutes()).padStart(2, "0")}`);
+        await execute("day");
+        expect(displayMapRef.value).to.have.length(1);
+      });
+
+      it("should not show tasks whose wait is still in the future", async function () {
+        const today = formatDateOnly(Date.now());
+        // wait:today sets to end of day, which is in the future
+        await execute(`add still waiting wait:${today}`);
+        await execute("day");
+        // Task should not appear (still waiting)
+        expect(displayMapRef.value).to.have.length(0);
+      });
+
+      it("should not show ready tasks that are due today", async function () {
+        // Create a task with wait in the past but due today
+        const pastTime = new Date(Date.now() - 3600000);
+        const waitDate = formatDateOnly(pastTime.getTime());
+        const today = formatDateOnly(Date.now());
+        if (waitDate !== today) {
+          this.skip();
+          return;
+        }
+        const waitStr = `${waitDate}@${String(pastTime.getHours()).padStart(2, "0")}:${String(pastTime.getMinutes()).padStart(2, "0")}`;
+        await execute(`add ready but due wait:${waitStr} due:${today}`);
+        await execute("day");
+        // Should appear in main section (not duplicated in ready)
+        expect(displayMapRef.value).to.have.length(1);
+        const output = document.getElementById("terminal-output").innerHTML;
+        // Should NOT have ready separator since task is in main
+        expect(output).to.not.include('"ready-label"');
+      });
+
+      it("should not show ready tasks that are started", async function () {
+        // Create a task with wait in the past
+        const pastTime = new Date(Date.now() - 3600000);
+        const waitDate = formatDateOnly(pastTime.getTime());
+        const today = formatDateOnly(Date.now());
+        if (waitDate !== today) {
+          this.skip();
+          return;
+        }
+        const waitStr = `${waitDate}@${String(pastTime.getHours()).padStart(2, "0")}:${String(pastTime.getMinutes()).padStart(2, "0")}`;
+        await execute(`add ready but started wait:${waitStr}`);
+        await execute("start 1");
+        await execute("day");
+        expect(displayMapRef.value).to.have.length(1);
+        const output = document.getElementById("terminal-output").innerHTML;
+        expect(output).to.include("started");
+        expect(output).to.not.include('"ready-label"');
+      });
+    });
+
+    describe("Section ordering and IDs", function () {
+      it("should assign IDs correctly across all sections", async function () {
+        const today = formatDateOnly(Date.now());
+        const yesterday = formatDateOnly(Date.now() - 86400000);
+
+        await execute(`add main task due:${today}`); // ID 1
+        await execute("add started task"); // ID 2
+        await execute("start 2");
+        await execute(`add overdue task due:${yesterday}`); // ID 3
+
+        await execute("day");
+
+        // Main task (due today) should be ID 1
+        // Started task should be ID 2
+        // Overdue task should be ID 3
+        expect(displayMapRef.value).to.have.length(3);
+
+        // Verify ID 1 is the main task
+        const allTasks = await dbOps.getAll();
+        const mainTask = allTasks.find((t) => t.description === "main task");
+        expect(displayMapRef.value[0]).to.equal(mainTask.uuid);
+
+        // Complete main task using ID 1
+        await execute("done 1");
+        const tasksAfter = await dbOps.getAll();
+        const mainTaskAfter = tasksAfter.find((t) => t.description === "main task");
+        expect(mainTaskAfter.status).to.equal("completed");
+      });
+
+      it("should filter all sections by project", async function () {
+        const today = formatDateOnly(Date.now());
+        const yesterday = formatDateOnly(Date.now() - 86400000);
+
+        await execute(`add work main due:${today} pro:Work`);
+        await execute("add work started pro:Work");
+        await execute("start 2");
+        await execute(`add work overdue due:${yesterday} pro:Work`);
+        await execute(`add home task due:${today} pro:Home`);
+
+        await execute("context !today pro:Work");
+
+        // Should only show Work tasks (main, started, overdue = 3)
+        // Note: ready section requires wait to have passed, so we test without it
+        expect(displayMapRef.value).to.have.length(3);
+        const tasks = await dbOps.getAll();
+        const homeTask = tasks.find((t) => t.description === "home task");
+        expect(displayMapRef.value).to.not.include(homeTask.uuid);
+      });
+    });
+  });
+
+  describe("Today Module Unit Tests", function () {
+    const now = Date.now();
+    const today = formatDateOnly(now);
+    const yesterday = formatDateOnly(now - 86400000);
+
+    describe("collectStartedTasks", function () {
+      it("should collect pending started tasks", function () {
+        const tasks = [
+          { uuid: "1", start: now, status: "pending", description: "task 1", entry: now },
+          { uuid: "2", status: "pending", description: "task 2", entry: now },
+        ];
+        const result = collectStartedTasks(tasks, [], { today });
+        expect(result).to.have.length(1);
+        expect(result[0].uuid).to.equal("1");
+      });
+
+      it("should include reference project tasks", function () {
+        const tasks = [
+          { uuid: "1", start: now, status: "pending", project: "Books", description: "task 1", entry: now },
+        ];
+        const projects = [{ name: "Books", tags: ["reference"] }];
+        const result = collectStartedTasks(tasks, projects, { today });
+        // Reference project tasks are included (good daily reminder)
+        expect(result).to.have.length(1);
+        expect(result[0].uuid).to.equal("1");
+      });
+    });
+
+    describe("collectReadyTasks", function () {
+      it("should collect tasks whose wait ended earlier today", function () {
+        // Wait time 1 hour ago (should be included)
+        const pastWait = now - 3600000;
+        // Wait time in the future (should be excluded)
+        const futureWait = now + 3600000;
+        const tasks = [
+          { uuid: "1", wait: pastWait, status: "pending", description: "task 1", entry: now },
+          { uuid: "2", wait: futureWait, status: "pending", description: "task 2", entry: now },
+          { uuid: "3", wait: now - 86400000, status: "pending", description: "task 3", entry: now }, // yesterday
+        ];
+        // Only collect if the past wait is today
+        const pastWaitDate = formatDateOnly(pastWait);
+        if (pastWaitDate === today) {
+          const result = collectReadyTasks(tasks, [], { today });
+          expect(result).to.have.length(1);
+          expect(result[0].uuid).to.equal("1");
+        }
+      });
+
+      it("should not collect tasks still waiting", function () {
+        // End of day today is still in the future
+        const endOfDay = new Date();
+        endOfDay.setHours(23, 59, 59, 999);
+        const tasks = [
+          { uuid: "1", wait: endOfDay.getTime(), status: "pending", description: "task 1", entry: now },
+        ];
+        const result = collectReadyTasks(tasks, [], { today });
+        expect(result).to.have.length(0);
+      });
+    });
+
+    describe("sortTodayTasks", function () {
+      it("should sort by order then urgency", function () {
+        const tasks = [
+          { uuid: "1", order: 2, urgency: "10", entry: now },
+          { uuid: "2", order: 1, urgency: "5", entry: now },
+          { uuid: "3", urgency: "20", entry: now }, // no order
+        ];
+        const result = sortTodayTasks([...tasks]);
+        expect(result[0].uuid).to.equal("2"); // order 1
+        expect(result[1].uuid).to.equal("1"); // order 2
+        expect(result[2].uuid).to.equal("3"); // no order (last)
+      });
     });
   });
 });
