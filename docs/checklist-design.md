@@ -111,19 +111,19 @@ Use cases:
 ### Today View (`day` / `!today` context)
 If any member is due today (matches `!today`), show:
 ```
- 1  □ Deploy release v2.0                      pro:Work
+ 1  ☰ Deploy release v2.0                      pro:Work
       ☑ Run test suite
       ☑ Update changelog
       □ Tag release
       ◇ Notify stakeholders (waiting)
 ```
 
-- Parent shown with hollow checkbox (never directly checkable)
+- Parent shown with checklist icon (e.g., `list-checks` from Phosphor)
 - Done members: filled checkbox (☑), possibly dimmed
 - Pending members: hollow checkbox (□)
 - Waiting/scheduled members: diamond (◇), dimmed
 - Members indented under parent
-- Order by `order` property
+- Member order via `order` property (reorder with `mod ID o:N`)
 
 ### Next View
 Compact summary format:
@@ -139,7 +139,7 @@ Compact summary format:
 Full expansion like Today view.
 
 ### Calendar View
-TBD - possibly show parent on dates where any member is due?
+Show member tasks individually on their due dates (not the parent). Optionally add a small checklist icon indicator to show they belong to a checklist.
 
 ## Implementation Phases
 
@@ -170,12 +170,17 @@ TBD - possibly show parent on dates where any member is due?
 - [ ] Export/import handling
 - [ ] Calendar view (if needed)
 
+## Resolved Decisions
+
+1. **`unchecklist` clears `order`**: Yes, for cleanliness
+2. **Calendar view**: Show member tasks individually, with optional checklist icon indicator
+3. **Reordering members**: Use `mod ID o:N` like today view
+4. **Parent icon**: Always checklist icon (e.g., `list-checks`)
+5. **Command shorthands**: `cl` for checklist, `ucl` for unchecklist
+
 ## Open Questions
 
-1. Should `order` be cleared by `unchecklist`? Probably yes for cleanliness.
-2. Calendar view behavior - show parent or individual members?
-3. Should there be a way to reorder members after initial `checklist` command? (Could just re-run `checklist PARENT new,order,here`)
-4. What icon for parent in today view? Hollow checkbox, or something else?
+(None currently)
 
 ## Test Cases
 
