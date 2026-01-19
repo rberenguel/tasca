@@ -88,6 +88,11 @@ export const execute = async (str) => {
       "status",
       "calendar",
       "cal",
+      "about",
+      "tree",
+      "chain",
+      "dependencies",
+      "dep",
     ].includes(cmd);
 
     // Build context object for handlers
@@ -131,10 +136,16 @@ export const execute = async (str) => {
     if (handler) {
       await handler(ctx);
     } else {
-      print(`<span class="msg-error">Unknown: ${cmd}</span>`);
+      print(`<span class="msg-error">Unknown: ${cmd}</span>`, false, {
+        dismissible: true,
+      });
+      lastCommandWasPassthrough = true;
     }
   } catch (err) {
     console.error(err);
-    print(`<span class="msg-error">Error: ${err.message}</span>`);
+    print(`<span class="msg-error">Error: ${err.message}</span>`, false, {
+      dismissible: true,
+    });
+    lastCommandWasPassthrough = true;
   }
 };

@@ -118,6 +118,8 @@ export const handleAbout = async (ctx) => {
   }
   ctx.print(
     `<div style="color:var(--base1)">Tasca v${version}<br>PWA task manager inspired by Taskwarrior.<br>Ruben Berenguel, 2025 with the help of Claude and Gemini.<br><br>Last save: ${lastSaveStr}</div>`,
+    false,
+    { dismissible: true },
   );
 };
 

@@ -562,13 +562,19 @@ export const renderTable = (
     }
     // Due (skip 0d in today view since it's redundant)
     if (t.due) {
-      const daysCheck = getDaysRemaining(t.due);
+      const daysCheck = getDaysRemaining(t.due, t.end || Date.now());
       if (!(isTodayView && daysCheck === 0)) {
         tdDesc.appendChild(document.createTextNode(" "));
         const dateSpan = document.createElement("span");
         let cls = "date-far";
-        if (daysCheck < C.daysWarning) cls = "date-urgent";
-        else if (daysCheck < C.daysSoon) cls = "date-soon";
+        if (t.end) {
+          // Done tasks: only show as urgent (red) if they were actually late
+          if (daysCheck < 0) cls = "date-urgent";
+        } else {
+          // Pending tasks: show warnings for soon/urgent
+          if (daysCheck < C.daysWarning) cls = "date-urgent";
+          else if (daysCheck < C.daysSoon) cls = "date-soon";
+        }
         dateSpan.className = `date-pill ${cls}`;
         dateSpan.textContent = `(${daysCheck}d)`;
         tdDesc.appendChild(dateSpan);
