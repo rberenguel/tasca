@@ -96,6 +96,22 @@ export const handleChain = async (args, print) => {
       roots.push(u);
   });
 
+  // Populate display map in visual order so IDs are sequential and correct
+  const displayIds = [];
+  const traverseForIds = (u) => {
+    // Avoid infinite recursion if there are cycles (though relevantUUIDs logic should prevent some)
+    if (displayIds.includes(u)) return;
+    displayIds.push(u);
+    const children = blocking[u]
+      ? blocking[u].filter((c) => relevantUUIDs.has(c))
+      : [];
+    children.forEach((child) => traverseForIds(child));
+  };
+
+  if (roots.length === 0 && relevantUUIDs.size > 0) traverseForIds(rootUuid);
+  else roots.forEach((r) => traverseForIds(r));
+  displayMapRef.value = displayIds;
+
   let html = '<div style="line-height: 1.5; font-family: monospace;">';
   const renderFinal = (u, prefix, isTail) => {
     const t = uuidMap[u];

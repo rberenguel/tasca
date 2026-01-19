@@ -194,6 +194,8 @@ tr.row-active .row-desc {
   color: var(--base01);
   font-weight: bold;
   width: 25px;
+  text-align: right;
+  padding-left: 0.3rem;
 }
 /* Project depth colors - cycle through solarized palette */
 .row-proj-d0 {
@@ -215,12 +217,13 @@ tr.row-active .row-desc {
   color: var(--blue);
 }
 .row-desc {
+  padding-left: 0.3em;
   word-break: break-word;
 }
 .row-urgency {
   color: var(--base01);
   text-align: right;
-  font-size: 0.9em;
+  font-size: 0.9rem;
   width: 40px;
 }
 
