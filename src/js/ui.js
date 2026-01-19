@@ -719,11 +719,11 @@ export const renderTable = (
     return startIndex + sectionTasks.length;
   };
 
-  // Render sections in order: started, overdue, ready
+  // Render sections in order: overdue, started, ready
   // Use displayIndex (which includes checklist members) not tasks.length
   let nextIndex = displayIndex;
-  nextIndex = renderSection(started, "started", nextIndex);
   nextIndex = renderSection(overdue, "overdue", nextIndex);
+  nextIndex = renderSection(started, "started", nextIndex);
   nextIndex = renderSection(ready, "ready", nextIndex);
 
   const footer = document.createElement("div");
