@@ -5,6 +5,11 @@ export const setupInput = (execute) => {
   const input = document.getElementById("cmd-input");
   const ghost = document.getElementById("ghost-input");
 
+  const resizeInput = () => {
+    input.style.height = "auto";
+    input.style.height = input.scrollHeight + "px";
+  };
+
   const updateGhost = () => {
     const val = input.value;
     const parts = val.split(" ");
@@ -65,7 +70,10 @@ export const setupInput = (execute) => {
     }
   };
 
-  input.addEventListener("input", updateGhost);
+  input.addEventListener("input", () => {
+    updateGhost();
+    resizeInput();
+  });
   // iOS fires compositionend after completing text input - ensure ghost updates
   input.addEventListener("compositionend", updateGhost);
 
@@ -90,7 +98,9 @@ export const setupInput = (execute) => {
       }
       input.value = historyState.cmdHistory[historyState.historyIndex];
       ghost.innerHTML = "";
+      resizeInput();
     }
+
     if (e.key === "ArrowDown") {
       e.preventDefault();
       if (historyState.historyIndex === -1) return;
@@ -108,6 +118,7 @@ export const setupInput = (execute) => {
       const val = input.value.trim();
       input.value = "";
       ghost.innerHTML = "";
+      resizeInput();
       if (val) {
         if (
           historyState.cmdHistory.length === 0 ||
@@ -178,6 +189,7 @@ export const setupInput = (execute) => {
       }
       input.value = historyState.cmdHistory[historyState.historyIndex];
       ghost.innerHTML = "";
+      resizeInput();
     } else {
       // Swipe down - next command
       if (historyState.historyIndex === -1) return;

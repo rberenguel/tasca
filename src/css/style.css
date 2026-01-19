@@ -112,7 +112,6 @@ textarea#cmd-input::placeholder {
 }
 
 textarea#cmd-input:placeholder-shown {
-  field-sizing: fixed;
   height: 24px;
 }
 
