@@ -668,7 +668,7 @@ export const renderTable = (
     }
   });
   // Add sections to display order
-  [...started, ...overdue, ...ready].forEach((t) => displayOrder.push(t.uuid));
+  [...overdue, ...started, ...ready].forEach((t) => displayOrder.push(t.uuid));
   // Set displayMapRef for ID resolution
   displayMapRef.value = displayOrder;
 
