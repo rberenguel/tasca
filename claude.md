@@ -259,12 +259,15 @@ Animation styles:
 
 Run tests by opening `tests/index.html` in browser. Tests cover urgency calculation, filtering, virtual tags, date handling, recurrence, and E2E command tests.
 
-**IMPORTANT**:
+**CRITICAL TESTING INSTRUCTIONS**:
 
-- Always run tests after making changes to verify nothing is broken
-- When adding new logic (especially in `logic.js`, `utils.js`, `today.js`), add corresponding tests in `tests/test_tasca.js`
-- Export new functions and import them in the test file
-- The test file uses Mocha/Chai and runs in the browser
+1.  **Browser Only**: This project uses a browser-based test runner (`index.html`). **Do not write Node.js tests.**
+2.  **Manual Registration**: When creating a new test file (e.g., `tests/test_feature.js`), **YOU MUST MANUALLY ADD IT** to `tests/index.html`.
+    - Add: `<script type="module" src="test_feature.js"></script>` to the body.
+    - If you forget this, the test will not run.
+3.  **Check Index**: Always verify that `tests/index.html` includes all files present in `tests/*.js` (except utility/runner files).
+4.  **Reference**: Use `tests/test_tasca.js` as the template for test structure (setup, mock context, imports).
+5.  **Imports**: Import source files directly from `../src/js/` (e.g., `import { dbOps } from "../src/js/db.js";`).
 
 ## Virtual Tags
 

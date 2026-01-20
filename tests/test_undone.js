@@ -68,12 +68,12 @@ describe("Undone Command Tests", function () {
     // 2. Complete Task
     ctx.args = ["1"];
     await handleDone(ctx);
-    
+
     // Verify recurrence
     all = await dbOps.getAll();
     expect(all).to.have.lengthOf(2);
-    const completedTask = all.find(t => t.uuid === originalUuid);
-    const futureTask = all.find(t => t.uuid !== originalUuid);
+    const completedTask = all.find((t) => t.uuid === originalUuid);
+    const futureTask = all.find((t) => t.uuid !== originalUuid);
     expect(completedTask.status).to.equal("completed");
     expect(futureTask.status).to.equal("pending");
 
@@ -86,7 +86,7 @@ describe("Undone Command Tests", function () {
 
     // Verify deletion of future task and restoration of original
     all = await dbOps.getAll();
-    expect(all).to.have.lengthOf(1); 
+    expect(all).to.have.lengthOf(1);
     const revertedTask = await dbOps.get(originalUuid);
     expect(revertedTask.status).to.equal("pending");
   });
@@ -99,7 +99,7 @@ describe("Undone Command Tests", function () {
     await handleAdd(ctx);
     ctx.args = ["Child"];
     await handleAdd(ctx);
-    
+
     let all = await dbOps.getAll();
     const parentUuid = all[0].uuid;
     const childUuid = all[1].uuid;
@@ -112,7 +112,7 @@ describe("Undone Command Tests", function () {
     // 3. Complete Child (triggers parent completion)
     ctx.args = ["2"];
     await handleDone(ctx);
-    
+
     let parent = await dbOps.get(parentUuid);
     let child = await dbOps.get(childUuid);
     expect(child.status).to.equal("completed");

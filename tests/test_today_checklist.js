@@ -61,7 +61,7 @@ describe("Today View Checklist Tests", function () {
     expect(c.checklist).to.equal("parent-uuid");
 
     // 4. Set Child to waiting tomorrow (simulate completed recurring task)
-    // In a real scenario, completing a recurring task would set status to pending 
+    // In a real scenario, completing a recurring task would set status to pending
     // and wait/due to future. We simulate that state here.
     const tomorrow = Date.now() + 86400000;
     c.wait = tomorrow;
@@ -71,28 +71,30 @@ describe("Today View Checklist Tests", function () {
     // 5. Run List with !today context
     mockCtx.args = ["!today"];
     let capturedHtml = "";
-    // We need to capture the renderTable output. 
+    // We need to capture the renderTable output.
     // runList calls renderTable, which calls print.
     // We can spy on print.
-    
+
     // Reset print buffer
     lastPrint = "";
-    
+
     // Run list command
     await runList(["!today"], Infinity, null, false);
-    
-    // Check output. 
+
+    // Check output.
     // If the bug exists, "Child Task" will be present in the output.
     // If fixed, it should NOT be present.
-    
-    // Note: renderTable uses displayMapRef to map IDs. 
+
+    // Note: renderTable uses displayMapRef to map IDs.
     // The HTML output contains the description.
-    
-    const outputContainsChild = String(displayMapRef.value).includes("child-uuid") || lastPrint.includes("Child Task");
-    
+
+    const outputContainsChild =
+      String(displayMapRef.value).includes("child-uuid") ||
+      lastPrint.includes("Child Task");
+
     // To confirm the bug exists, we expect the child to be present.
     // If this test passes, it means we have successfully reproduced the bug.
     // After fixing, we will flip this to expect false.
-    expect(outputContainsChild).to.be.true;
+    expect(outputContainsChild).to.be.false;
   });
 });
