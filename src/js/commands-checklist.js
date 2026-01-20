@@ -61,6 +61,28 @@ export const maybeAutoCompleteParent = async (parentUuid, dbOps) => {
   return null;
 };
 
+// Check if parent should be reverted to pending (if any member is now pending/not done)
+export const maybeRevertParent = async (parentUuid, dbOps) => {
+  const members = await getChecklistMembers(parentUuid, dbOps);
+  if (members.length === 0) return null;
+
+  // Parent should be pending if ANY member is pending (or rather, if NOT all are done/skipped)
+  // Actually, simpler: if not shouldAutoComplete, then it should be pending.
+  const shouldBeComplete = await shouldAutoComplete(parentUuid, dbOps);
+
+  if (!shouldBeComplete) {
+    const parent = await dbOps.get(parentUuid);
+    if (parent && parent.status !== "pending") {
+      const undoRecord = { type: "update", task: structuredClone(parent) };
+      parent.status = "pending";
+      parent.end = null; // Clear completion date
+      await dbOps.update(parent);
+      return undoRecord;
+    }
+  }
+  return null;
+};
+
 // checklist PARENT_ID MEMBER_IDS
 // Sets parent as checklist container, members get checklist:PARENT_UUID and order
 export const handleChecklist = async (ctx) => {

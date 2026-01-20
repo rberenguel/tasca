@@ -10,6 +10,7 @@ import {
   isChecklistMember,
   getChecklistParentUuid,
   maybeAutoCompleteParent,
+  maybeRevertParent,
 } from "./commands-checklist.js";
 
 // Parse multi-ID syntax: "1", "1,3,5", "1-3", or "1,3-5,7"
@@ -202,6 +203,147 @@ export const handleDone = async (ctx) => {
       `<span class="msg-success">Completed ${uuids.length} tasks.</span>`,
     );
   }
+  ctx.markDirty();
+  await ctx.runListRefresh();
+};
+
+export const handleUndone = async (ctx) => {
+  const idArg = ctx.targetId?.toString() || ctx.args[0];
+  const uuids = await resolveRefs(idArg, ctx.displayMapRef, ctx.dbOps);
+  if (uuids.length === 0)
+    return ctx.print('<span class="msg-error">Invalid ID.</span>');
+
+  const allUndoRecords = [];
+  const affectedParentUuids = new Set();
+  let deletedFutureCount = 0;
+
+  for (const uuid of uuids) {
+    const task = await ctx.dbOps.get(uuid);
+    if (!task) continue;
+
+    // If task is already pending, check if it's a recurring future instance that the user wants to undo
+    if (task.status === "pending") {
+      if (!task.recur) continue; // Not recurring, just ignore
+
+      // User selected the NEW pending task, but wants to undo the COMPLETION that created it.
+      // We need to find the COMPLETED task that spawned this one.
+      // Heuristic: Same description, project, recur. End time should be close to this task's entry.
+      // Since entry is set to uniqueTimestamp() which is around Date.now() when created, and
+      // the completed task's end is roughly the same time.
+      // Actually, handleDone sets end = Date.now(), then creates new task with entry = uniqueTimestamp().
+      // So new.entry >= old.end.
+
+      const allTasks = await ctx.dbOps.getAll();
+      // Find candidates: completed, same attrs, end <= task.entry
+      const candidates = allTasks.filter(
+        (t) =>
+          t.status === "completed" &&
+          t.description === task.description &&
+          t.project === task.project &&
+          t.recur === task.recur &&
+          (t.end || 0) <= task.entry,
+      );
+
+      // Pick the most recent one
+      candidates.sort((a, b) => (b.end || 0) - (a.end || 0));
+      const originTask = candidates[0];
+
+      if (!originTask) {
+        // No matching completed task found, ignore
+        continue;
+      }
+
+      // Found the origin!
+      // Action:
+      // 1. Delete this pending task (the future instance)
+      // 2. Revert the origin task to pending
+
+      // 1. Delete future instance
+      allUndoRecords.push({
+        type: "delete",
+        task: structuredClone(task),
+      });
+      await ctx.dbOps.delete(task.uuid);
+      deletedFutureCount++;
+
+      // 2. Revert origin task
+      allUndoRecords.push({
+        type: "update",
+        task: structuredClone(originTask),
+      });
+      originTask.status = "pending";
+      originTask.end = null;
+      await ctx.dbOps.update(originTask);
+
+      // Handle checklist parent for the ORIGIN task
+      if (isChecklistMember(originTask)) {
+        const parentUuid = getChecklistParentUuid(originTask);
+        if (parentUuid) affectedParentUuids.add(parentUuid);
+      }
+
+      continue; // Done with this item
+    }
+
+    // Normal path for completed/skipped tasks
+    // Track parent if this is a checklist member
+    if (isChecklistMember(task)) {
+      const parentUuid = getChecklistParentUuid(task);
+      if (parentUuid) affectedParentUuids.add(parentUuid);
+    }
+
+    allUndoRecords.push({ type: "update", task: structuredClone(task) });
+    task.status = "pending";
+    task.end = null;
+    await ctx.dbOps.update(task);
+
+    // Recurrence handling: Find and delete future instance
+    if (task.recur) {
+      const pendingTasks = await ctx.dbOps.getByStatus("pending");
+      const futureInstance = pendingTasks.find((t) => {
+        return (
+          t.description === task.description &&
+          t.project === task.project &&
+          t.recur === task.recur &&
+          t.entry > (task.end || 0) // Created after completion
+        );
+      });
+
+      if (futureInstance) {
+        allUndoRecords.push({
+          type: "delete",
+          task: structuredClone(futureInstance),
+        });
+        await ctx.dbOps.delete(futureInstance.uuid);
+        deletedFutureCount++;
+      }
+    }
+  }
+
+  // Check for checklist parent reversion
+  let revertedParentCount = 0;
+  for (const parentUuid of affectedParentUuids) {
+    const undoRecord = await maybeRevertParent(parentUuid, ctx.dbOps);
+    if (undoRecord) {
+      allUndoRecords.push(undoRecord);
+      revertedParentCount++;
+    }
+  }
+
+  if (allUndoRecords.length === 0) {
+    return ctx.print('<span class="msg-info">No tasks to undone.</span>');
+  }
+
+  pushUndo({ type: "compound", records: allUndoRecords });
+
+  let msg = `<span class="msg-success">Undone ${uuids.length} task(s).`;
+  if (deletedFutureCount > 0) {
+    msg += ` Deleted ${deletedFutureCount} future instance(s).`;
+  }
+  if (revertedParentCount > 0) {
+    msg += ` Reverted ${revertedParentCount} parent(s).`;
+  }
+  msg += `</span>`;
+  ctx.print(msg);
   ctx.markDirty();
   await ctx.runListRefresh();
 };

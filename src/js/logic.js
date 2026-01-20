@@ -172,7 +172,10 @@ export const hasVirtualTag = (t, tag, allTasks, projectsMeta = []) => {
   if (tagClean === "OVERDUE")
     return t.due && t.due < now && t.status === "pending";
   if (tagClean === "TODAY")
-    return t.due && formatDateOnly(t.due) === formatDateOnly(now);
+    return (
+      (t.due && formatDateOnly(t.due) === formatDateOnly(now)) ||
+      (t.end && formatDateOnly(t.end) === formatDateOnly(now))
+    );
   if (tagClean === "WAITING")
     return t.wait && t.wait > now && t.status === "pending";
   if (tagClean === "SCHEDULED")

@@ -6,6 +6,7 @@ import {
   handleUndo,
   handleStart,
   handleDone,
+  handleUndone,
   handleDelete,
   handleSkip,
 } from "./commands-state.js";
@@ -57,6 +58,8 @@ export const commands = {
 
   // Task state changes
   done: handleDone,
+  undone: handleUndone,
+  ud: handleUndone,
   delete: handleDelete,
   rm: handleDelete,
   start: handleStart,

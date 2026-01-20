@@ -145,7 +145,15 @@ export const runList = async (
     const today = formatDateOnly(Date.now());
     tasks = tasks.filter((t) => {
       // In today view, include waiting tasks that are due today
-      if (isTodayView && t.due && formatDateOnly(t.due) === today) return true;
+      if (isTodayView && t.due && formatDateOnly(t.due) === today) {
+        if (
+          isChecklistMember(t) &&
+          t.wait > Date.now() &&
+          formatDateOnly(t.wait) > today
+        )
+          return false;
+        return true;
+      }
       // Otherwise apply normal waiting/scheduled filter
       return (
         (!t.wait || t.wait <= Date.now()) && (!t.sched || t.sched <= Date.now())
@@ -259,7 +267,9 @@ export const runList = async (
 
   // In today view, collect additional sections
   let sections = { started: [], overdue: [], ready: [] };
-  if (isTodayView) {
+  // Only show sections for pending tasks (standard dashboard view)
+  // If showing done tasks, we want a flat list
+  if (isTodayView && !showDone) {
     const filterOpts = { project: fProj, search };
     sections.started = collectStartedTasks(all, projects, filterOpts);
     sections.overdue = collectOverdueTasks(all, projects, filterOpts);
@@ -306,9 +316,22 @@ export const runList = async (
     }
 
     // Fetch ALL pending members for this parent (not just filtered ones)
-    const allPendingMembers = all.filter(
+    let allPendingMembers = all.filter(
       (t) => t.checklist === parentUuid && t.status === "pending",
     );
+
+    // In Today view, hide members waiting for future dates (tomorrow+)
+    if (isTodayView) {
+      const now = Date.now();
+      const todayStr = formatDateOnly(now);
+      allPendingMembers = allPendingMembers.filter((t) => {
+        if (t.wait && t.wait > now && formatDateOnly(t.wait) > todayStr)
+          return false;
+        if (t.sched && t.sched > now && formatDateOnly(t.sched) > todayStr)
+          return false;
+        return true;
+      });
+    }
 
     // Calculate urgency for members
     allPendingMembers.forEach((m) => {

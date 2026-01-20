@@ -1,5 +1,6 @@
 import { calculateUrgency, matchesProject } from "./logic.js";
 import { formatDateOnly } from "./utils.js";
+import { isChecklistMember } from "./commands-checklist.js";
 
 // Detect if args indicate a today view
 export const isTodayViewFromArgs = (args) => {
@@ -54,6 +55,15 @@ export const collectTodayTasks = (
     if (formatDateOnly(t.due) !== today) return false;
     // Apply filters
     if (!matchesFilters(t, { project, search })) return false;
+
+    // In today view, hide checklist members if waiting for tomorrow+
+    if (
+      isChecklistMember(t) &&
+      t.wait > Date.now() &&
+      formatDateOnly(t.wait) > today
+    )
+      return false;
+
     return true;
   });
   // Calculate urgency
@@ -75,6 +85,15 @@ export const collectStartedTasks = (
     if (t.due && formatDateOnly(t.due) === todayStr) return false;
     // Apply filters
     if (!matchesFilters(t, { project, search })) return false;
+
+    // In today view, hide checklist members if waiting for tomorrow+
+    if (
+      isChecklistMember(t) &&
+      t.wait > Date.now() &&
+      formatDateOnly(t.wait) > todayStr
+    )
+      return false;
+
     return true;
   });
   // Calculate urgency
