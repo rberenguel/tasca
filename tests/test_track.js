@@ -17,7 +17,10 @@ const mockCtx = {
   dbOps: dbOps,
   displayMapRef: displayMapRef,
   markDirty: () => {},
-  runListRefresh: async () => {},
+  runListRefresh: async () => {
+    mockCtx.refreshCalled = true;
+  },
+  refreshCalled: false,
 };
 
 describe("Track Command Tests", function () {
@@ -69,6 +72,7 @@ describe("Track Command Tests", function () {
     expect(t.track).to.have.lengthOf(1);
     expect(t.track[0].type).to.equal("min");
     expect(t.track[0].value).to.equal(30);
+    expect(mockCtx.refreshCalled).to.be.true;
   });
 
   it("should track percentage", async function () {

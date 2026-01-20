@@ -706,7 +706,8 @@ export const handleTrack = async (ctx) => {
 
   await ctx.dbOps.update(task);
   ctx.print(`<span class="msg-success">Tracked ${trackData.type}.</span>`);
-  // No need to refresh list for tracking unless we visualize it there
+  ctx.markDirty();
+  await ctx.runListRefresh();
 };
 
 export const handleInfoProject = async (ctx) => {
