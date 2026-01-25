@@ -261,6 +261,7 @@ export const VALID_COMMANDS = [
   "skip",
   "report",
   "rep",
+  "ref",
   "dependencies",
   "tree",
   "copy",

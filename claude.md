@@ -19,6 +19,7 @@ src/js/
 ├── app.js                # Entry point & initialization
 ├── commands.js           # Command parsing & handlers (largest file)
 ├── commands-checklist.js # Checklist feature (grouping tasks)
+├── commands-ref.js       # Reference search (fuzzy trigram-based)
 ├── context.js            # GTD context feature (persistent filters)
 ├── db.js                 # IndexedDB abstraction layer
 ├── input.js              # Input handling, autocomplete, history
@@ -45,6 +46,7 @@ Views: `list`, `next`, `calendar/cal`, `projects`, `chain`
 Data: `export/exp`, `import/imp`, `link`, `load`, `save`, `unlink`, `status/stat`
 Context: `context/ctx/c` (GTD persistent filters), `day`/`today` (shortcut for `context !today`)
 Reports: `report/rep` with subcommands (for GTD weekly reviews)
+Search: `ref` (fuzzy search for reference project tasks)
 
 ## Edit Command
 
@@ -111,6 +113,49 @@ Can also use `list !modified` (or `list !m`) directly to see modified tasks.
 - **`report cfd [pro:X] [period] [by:project|tag]`** - Cumulative flow diagram. Default shows time series of done vs pending. With `by:project` or `by:tag`, shows snapshot comparison across groups sorted by most backlog. Reference projects shown dimmed at end.
 
 - **`report cycle [pro:X] [period] [by:project|tag]`** - Cycle time analysis (latency from entry to completion). Shows percentiles (p50, p85, p95) and distribution histogram. With `by:project` or `by:tag`, shows table of each group's p50/p85 sorted by worst first. Reference projects shown dimmed at end. Alias: `slo`.
+
+## Ref Command
+
+The `ref` command performs fuzzy search on tasks within reference projects (projects tagged with `!reference` or `!ref`).
+
+```
+ref python          # find reference tasks matching "python"
+ref machine learn   # fuzzy match "machine learning"
+ref api             # search descriptions, annotations, and URLs
+```
+
+**Search Algorithm:**
+
+- Uses trigram-based fuzzy matching for queries ≥3 characters (tolerant to minor typos)
+- Substring matching for queries <3 characters
+- Weighted scoring:
+  - Description matches: 10x weight
+  - Annotation matches: 5x weight
+  - URL matches: 2x weight
+  - Exact substring matches get +50 bonus
+- Results sorted by score (highest first)
+
+**Scope:**
+
+Searches tasks in reference projects, identified by either:
+
+1. Projects ending with `.ref` (e.g., `games.gb.ref`)
+2. Projects tagged with `!reference` or `!ref`
+
+To mark a project as reference using tags:
+
+```
+mod pro:Books !ref         # tag project as reference
+annotate pro:Docs !reference icon:book
+```
+
+Or simply use the `.ref` naming convention:
+
+```
+add GB Studio guide pro:games.gb.ref
+```
+
+**Implementation:** `commands-ref.js` contains the search logic.
 
 ## Open Command
 

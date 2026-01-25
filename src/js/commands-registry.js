@@ -47,6 +47,7 @@ import {
 } from "./commands-views.js";
 import { handleReport } from "./commands-reports.js";
 import { handleChecklist, handleUnchecklist } from "./commands-checklist.js";
+import { handleRef } from "./commands-ref.js";
 import { runList } from "./list.js";
 
 // Command registry
@@ -115,6 +116,9 @@ export const commands = {
   proj: async (ctx) => {
     await handleProjects(ctx.print);
   },
+
+  // Reference search
+  ref: handleRef,
 
   // Reports
   report: async (ctx) => {
