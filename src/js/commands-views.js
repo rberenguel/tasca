@@ -7,7 +7,11 @@ import {
   hasVirtualTag,
   expandVirtualTagShorthand,
 } from "./logic.js";
-import { formatInlineCode, renderProjectsTable } from "./ui.js";
+import {
+  formatInlineCode,
+  formatTaskDescription,
+  renderProjectsTable,
+} from "./ui.js";
 import { displayMapRef } from "./state.js";
 import { mergeFilters } from "./context.js";
 import { isChecklistMember } from "./commands-checklist.js";
@@ -120,7 +124,8 @@ export const handleChain = async (args, print) => {
     if (prefix.length > 0 || isTail !== undefined)
       treeMarker = `<span style="color:var(--base01)">${prefix}${isTail ? "└── " : "├── "}</span>`;
 
-    let content = `<span style="${isTarget ? "color:var(--yellow); font-weight:bold" : ""}">ID:${displayMapRef.value.indexOf(u) + 1} ${formatInlineCode(t.description)}</span>`;
+    const descHtml = formatTaskDescription(t);
+    let content = `<span style="${isTarget ? "color:var(--yellow); font-weight:bold" : ""}">ID:${displayMapRef.value.indexOf(u) + 1} ${descHtml}</span>`;
     if (t.tags && t.tags.length)
       content += ` <span style="color:var(--blue)">${t.tags.map((tag) => "!" + tag).join(" ")}</span>`;
     if (t.project)
@@ -322,7 +327,8 @@ export const handleCalendar = async (args, print) => {
         const clIcon = isChecklistMember(t)
           ? `<i class="ph-light ph-list-checks" style="color:var(--base01);margin-right:4px"></i>`
           : "";
-        let desc = clIcon + formatInlineCode(t.description);
+        const formattedDesc = formatTaskDescription(t);
+        let desc = clIcon + formattedDesc;
         if (t.priority)
           desc += ` <span style="color:var(--magenta)">pri:${t.priority}</span>`;
         if (t.project) {

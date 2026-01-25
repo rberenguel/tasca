@@ -6,7 +6,11 @@ import {
   hasVirtualTag,
   expandVirtualTagShorthand,
 } from "./logic.js";
-import { formatProject, formatInlineCode } from "./ui.js";
+import {
+  formatProject,
+  formatInlineCode,
+  formatTaskDescription,
+} from "./ui.js";
 import { displayMapRef } from "./state.js";
 import { getContext } from "./context.js";
 
@@ -211,7 +215,8 @@ export const handleReport = async (subCmd, subArgs, print, dbOps, projects) => {
               : "var(--cyan)";
         html += `<tr>`;
         html += `<td>${idx++}</td>`;
-        html += `<td>${formatInlineCode(t.description)} ${proj} <span style="color:${ageColor}">${t.ageDays}d</span></td>`;
+        const descHtml = formatTaskDescription(t);
+        html += `<td>${descHtml} ${proj} <span style="color:${ageColor}">${t.ageDays}d</span></td>`;
         html += `</tr>`;
       }
       html += "</tbody></table></div>";
@@ -271,7 +276,8 @@ export const handleReport = async (subCmd, subArgs, print, dbOps, projects) => {
 
         for (const t of tasks) {
           const dateStr = new Date(t.end).toLocaleDateString();
-          html += `<div style="margin-left:12px"><span style="color:var(--green)">✓</span> ${formatInlineCode(t.description)} <span style="color:var(--base01)">${dateStr}</span></div>`;
+          const descHtml = formatTaskDescription(t);
+          html += `<div style="margin-left:12px"><span style="color:var(--green)">✓</span> ${descHtml} <span style="color:var(--base01)">${dateStr}</span></div>`;
         }
       }
       print(html, false);
@@ -300,7 +306,8 @@ export const handleReport = async (subCmd, subArgs, print, dbOps, projects) => {
 
         for (const t of tasks) {
           const dateStr = new Date(t.end).toLocaleDateString();
-          html += `<div style="margin-left:12px"><span style="color:var(--green)">✓</span> ${formatInlineCode(t.description)} <span style="color:var(--base01)">${dateStr}</span></div>`;
+          const descHtml = formatTaskDescription(t);
+          html += `<div style="margin-left:12px"><span style="color:var(--green)">✓</span> ${descHtml} <span style="color:var(--base01)">${dateStr}</span></div>`;
         }
       }
       print(html, false);

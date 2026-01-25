@@ -64,6 +64,20 @@ export const formatInlineCode = (text) => {
   if (!text) return text;
   return text.replace(/`([^`]+)`/g, '<span class="inline-code">$1</span>');
 };
+
+// Format task description with inline code and priority-based effects
+export const formatTaskDescription = (task) => {
+  const formatted = formatInlineCode(task.description);
+  if (task.priority === 100) {
+    return `<span class="priority-100-text">${formatted}</span>`;
+  } else if (task.priority === 500) {
+    return `<span class="priority-500-text">${formatted}</span>`;
+  } else if (task.priority === 1000) {
+    return `<span class="priority-1000-text">${formatted}</span>`;
+  }
+  return formatted;
+};
+
 let cachedProjectCounts = {}; // for projects table
 let bannerHidden = false; // temporarily hide banner (reset on context change)
 
@@ -421,7 +435,7 @@ export const renderTable = (
 
     // Description
     const descSpan = document.createElement("span");
-    descSpan.innerHTML = formatInlineCode(t.description);
+    descSpan.innerHTML = formatTaskDescription(t);
     tdDesc.appendChild(descSpan);
 
     // Show wait time if waiting
@@ -497,7 +511,7 @@ export const renderTable = (
 
     // Description (handles inline code)
     const descSpan = document.createElement("span");
-    descSpan.innerHTML = formatInlineCode(t.description); // formatInlineCode still returns HTML string
+    descSpan.innerHTML = formatTaskDescription(t);
     tdDesc.appendChild(descSpan);
 
     // Checklist summary (for next view)

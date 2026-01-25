@@ -476,3 +476,74 @@ tr.row-active .row-desc {
 .checklist-summary {
   font-weight: normal;
 }
+
+/* Priority-based text animations */
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Priority 100: Clauer rainbow gradient */
+.priority-100-text {
+  background-image: linear-gradient(
+    32deg,
+    #c60,
+    #cc0,
+    #0cc,
+    #06c,
+    #0cc,
+    #cc0,
+    #c60
+  );
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradientShift 10s linear infinite alternate;
+}
+
+/* Priority 500: KITT scanner in yellow */
+.priority-500-text {
+  background-image: linear-gradient(
+    90deg,
+    #330,
+    #660,
+    #990,
+    #cc0,
+    #ff0,
+    #cc0,
+    #990,
+    #660,
+    #330
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradientShift 2s linear infinite alternate;
+}
+
+/* Priority 1000: KITT scanner in red */
+.priority-1000-text {
+  background-image: linear-gradient(
+    90deg,
+    #300,
+    #600,
+    #900,
+    #c00,
+    #f00,
+    #c00,
+    #900,
+    #600,
+    #300
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradientShift 2s linear infinite alternate;
+}

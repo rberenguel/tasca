@@ -9,7 +9,7 @@ import {
   formatDateHtml,
   uniqueTimestamp,
 } from "./utils.js";
-import { formatInlineCode } from "./ui.js";
+import { formatInlineCode, formatTaskDescription } from "./ui.js";
 import { getInheritedAttributes } from "./context.js";
 import { pushUndo } from "./undo.js";
 
@@ -760,7 +760,8 @@ export const handleInfo = async (ctx) => {
   const t = await ctx.dbOps.get(uuid);
   let html = `<div class="task-info">`;
   html += `<div style="color:var(--yellow)">Task ${displayId || "?"} - ${t.uuid}</div>`;
-  html += `<div><b>Desc:</b> ${formatInlineCode(t.description)}</div>`;
+  const descHtml = formatTaskDescription(t);
+  html += `<div><b>Desc:</b> ${descHtml}</div>`;
   html += `<div><b>Status:</b> ${t.status}</div>`;
   if (t.project) {
     const projects = await ctx.dbOps.getAllProjects();
