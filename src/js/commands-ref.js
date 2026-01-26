@@ -2,6 +2,8 @@
 // Uses trigram-based matching for tolerant search
 
 import { dbOps } from "./db.js";
+import { getContext } from "./context.js";
+import { expandVirtualTagShorthand } from "./logic.js";
 import { renderTable } from "./ui.js";
 
 // Generate trigrams from text
@@ -76,9 +78,21 @@ const isReferenceTask = (task, projectsMeta) => {
 };
 
 export const handleRef = async (ctx) => {
-  const query = ctx.args.join(" ").trim();
+  // Separate search terms from virtual tags
+  const searchTerms = [];
+  const flags = [];
 
-  if (!query) {
+  for (const arg of ctx.args) {
+    if (arg.startsWith("!")) {
+      flags.push(arg);
+    } else {
+      searchTerms.push(arg);
+    }
+  }
+
+  const query = searchTerms.join(" ").trim();
+
+  if (!query && flags.length === 0) {
     ctx.print(
       '<span class="msg-error">Usage: ref &lt;search query&gt;</span>',
       false,
@@ -95,9 +109,44 @@ export const handleRef = async (ctx) => {
   const projectsMeta = await dbOps.getAllProjects();
 
   // Filter to reference project tasks only
-  const referenceTasks = allTasks.filter((t) =>
-    isReferenceTask(t, projectsMeta),
-  );
+  let referenceTasks = allTasks.filter((t) => isReferenceTask(t, projectsMeta));
+
+  // Default: Filter to pending only, unless !done, !skipped, !ended or !all is present
+  // Check ctx.args and context
+  const currentContext = getContext();
+  const allArgs = [
+    ...ctx.args,
+    ...(currentContext ? currentContext.tags.map((t) => "!" + t) : []),
+  ];
+
+  let showDone = false;
+  let showSkipped = false;
+  let showAll = false;
+
+  for (const arg of allArgs) {
+    if (arg.startsWith("!")) {
+      const expanded = expandVirtualTagShorthand(arg).toUpperCase();
+      if (
+        expanded === "!DONE" ||
+        expanded === "!COMPLETED" ||
+        expanded === "!ENDED"
+      )
+        showDone = true;
+      if (expanded === "!SKIPPED" || expanded === "!ENDED") showSkipped = true;
+      if (expanded === "!ALL") showAll = true;
+    }
+  }
+
+  if (!showAll && !showDone && !showSkipped) {
+    referenceTasks = referenceTasks.filter((t) => t.status === "pending");
+  } else {
+    referenceTasks = referenceTasks.filter((t) => {
+      if (showAll) return true;
+      if (showDone && t.status === "completed") return true;
+      if (showSkipped && t.status === "skipped") return true;
+      return false;
+    });
+  }
 
   if (referenceTasks.length === 0) {
     ctx.print(

@@ -123,6 +123,10 @@ const VIRTUAL_TAG_SHORTHANDS = {
   MOD: "MODIFIED",
   M: "MODIFIED",
   CL: "CHECKLIST",
+  SK: "SKIPPED",
+  SKIPPED: "SKIPPED",
+  END: "ENDED",
+  ENDED: "ENDED",
 };
 
 // Set of all virtual tag names (uppercase) for filtering
@@ -145,7 +149,10 @@ const VIRTUAL_TAG_NAMES = new Set([
   "REFS",
   "REFERENCE",
   "REFERENCES",
+  "REFERENCES",
   "CHECKLIST",
+  "SKIPPED",
+  "ENDED",
 ]);
 
 // Check if a tag name (without ! prefix) is a virtual tag
@@ -210,6 +217,9 @@ export const hasVirtualTag = (t, tag, allTasks, projectsMeta = []) => {
     // Matches both parents (checklist === "parent") and members (checklist === UUID)
     return !!t.checklist;
   }
+  if (tagClean === "SKIPPED") return t.status === "skipped";
+  if (tagClean === "ENDED")
+    return t.status === "completed" || t.status === "skipped";
   return false;
 };
 

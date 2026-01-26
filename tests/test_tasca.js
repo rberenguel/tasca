@@ -255,6 +255,21 @@ describe("Tasca Logic Tests", function () {
       const t = { entry: now, status: "pending", tags: [] };
       expect(hasVirtualTag(t, "+ROUTINE", [])).to.be.false;
     });
+
+    it("should identify +SKIPPED", function () {
+      const t = { entry: now, status: "skipped", tags: [] };
+      expect(hasVirtualTag(t, "+SKIPPED", [])).to.be.true;
+    });
+
+    it("should identify +ENDED for completed task", function () {
+      const t = { entry: now, status: "completed", tags: [] };
+      expect(hasVirtualTag(t, "+ENDED", [])).to.be.true;
+    });
+
+    it("should identify +ENDED for skipped task", function () {
+      const t = { entry: now, status: "skipped", tags: [] };
+      expect(hasVirtualTag(t, "+ENDED", [])).to.be.true;
+    });
   });
 
   describe("Virtual Tag Shorthands", function () {
@@ -317,6 +332,16 @@ describe("Tasca Logic Tests", function () {
     it("should expand routine shorthands", function () {
       expect(expandVirtualTagShorthand("!rt")).to.equal("!routine");
       expect(expandVirtualTagShorthand("!routine")).to.equal("!routine");
+    });
+
+    it("should expand skipped shorthands", function () {
+      expect(expandVirtualTagShorthand("!sk")).to.equal("!skipped");
+      expect(expandVirtualTagShorthand("!skipped")).to.equal("!skipped");
+    });
+
+    it("should expand ended shorthands", function () {
+      expect(expandVirtualTagShorthand("!end")).to.equal("!ended");
+      expect(expandVirtualTagShorthand("!ended")).to.equal("!ended");
     });
 
     it("should preserve + prefix", function () {

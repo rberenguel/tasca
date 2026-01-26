@@ -45,7 +45,8 @@ export const runList = async (
 
   // Pre-scan args to see if we can optimize
   let showWaiting = false,
-    showDone = false;
+    showDone = false,
+    showSkipped = false;
   let forceAll = false;
   let isTodayView = false;
 
@@ -57,12 +58,14 @@ export const runList = async (
       const tag = expanded.substring(1).toUpperCase();
       if (["WAITING", "SCHEDULED", "RECURRING", "ALL"].includes(tag))
         showWaiting = true;
-      if (["DONE", "COMPLETED"].includes(tag)) showDone = true;
+      if (["DONE", "COMPLETED", "ENDED"].includes(tag)) showDone = true;
+      if (["SKIPPED", "ENDED"].includes(tag)) showSkipped = true;
       if (tag === "TODAY") isTodayView = true;
       if (tag === "MODIFIED") {
         showModified = true;
         showWaiting = true;
         showDone = true;
+        showSkipped = true;
         forceAll = true;
       }
     } else if (token.startsWith("end:")) {
@@ -89,8 +92,8 @@ export const runList = async (
   }
 
   let all;
-  if (!showDone && !forceAll) {
-    // Optimization: fetch only pending if we don't need completed
+  if (!showDone && !showSkipped && !forceAll) {
+    // Optimization: fetch only pending if we don't need completed/skipped
     all = await dbOps.getByStatus("pending");
     // We might need to fetch waiting/scheduled? No, they are "pending" in status, usually.
     // Wait, let's verify if "waiting" tasks have status="pending".
@@ -130,17 +133,23 @@ export const runList = async (
       const tag = expanded.substring(1).toUpperCase();
       if (["WAITING", "SCHEDULED", "RECURRING", "ALL"].includes(tag))
         showWaiting = true;
-      if (["DONE", "COMPLETED"].includes(tag)) showDone = true;
+      if (["DONE", "COMPLETED", "ENDED"].includes(tag)) showDone = true;
+      if (["SKIPPED", "ENDED"].includes(tag)) showSkipped = true;
       if (tag !== "ALL" && tag !== "MODIFIED") fTags.push(expanded);
     } else search.push(token.toLowerCase());
   }
 
   // Start with appropriate base set
+  // Start with appropriate base set
   let tasks = showModified
     ? all // modified shows all tasks regardless of status
-    : showDone
-      ? all.filter((t) => t.status === "completed")
-      : all.filter((t) => t.status === "pending");
+    : all.filter((t) => {
+        if (showDone && showSkipped)
+          return t.status === "completed" || t.status === "skipped";
+        if (showDone) return t.status === "completed";
+        if (showSkipped) return t.status === "skipped";
+        return t.status === "pending";
+      });
   if (!showWaiting && !showDone) {
     const today = formatDateOnly(Date.now());
     tasks = tasks.filter((t) => {
