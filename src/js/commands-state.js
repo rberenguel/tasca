@@ -4,6 +4,8 @@ import {
   generateUUID,
   calculateNextRecurrence,
   uniqueTimestamp,
+  parseDate,
+  formatDate,
 } from "./utils.js";
 import { pushUndo, popUndo } from "./undo.js";
 import {
@@ -401,9 +403,24 @@ export const handleSkip = async (ctx) => {
   if (uuids.length === 0)
     return ctx.print('<span class="msg-error">Invalid ID.</span>');
 
+  // Parse until: or u: parameter from remaining args
+  const tokens = ctx.targetId ? ctx.args : ctx.args.slice(1);
+  let untilDate = null;
+  for (const token of tokens) {
+    if (token.startsWith("until:") || token.startsWith("u:")) {
+      const dateStr = token.split(":")[1];
+      untilDate = parseDate(dateStr);
+      if (!untilDate) {
+        return ctx.print('<span class="msg-error">Invalid until date.</span>');
+      }
+      break;
+    }
+  }
+
   const allUndoRecords = [];
   let recurringCount = 0;
   let cancelledCount = 0;
+  let totalSkipped = 0; // Track total occurrences skipped when using until:
   const affectedParentUuids = new Set();
 
   for (const uuid of uuids) {
@@ -425,26 +442,47 @@ export const handleSkip = async (ctx) => {
 
     // For recurring tasks, create next occurrence
     if (task.recur && task.due) {
-      const recurrence = calculateNextRecurrence(task);
+      let recurrence = calculateNextRecurrence(task);
       if (recurrence) {
-        const newUuid = generateUUID();
-        const newTask = {
-          ...task,
-          uuid: newUuid,
-          status: "pending",
-          due: recurrence.nextDue,
-          wait: recurrence.nextWait || null,
-          waitTime: recurrence.waitTime || task.waitTime || null,
-          sched: recurrence.nextSched || null,
-          entry: uniqueTimestamp(),
-          annotations: [],
-        };
-        delete newTask.depends;
-        delete newTask.end;
-        delete newTask.start;
-        await ctx.dbOps.add(newTask);
-        allUndoRecords.push({ type: "create", uuid: newUuid });
-        recurringCount++;
+        let skippedOccurrences = 1; // Count the current task being skipped
+
+        // If until: is specified, skip ahead to first occurrence >= untilDate
+        if (untilDate) {
+          let currentTask = { ...task, due: recurrence.nextDue };
+          while (recurrence.nextDue < untilDate) {
+            skippedOccurrences++;
+            recurrence = calculateNextRecurrence({
+              ...currentTask,
+              due: recurrence.nextDue,
+              wait: recurrence.nextWait || null,
+              waitTime: recurrence.waitTime || currentTask.waitTime || null,
+              sched: recurrence.nextSched || null,
+            });
+            if (!recurrence) break; // Safety check
+          }
+        }
+
+        if (recurrence) {
+          const newUuid = generateUUID();
+          const newTask = {
+            ...task,
+            uuid: newUuid,
+            status: "pending",
+            due: recurrence.nextDue,
+            wait: recurrence.nextWait || null,
+            waitTime: recurrence.waitTime || task.waitTime || null,
+            sched: recurrence.nextSched || null,
+            entry: uniqueTimestamp(),
+            annotations: [],
+          };
+          delete newTask.depends;
+          delete newTask.end;
+          delete newTask.start;
+          await ctx.dbOps.add(newTask);
+          allUndoRecords.push({ type: "create", uuid: newUuid });
+          recurringCount++;
+          if (untilDate) totalSkipped += skippedOccurrences;
+        }
       }
     } else {
       cancelledCount++;
@@ -470,16 +508,32 @@ export const handleSkip = async (ctx) => {
   } else {
     const total = recurringCount + cancelledCount;
     if (total === 1 && recurringCount === 1) {
-      ctx.print(
-        '<span class="msg-success">Skipped. Next occurrence created.</span>',
-      );
+      if (untilDate && totalSkipped > 1) {
+        // Find the create record (last record will be the create)
+        const createRecord = allUndoRecords.find((r) => r.type === "create");
+        const nextTask = await ctx.dbOps.get(createRecord?.uuid);
+        const nextDueStr = formatDate(nextTask?.due);
+        ctx.print(
+          `<span class="msg-success">Skipped ${totalSkipped} occurrence${totalSkipped > 1 ? "s" : ""}. Next: ${nextDueStr}</span>`,
+        );
+      } else {
+        ctx.print(
+          '<span class="msg-success">Skipped. Next occurrence created.</span>',
+        );
+      }
     } else if (total === 1 && cancelledCount === 1) {
       ctx.print('<span class="msg-success">Cancelled.</span>');
     } else {
       let msg = [];
       if (recurringCount > 0) msg.push(`${recurringCount} skipped`);
       if (cancelledCount > 0) msg.push(`${cancelledCount} cancelled`);
-      ctx.print(`<span class="msg-success">${msg.join(", ")}.</span>`);
+      if (untilDate && totalSkipped > 0) {
+        ctx.print(
+          `<span class="msg-success">${msg.join(", ")}. Total occurrences skipped: ${totalSkipped}</span>`,
+        );
+      } else {
+        ctx.print(`<span class="msg-success">${msg.join(", ")}.</span>`);
+      }
     }
   }
   ctx.markDirty();

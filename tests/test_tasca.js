@@ -2064,6 +2064,128 @@ describe("Multi-ID Command E2E Tests", function () {
     });
   });
 
+  describe("Skip with until:", function () {
+    it("skip 1 until:7d - should skip to day 7 (7 days from now)", async function () {
+      await execute("add daily task due:today recur:1d");
+
+      let tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(1);
+      const originalDue = tasks[0].due;
+
+      await execute("skip 1 until:7d");
+
+      tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(2);
+
+      const skipped = tasks.find((t) => t.status === "skipped");
+      const pending = tasks.find((t) => t.status === "pending");
+
+      expect(skipped).to.not.be.undefined;
+      expect(skipped.due).to.equal(originalDue);
+
+      expect(pending).to.not.be.undefined;
+      // Should be 7 days from original (skip until we reach day 7)
+      const expectedDue = originalDue + 7 * 24 * 60 * 60 * 1000;
+      expect(pending.due).to.equal(expectedDue);
+    });
+
+    it("skip 1 u:today - should skip to today (common OOO case)", async function () {
+      const threeDaysAgo = new Date();
+      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+      threeDaysAgo.setHours(0, 0, 0, 0);
+
+      await execute(
+        "add overdue task due:" +
+          formatDateOnly(threeDaysAgo.getTime()) +
+          " recur:1d",
+      );
+
+      let tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(1);
+      const originalDue = tasks[0].due;
+
+      await execute("skip 1 u:today");
+
+      tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(2);
+
+      const skipped = tasks.find((t) => t.status === "skipped");
+      const pending = tasks.find((t) => t.status === "pending");
+
+      expect(skipped).to.not.be.undefined;
+      expect(skipped.due).to.equal(originalDue);
+      expect(pending).to.not.be.undefined;
+
+      // Should be at least today (end of today since parseDate returns end-of-day)
+      const todayEnd = parseDate("today");
+      expect(pending.due).to.be.at.least(todayEnd);
+    });
+
+    it("skip 1 until:2w - should skip to 2 weeks from now", async function () {
+      await execute("add weekly task due:today recur:1w");
+
+      let tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(1);
+      const originalDue = tasks[0].due;
+
+      await execute("skip 1 until:2w");
+
+      tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(2);
+
+      const pending = tasks.find((t) => t.status === "pending");
+      expect(pending).to.not.be.undefined;
+      // Should be 2 weeks from original (skip until we reach week 2)
+      const expectedDue = originalDue + 2 * 7 * 24 * 60 * 60 * 1000;
+      expect(pending.due).to.equal(expectedDue);
+    });
+
+    it("skip with until: should be undoable", async function () {
+      await execute("add daily task due:today recur:1d");
+
+      let tasks = await dbOps.getAll();
+      const originalUuid = tasks[0].uuid;
+      const originalDue = tasks[0].due;
+
+      await execute("skip 1 until:7d");
+
+      tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(2);
+
+      await execute("undo");
+
+      tasks = await dbOps.getAll();
+      expect(tasks).to.have.length(1);
+      expect(tasks[0].uuid).to.equal(originalUuid);
+      expect(tasks[0].status).to.equal("pending");
+      expect(tasks[0].due).to.equal(originalDue);
+    });
+
+    it("skip until: should preserve wait offsets", async function () {
+      const twoDaysAgo = new Date();
+      twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+      twoDaysAgo.setHours(0, 0, 0, 0);
+      const waitDate = formatDateOnly(twoDaysAgo.getTime());
+
+      await execute(
+        "add task with wait due:today wait:" + waitDate + " recur:1d",
+      );
+
+      let tasks = await dbOps.getAll();
+      const originalTask = tasks[0];
+      const waitOffset = originalTask.due - originalTask.wait;
+
+      await execute("skip 1 until:3d");
+
+      tasks = await dbOps.getAll();
+      const pending = tasks.find((t) => t.status === "pending");
+
+      expect(pending).to.not.be.undefined;
+      // Wait should preserve the same offset from new due
+      expect(pending.wait).to.equal(pending.due - waitOffset);
+    });
+  });
+
   describe("Multi-ID modify", function () {
     it("mod 1,2 - should modify multiple tasks", async function () {
       await execute("add first task");

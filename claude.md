@@ -62,10 +62,30 @@ This allows quick inline editing of any property - modify what you need and pres
 
 `skip` has dual behavior:
 
-- **Recurring tasks**: Marks as skipped, creates next occurrence (same as before)
+- **Recurring tasks**: Marks as skipped, creates next occurrence
 - **Non-recurring tasks**: Cancels the task (status becomes "skipped")
 
 This provides a sync-friendly alternative to `delete` - cancelled tasks are preserved with `status: "skipped"` rather than being permanently removed. The `report audit` only considers recurring tasks, so cancelled non-recurring tasks won't affect skip rate metrics.
+
+### Skip Ahead with until:
+
+Skip multiple recurring occurrences at once without creating intermediate tasks:
+
+```
+skip 1 until:today    # Skip all past occurrences, get today's task (common OOO case)
+skip 2 u:2w           # Skip ahead, get the task 2 weeks from now (u: is shorthand)
+skip 3 until:fri      # Skip ahead, get Friday's task
+```
+
+**How it works:**
+
+- Skips all occurrences before the target date
+- Creates the first occurrence at or after the target date
+- No intermediate tasks are created or stored
+- Shows message: "Skipped N occurrences. Next: YYYY-MM-DD"
+- Supports all date formats: `today`, `Nd`, `Nw`, `fri`, `YYYYMMDD`, etc.
+
+**Common use case:** When returning from vacation, run `skip ID until:today` on each daily recurring task to clear the backlog and get only today's instance.
 
 ## List Search
 

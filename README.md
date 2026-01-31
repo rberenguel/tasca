@@ -15,7 +15,7 @@ Tasca runs entirely in the browser using IndexedDB for storage. No server requir
 | `next [N]`                        | List top N tasks by urgency              |
 | `start` / `st <ID>`               | Mark task as started                     |
 | `done <ID>`                       | Mark task complete                       |
-| `skip <ID>`                       | Skip recurring task                      |
+| `skip <ID> [until:DATE]`          | Skip recurring task (or until DATE)      |
 | `delete <ID>`                     | Remove task                              |
 | `mod <ID> [desc] [options]`       | Modify task (description and/or options) |
 | `annotate <ID> <note>`            | Add note to task                         |
@@ -87,6 +87,18 @@ open 1-3                # open URLs from tasks 1, 2, 3
 ```
 
 Undo works atomically — one undo reverts all changes from a multi-ID command.
+
+### Skip Ahead (OOO)
+
+Skip multiple recurring occurrences at once without creating intermediate tasks:
+
+```
+skip 1 until:today      # skip all past occurrences, get today's task
+skip 2 u:fri            # skip ahead, get Friday's task (u: is shorthand)
+skip 3 until:2w         # skip 2 weeks ahead
+```
+
+Common use case: when returning from vacation, run `skip ID until:today` on each daily recurring task to clear the backlog and get only today's instance.
 
 ### Checklists
 

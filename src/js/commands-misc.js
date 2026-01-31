@@ -372,7 +372,7 @@ export const handleHelp = async (ctx) => {
       );
     else if (c === "list")
       ctx.print(
-        `<div class="msg-help msg-standalone"><span class="msg-hl">list</span> [search] <span class="msg-arg">pro:Project</span> <span class="msg-arg">!tag</span> <span class="msg-arg">end:1w</span><br>Virtual: <span class="msg-arg">!overdue</span> <span class="msg-arg">!today</span> <span class="msg-arg">!waiting</span> <span class="msg-arg">!scheduled</span> <span class="msg-arg">!recurring</span> <span class="msg-arg">!blocked</span> <span class="msg-arg">!checklist</span> <span class="msg-arg">!someday</span> <span class="msg-arg">!done</span> <span class="msg-arg">!all</span></div>`,
+        `<div class="msg-help msg-standalone"><span class="msg-hl">list</span> [search] <span class="msg-arg">pro:Project</span> <span class="msg-arg">!tag</span> <span class="msg-arg">end:1w</span> <span class="msg-arg">sort:due</span><br>Virtual: <span class="msg-arg">!overdue</span> <span class="msg-arg">!today</span> <span class="msg-arg">!waiting</span> <span class="msg-arg">!scheduled</span> <span class="msg-arg">!recurring</span> <span class="msg-arg">!blocked</span> <span class="msg-arg">!checklist</span> <span class="msg-arg">!someday</span> <span class="msg-arg">!done</span> <span class="msg-arg">!all</span><br>Sort: <span class="msg-arg">urgency</span> (default) <span class="msg-arg">due</span> <span class="msg-arg">entry</span> <span class="msg-arg">end</span> <span class="msg-arg">project</span></div>`,
         false,
       );
     else if (c === "done")
@@ -382,7 +382,7 @@ export const handleHelp = async (ctx) => {
       );
     else if (c === "skip")
       ctx.print(
-        `<div class="msg-help msg-standalone"><span class="msg-hl">skip</span> ID<br>Recurring: marks as skipped and creates next instance. Non-recurring: cancels the task.<br>Multi: <span class="msg-arg">skip 1,3</span> or <span class="msg-arg">skip 1-3</span></div>`,
+        `<div class="msg-help msg-standalone"><span class="msg-hl">skip</span> ID <span class="msg-arg">until:DATE</span> (or <span class="msg-arg">u:DATE</span>)<br>Recurring: marks as skipped and creates next instance. Non-recurring: cancels the task.<br>With <span class="msg-arg">until:</span> skips all occurrences before DATE (e.g., <span class="msg-arg">skip 1 until:today</span> for OOO).<br>Multi: <span class="msg-arg">skip 1,3</span> or <span class="msg-arg">skip 1-3</span></div>`,
         false,
       );
     else if (c === "delete")

@@ -25,18 +25,26 @@ Prepare the Tasca codebase for commit by verifying tests and updating version nu
    - Run: `go run scripts/get_cache.go` to update cache list
    - Verify `sw.js` includes all new files in the cache array
 
-3. **Code Formatting**
+3. **Documentation Updates**
+
+   - If new features or command changes were made, check and update:
+     - **Help command** (`src/js/commands-misc.js` → `handleHelp`)
+     - **README.md** (command table and relevant sections)
+   - Ensure help text matches current functionality
+   - Verify all new parameters/options are documented
+
+4. **Code Formatting**
 
    - Run: `prettier . --write` in the root directory
    - Ensures consistent code style before commit
 
-4. **Test Verification**
+5. **Test Verification**
 
    - Remind user to open `tests/index.html` in browser
    - Ask user to confirm all tests pass
    - If new features added, ask if tests were created
 
-5. **Summary Report**
+6. **Summary Report**
    - Show version bump: `1.2.3 → 1.2.4`
    - List files changed
    - Confirm test status
@@ -48,6 +56,8 @@ Prepare the Tasca codebase for commit by verifying tests and updating version nu
 - `/Users/ruben/code/tasca/manifest.json`
 - `/Users/ruben/code/tasca/sw.js`
 - `/Users/ruben/code/tasca/tests/index.html`
+- `/Users/ruben/code/tasca/src/js/commands-misc.js` (help command)
+- `/Users/ruben/code/tasca/README.md` (user documentation)
 
 ## Example Session Flow
 
@@ -77,3 +87,5 @@ You: ✓ Version bumped: 1.2.3 → 1.3.0
 - **NEVER** bump version without user approval
 - Service worker cache name must match manifest versions
 - Test runner is browser-based (not Node.js)
+- **ALWAYS** check help command and README for new features/command changes
+- Help text is in `handleHelp` function in `commands-misc.js`
