@@ -3,48 +3,9 @@
 
 import { dbOps } from "./db.js";
 import { getContext } from "./context.js";
-import { expandVirtualTagShorthand } from "./logic.js";
+import { expandVirtualTagShorthand, calculateUrgency } from "./logic.js";
 import { renderTable } from "./ui.js";
-
-// Generate trigrams from text
-// Pads with spaces at start/end to give weight to word boundaries
-const getTrigrams = (text) => {
-  if (!text) return new Set();
-
-  // Normalize: lowercase, keep alphanumeric and basic punctuation
-  const normalized = text.toLowerCase().replace(/[^\w\s./-]/g, " ");
-
-  // Pad with spaces to weight word boundaries
-  const padded = " " + normalized + " ";
-
-  const trigrams = new Set();
-  for (let i = 0; i <= padded.length - 3; i++) {
-    const trigram = padded.substring(i, i + 3);
-    // Skip trigrams that are all whitespace
-    if (trigram.trim().length > 0) {
-      trigrams.add(trigram);
-    }
-  }
-
-  return trigrams;
-};
-
-// Calculate score based on trigram overlap
-const calculateScore = (queryTrigrams, targetText, weight) => {
-  if (!targetText) return 0;
-
-  const targetTrigrams = getTrigrams(targetText);
-
-  // Count intersection
-  let matches = 0;
-  for (const trigram of queryTrigrams) {
-    if (targetTrigrams.has(trigram)) {
-      matches++;
-    }
-  }
-
-  return matches * weight;
-};
+import { getTrigrams, calculateTrigramScore } from "./search.js";
 
 // Check if task belongs to a reference project (including parent projects)
 const isReferenceTask = (task, projectsMeta) => {
@@ -77,14 +38,82 @@ const isReferenceTask = (task, projectsMeta) => {
   return false;
 };
 
+// Apply custom sorting to task list
+const applySorting = (tasks, sortParam) => {
+  const fieldMap = {
+    start: "start",
+    st: "start",
+    end: "end",
+    e: "end",
+    pri: "priority",
+    priority: "priority",
+    pro: "project",
+    project: "project",
+    due: "due",
+    urg: "urgency",
+    urgency: "urgency",
+    desc: "description",
+    description: "description",
+    alpha: "description",
+    entry: "entry",
+    create: "entry",
+    created: "entry",
+    c: "entry",
+    modified: "modified",
+    mod: "modified",
+    m: "modified",
+  };
+
+  const sortFields = sortParam.split(",");
+
+  tasks.sort((a, b) => {
+    for (const field of sortFields) {
+      const desc = field.startsWith("-");
+      const key = desc ? field.slice(1) : field;
+      const mapped = fieldMap[key] || key;
+      let av = a[mapped],
+        bv = b[mapped];
+
+      // Treat non-numeric priorities as null for sorting
+      if (mapped === "priority") {
+        if (typeof av !== "number") av = null;
+        if (typeof bv !== "number") bv = null;
+      }
+
+      const isDate = ["start", "end", "due", "entry", "modified"].includes(
+        mapped,
+      );
+      const isNum = ["urgency", "priority"].includes(mapped) || isDate;
+      let dir = isDate || mapped === "priority" ? -1 : 1;
+      if (desc) dir = -dir;
+
+      if (av == null && bv == null) continue;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+
+      if (isNum) {
+        const diff = (parseFloat(av) - parseFloat(bv)) * dir;
+        if (diff !== 0) return diff;
+      } else {
+        const cmp = String(av).localeCompare(String(bv)) * dir;
+        if (cmp !== 0) return cmp;
+      }
+    }
+    return 0;
+  });
+};
+
 export const handleRef = async (ctx) => {
-  // Separate search terms from virtual tags
+  // Separate search terms from virtual tags and sort parameter
   const searchTerms = [];
   const flags = [];
+  let sortParam = null;
 
   for (const arg of ctx.args) {
     if (arg.startsWith("!")) {
       flags.push(arg);
+    } else if (arg.startsWith("sort:") || arg.startsWith("s:")) {
+      sortParam = arg.split(":")[1];
     } else {
       searchTerms.push(arg);
     }
@@ -173,14 +202,18 @@ export const handleRef = async (ctx) => {
       return false;
     });
 
-    // Sort by description match first, then by entry date
-    matches.sort((a, b) => {
-      const aDescMatch = a.description?.toLowerCase().includes(queryLower);
-      const bDescMatch = b.description?.toLowerCase().includes(queryLower);
-      if (aDescMatch && !bDescMatch) return -1;
-      if (!aDescMatch && bDescMatch) return 1;
-      return b.entry - a.entry;
-    });
+    // Sort by custom sort field or default (description match, then entry date)
+    if (sortParam) {
+      applySorting(matches, sortParam);
+    } else {
+      matches.sort((a, b) => {
+        const aDescMatch = a.description?.toLowerCase().includes(queryLower);
+        const bDescMatch = b.description?.toLowerCase().includes(queryLower);
+        if (aDescMatch && !bDescMatch) return -1;
+        if (!aDescMatch && bDescMatch) return 1;
+        return b.entry - a.entry;
+      });
+    }
 
     if (matches.length === 0) {
       ctx.print(
@@ -208,18 +241,18 @@ export const handleRef = async (ctx) => {
       let score = 0;
 
       // Description: 10x weight
-      score += calculateScore(queryTrigrams, task.description, 10);
+      score += calculateTrigramScore(queryTrigrams, task.description, 10);
 
       // Annotations: 5x weight (join all annotation descriptions)
       if (task.annotations && task.annotations.length > 0) {
         const annotationsText = task.annotations
           .map((a) => a.description || "")
           .join(" ");
-        score += calculateScore(queryTrigrams, annotationsText, 5);
+        score += calculateTrigramScore(queryTrigrams, annotationsText, 5);
       }
 
       // URL: 2x weight
-      score += calculateScore(queryTrigrams, task.url, 2);
+      score += calculateTrigramScore(queryTrigrams, task.url, 2);
 
       // Bonus for exact substring match in description
       if (task.description?.toLowerCase().includes(queryLower)) {
@@ -229,9 +262,6 @@ export const handleRef = async (ctx) => {
       return { task, score };
     })
     .filter((item) => item.score > 0);
-
-  // Sort by score descending
-  scoredTasks.sort((a, b) => b.score - a.score);
 
   if (scoredTasks.length === 0) {
     ctx.print(
@@ -243,8 +273,17 @@ export const handleRef = async (ctx) => {
     return;
   }
 
-  // Extract tasks and update display map
-  const results = scoredTasks.map((item) => item.task);
+  // Extract tasks and sort by custom field or relevance score
+  let results;
+  if (sortParam) {
+    results = scoredTasks.map((item) => item.task);
+    applySorting(results, sortParam);
+  } else {
+    // Sort by score descending
+    scoredTasks.sort((a, b) => b.score - a.score);
+    results = scoredTasks.map((item) => item.task);
+  }
+
   ctx.displayMapRef.value = results.map((t) => t.uuid);
 
   // Render table

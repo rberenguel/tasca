@@ -2393,32 +2393,38 @@ describe("List Search E2E Tests", function () {
       expect(displayMapRef.value[0]).to.equal(waitingTask.uuid);
     });
 
-    it("direct search should find waiting tasks even with context", async function () {
+    it("direct search should bypass context and find all matching tasks", async function () {
       await execute("add waiting groceries wait:7d");
       await execute("add visible task");
 
       // Set a project context
       await execute("context pro:Work");
 
-      // Direct search term should still find waiting tasks
-      // (though this task won't match the pro:Work filter anyway)
+      // Direct search term bypasses context and finds all matching tasks
       await execute("list groceries");
 
-      // The search includes waiting but pro:Work filters it out
-      // Let's test with matching project
+      // Should find the first grocery task (context bypassed)
+      expect(displayMapRef.value).to.have.length(1);
+      const tasks1 = await dbOps.getAll();
+      const firstGrocery = tasks1.find(
+        (t) => t.description === "waiting groceries",
+      );
+      expect(displayMapRef.value[0]).to.equal(firstGrocery.uuid);
+
+      // Add another grocery task with Work project
       await execute("context");
       await execute("add waiting work groceries wait:7d pro:Work");
       await execute("context pro:Work");
       await execute("list groceries");
 
-      // Should find the waiting task because of direct search term
-      expect(displayMapRef.value).to.have.length(1);
+      // Should find BOTH grocery tasks because search bypasses context
+      expect(displayMapRef.value).to.have.length(2);
 
       const tasks = await dbOps.getAll();
-      const waitingTask = tasks.find(
-        (t) => t.description === "waiting work groceries",
-      );
-      expect(displayMapRef.value[0]).to.equal(waitingTask.uuid);
+      const groceryUuids = tasks
+        .filter((t) => t.description.includes("groceries"))
+        .map((t) => t.uuid);
+      expect(displayMapRef.value).to.have.members(groceryUuids);
     });
   });
 });

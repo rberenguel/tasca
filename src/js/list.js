@@ -27,6 +27,7 @@ import {
   isChecklistMember,
   getChecklistParentUuid,
 } from "./commands-checklist.js";
+import { fuzzySearchTasks } from "./search.js";
 
 export const runList = async (
   args,
@@ -36,8 +37,18 @@ export const runList = async (
 ) => {
   // Clear icon results so copy N works for tasks
   iconResultsRef.value = [];
-  // Apply context filters
-  const effectiveArgs = mergeFilters(args);
+
+  // Detect if args contain filter terms (not just modifiers)
+  // If filter terms present, bypass context to allow ad-hoc search
+  const isModifier = (token) =>
+    token.startsWith("sort:") ||
+    token.startsWith("s:") ||
+    token.startsWith("lim:") ||
+    token.startsWith("l:");
+  const hasFilterTerms = args.some((token) => !isModifier(token));
+
+  // Apply context filters only if no filter terms present
+  const effectiveArgs = hasFilterTerms ? args : mergeFilters(args);
   if (!preserveFilter) {
     setLastFilterArgs(effectiveArgs);
     setLastLimit(limit);
@@ -78,6 +89,7 @@ export const runList = async (
     if (
       !token.startsWith("!") &&
       !token.startsWith("sort:") &&
+      !token.startsWith("s:") &&
       !token.startsWith("pro:") &&
       !token.startsWith("p:") &&
       !token.startsWith("proj:") &&
@@ -126,7 +138,7 @@ export const runList = async (
     } else if (token.startsWith("end:")) {
       const val = token.split(":")[1];
       endAfter = parseRelativeTime(val);
-    } else if (token.startsWith("sort:")) {
+    } else if (token.startsWith("sort:") || token.startsWith("s:")) {
       sortFields = token.split(":")[1].split(",");
     } else if (token.startsWith("!")) {
       const expanded = expandVirtualTagShorthand(token);
@@ -183,10 +195,6 @@ export const runList = async (
       }),
     );
   }
-  if (search.length)
-    tasks = tasks.filter((t) =>
-      search.every((s) => t.description.toLowerCase().includes(s)),
-    );
   if (showModified) {
     const lastSave = await dbOps.getSetting("lastSave");
     if (lastSave) {
@@ -194,7 +202,14 @@ export const runList = async (
     }
     // If never saved, all tasks are "modified"
   }
+
+  // Calculate urgency before search filtering (needed for relevance ranking)
   tasks.forEach((t) => (t.urgency = calculateUrgency(t, all, projects)));
+
+  // Apply fuzzy search if search terms present
+  if (search.length) {
+    tasks = fuzzySearchTasks(tasks, search);
+  }
 
   // Sorting
   if (sortFields) {
@@ -202,6 +217,7 @@ export const runList = async (
       start: "start",
       st: "start",
       end: "end",
+      e: "end",
       pri: "priority",
       priority: "priority",
       pro: "project",
@@ -212,6 +228,13 @@ export const runList = async (
       desc: "description",
       description: "description",
       alpha: "description",
+      entry: "entry",
+      create: "entry",
+      created: "entry",
+      c: "entry",
+      modified: "modified",
+      mod: "modified",
+      m: "modified",
     };
     tasks.sort((a, b) => {
       for (const field of sortFields) {
@@ -225,7 +248,9 @@ export const runList = async (
           if (typeof av !== "number") av = null;
           if (typeof bv !== "number") bv = null;
         }
-        const isDate = ["start", "end", "due", "entry"].includes(mapped);
+        const isDate = ["start", "end", "due", "entry", "modified"].includes(
+          mapped,
+        );
         const isNum = ["urgency", "priority"].includes(mapped) || isDate;
         let dir = isDate || mapped === "priority" ? -1 : 1;
         if (desc) dir = -dir;

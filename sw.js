@@ -1,4 +1,4 @@
-const CACHE_NAME = "tasca-cache-v0.16.2";
+const CACHE_NAME = "tasca-cache-v0.17.0";
 const CACHE_FILES = [
   "./fonts/monoid-bold.woff2",
   "./fonts/monoid-italic.woff2",
@@ -27,6 +27,7 @@ const CACHE_FILES = [
   "./src/js/input.js",
   "./src/js/list.js",
   "./src/js/logic.js",
+  "./src/js/search.js",
   "./src/js/state.js",
   "./src/js/today.js",
   "./src/js/ui.js",
