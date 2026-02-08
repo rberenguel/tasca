@@ -6,7 +6,7 @@ import {
   expandVirtualTagShorthand,
   C,
 } from "./logic.js";
-import { renderTable } from "./ui.js";
+import { renderTable, print } from "./ui.js";
 import { parseRelativeTime, formatDateOnly } from "./utils.js";
 import {
   displayMapRef,
@@ -28,6 +28,7 @@ import {
   getChecklistParentUuid,
 } from "./commands-checklist.js";
 import { fuzzySearchTasks } from "./search.js";
+import { renderChainView } from "./commands-views.js";
 
 export const runList = async (
   args,
@@ -421,4 +422,52 @@ export const runList = async (
     checklistGroups,
     isNextView,
   );
+
+  // Auto-show chain if all tasks are part of dependency chains
+  await autoShowChainIfRelevant(tasksWithChecklists, all);
+};
+
+// Helper to check if all tasks are part of dependency chains
+const autoShowChainIfRelevant = async (tasks, allTasks) => {
+  // Skip if no tasks or showing done/skipped tasks
+  if (tasks.length === 0) return;
+  if (tasks.some((t) => t.status !== "pending")) return;
+
+  // Build blocking map to check if tasks are in chains
+  const blocking = {};
+  allTasks
+    .filter((t) => t.status === "pending")
+    .forEach((t) => {
+      if (t.depends) {
+        t.depends.forEach((dep) => {
+          if (!blocking[dep]) blocking[dep] = [];
+          blocking[dep].push(t.uuid);
+        });
+      }
+    });
+
+  // Check if ALL displayed tasks are part of dependency chains
+  const allInChain = tasks.every((t) => {
+    const hasDepends = t.depends && t.depends.length > 0;
+    const isBlocking = blocking[t.uuid] && blocking[t.uuid].length > 0;
+    return hasDepends || isBlocking;
+  });
+
+  if (!allInChain) return;
+
+  // Render chain view for all tasks - preserve original display map
+  const originalDisplayMap = [...displayMapRef.value];
+  const pending = allTasks.filter((t) => t.status === "pending");
+  const startingUuids = tasks.map((t) => t.uuid);
+  const wrapperStyle =
+    "margin-top: 16px; border-top: 1px solid var(--base01); padding-top: 8px; line-height: 1.5; font-family: monospace;";
+
+  const chainHtml =
+    '<div style="color: var(--base01); margin-bottom: 8px;">Dependencies:</div>' +
+    renderChainView(pending, startingUuids, null, wrapperStyle);
+
+  print(chainHtml, true); // APPEND, don't replace
+
+  // Restore original display map so task IDs remain correct
+  displayMapRef.value = originalDisplayMap;
 };

@@ -34,28 +34,13 @@ export const handleNext = async (args, print) => {
   await runList(args, limit);
 };
 
-export const handleChain = async (args, print) => {
-  const idArg = args[0];
-
-  // Resolve ID - support both numeric IDs and x:name references
-  let rootUuid;
-  if (idArg && idArg.startsWith("x:")) {
-    const name = idArg.substring(2);
-    const pending = await dbOps.getByStatus("pending");
-    const match = pending.find((t) => t.target === name);
-    rootUuid = match?.uuid;
-  } else {
-    const id = parseInt(idArg);
-    rootUuid = id ? displayMapRef.value[id - 1] : null;
-  }
-
-  if (!rootUuid)
-    return print('<span class="msg-error">Invalid ID.</span>', false, {
-      dismissible: true,
-    });
-  const all = await dbOps.getAll();
-
-  const pending = all.filter((t) => t.status === "pending");
+// Core chain rendering logic - extracted for reuse
+export const renderChainView = (
+  pending,
+  startingUuids,
+  targetUuid = null,
+  wrapperStyle = null,
+) => {
   const blocking = {};
   const uuidMap = {};
   pending.forEach((t) => {
@@ -67,32 +52,38 @@ export const handleChain = async (args, print) => {
       });
   });
 
-  const ancestors = new Set();
+  // Collect relevant UUIDs (ancestors + descendants of all starting tasks)
+  const relevantUUIDs = new Set();
+
   const getAncestors = (curr) => {
     const t = uuidMap[curr];
     if (!t || !t.depends) return;
     t.depends.forEach((d) => {
-      if (uuidMap[d] && !ancestors.has(d)) {
-        ancestors.add(d);
+      if (uuidMap[d] && !relevantUUIDs.has(d)) {
+        relevantUUIDs.add(d);
         getAncestors(d);
       }
     });
   };
-  getAncestors(rootUuid);
 
-  const descendants = new Set();
   const getDescendants = (curr) => {
     if (blocking[curr])
       blocking[curr].forEach((b) => {
-        if (uuidMap[b] && !descendants.has(b)) {
-          descendants.add(b);
+        if (uuidMap[b] && !relevantUUIDs.has(b)) {
+          relevantUUIDs.add(b);
           getDescendants(b);
         }
       });
   };
-  getDescendants(rootUuid);
 
-  const relevantUUIDs = new Set([...ancestors, rootUuid, ...descendants]);
+  // Add all starting tasks and their chains
+  startingUuids.forEach((uuid) => {
+    relevantUUIDs.add(uuid);
+    getAncestors(uuid);
+    getDescendants(uuid);
+  });
+
+  // Find roots
   const roots = [];
   relevantUUIDs.forEach((u) => {
     const t = uuidMap[u];
@@ -100,10 +91,9 @@ export const handleChain = async (args, print) => {
       roots.push(u);
   });
 
-  // Populate display map in visual order so IDs are sequential and correct
+  // Populate display map in visual order
   const displayIds = [];
   const traverseForIds = (u) => {
-    // Avoid infinite recursion if there are cycles (though relevantUUIDs logic should prevent some)
     if (displayIds.includes(u)) return;
     displayIds.push(u);
     const children = blocking[u]
@@ -112,14 +102,21 @@ export const handleChain = async (args, print) => {
     children.forEach((child) => traverseForIds(child));
   };
 
-  if (roots.length === 0 && relevantUUIDs.size > 0) traverseForIds(rootUuid);
-  else roots.forEach((r) => traverseForIds(r));
+  if (roots.length === 0 && relevantUUIDs.size > 0) {
+    traverseForIds(startingUuids[0]);
+  } else {
+    roots.forEach((r) => traverseForIds(r));
+  }
+
   displayMapRef.value = displayIds;
 
-  let html = '<div style="line-height: 1.5; font-family: monospace;">';
+  // Build HTML tree
+  const style = wrapperStyle || "line-height: 1.5; font-family: monospace;";
+  let html = `<div style="${style}">`;
+
   const renderFinal = (u, prefix, isTail) => {
     const t = uuidMap[u];
-    const isTarget = u === rootUuid;
+    const isTarget = u === targetUuid;
     let treeMarker = "";
     if (prefix.length > 0 || isTail !== undefined)
       treeMarker = `<span style="color:var(--base01)">${prefix}${isTail ? "└── " : "├── "}</span>`;
@@ -143,10 +140,39 @@ export const handleChain = async (args, print) => {
       renderFinal(child, nextPrefix, childIsTail);
     });
   };
+
   if (roots.length === 0 && relevantUUIDs.size > 0)
-    renderFinal(rootUuid, "", undefined);
+    renderFinal(startingUuids[0], "", undefined);
   else roots.forEach((r) => renderFinal(r, "", undefined));
+
   html += "</div>";
+  return html;
+};
+
+export const handleChain = async (args, print) => {
+  const idArg = args[0];
+
+  // Resolve ID - support both numeric IDs and x:name references
+  let rootUuid;
+  if (idArg && idArg.startsWith("x:")) {
+    const name = idArg.substring(2);
+    const pending = await dbOps.getByStatus("pending");
+    const match = pending.find((t) => t.target === name);
+    rootUuid = match?.uuid;
+  } else {
+    const id = parseInt(idArg);
+    rootUuid = id ? displayMapRef.value[id - 1] : null;
+  }
+
+  if (!rootUuid)
+    return print('<span class="msg-error">Invalid ID.</span>', false, {
+      dismissible: true,
+    });
+
+  const all = await dbOps.getAll();
+  const pending = all.filter((t) => t.status === "pending");
+
+  const html = renderChainView(pending, [rootUuid], rootUuid);
   print(html, false, { dismissible: true });
 };
 

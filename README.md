@@ -100,6 +100,16 @@ skip 3 until:2w         # skip 2 weeks ahead
 
 Common use case: when returning from vacation, run `skip ID until:today` on each daily recurring task to clear the backlog and get only today's instance.
 
+### Dependencies & Chain View
+
+Use `dep:ID` to create task dependencies. The `chain` command visualizes the dependency tree for a specific task:
+
+```
+chain 5                 # show dependency tree for task 5
+```
+
+**Auto-show behavior**: When listing tasks (via `list` or context), if _all_ displayed tasks are part of dependency chains (either blocking other tasks or blocked by dependencies), the chain view automatically appears below the task list. This is useful for projects where all tasks form a sequential chain of work.
+
 ### Checklists
 
 Group related tasks under a parent for routines or multi-step processes:
