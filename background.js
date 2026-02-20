@@ -31,7 +31,7 @@ function transformTitle(url, title) {
   return title;
 }
 
-// Helper to find or open Tasca tab
+// Helper to find or open Tasca tab (used by add-from-tab)
 async function openTascaTab() {
   const url = chrome.runtime.getURL("index.html");
   const tabs = await chrome.tabs.query({ url });
@@ -45,11 +45,16 @@ async function openTascaTab() {
   }
 }
 
-// Click or Ctrl+T: just open Tasca
-chrome.action.onClicked.addListener(openTascaTab);
+// Ctrl+Shift+Y / action button: open sidebar (Chrome handles natively)
+chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 
-// Ctrl+Shift+T: capture current tab, then open Tasca with pre-filled add command
+// Ctrl+Shift+U / Ctrl+Shift+T: open tab or add from tab
 chrome.commands.onCommand.addListener(async (command) => {
+  if (command === "open-tab") {
+    await openTascaTab();
+    return;
+  }
+
   if (command === "add-from-tab") {
     // Get current tab info BEFORE switching
     const [currentTab] = await chrome.tabs.query({

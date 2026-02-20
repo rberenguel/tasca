@@ -296,6 +296,28 @@ Use `unlink` to disconnect the linked file.
 - **Tab**: Autocomplete commands, projects, and tags
 - **Tap output area**: Toggle keyboard focus (mobile)
 
+## Chrome Extension
+
+The Chrome extension adds quick-access shortcuts and sidebar support. Load it as an unpacked extension from the repo root.
+
+### Keyboard Shortcuts
+
+| Shortcut       | Action                                                     |
+| -------------- | ---------------------------------------------------------- |
+| `Ctrl+Shift+Y` | Open Tasca as a sidebar (alongside any webpage)            |
+| `Ctrl+Shift+U` | Open (or focus) the Tasca tab                              |
+| `Ctrl+Shift+T` | Add a task pre-filled with the current tab's title and URL |
+
+Shortcuts can be reassigned at `chrome://extensions/shortcuts`.
+
+### Sidebar
+
+The sidebar runs Tasca alongside any webpage — useful for capturing tasks while browsing. Open it with `Ctrl+Shift+Y` or by clicking the toolbar icon. Close it with the browser's built-in sidebar button.
+
+### Add from Tab
+
+`Ctrl+Shift+T` captures the current tab's title and URL, opens Tasca, and pre-fills an `add` command. Domain-specific icon and title cleanup is configured in `auto-icons.js`.
+
 ## Installation
 
 Serve the files via any static file server or open `index.html` directly. Install as PWA for offline use.

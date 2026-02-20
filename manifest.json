@@ -1,11 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Tasca",
-  "version": "0.17.2",
+  "version": "0.18.0",
   "description": "A minimal text-based task manager.",
-  "permissions": ["tabs"],
+  "permissions": ["tabs", "sidePanel"],
   "action": {
     "default_icon": "icon.png"
+  },
+  "side_panel": {
+    "default_path": "index.html"
   },
   "background": {
     "service_worker": "background.js",
@@ -17,9 +20,15 @@
   "commands": {
     "_execute_action": {
       "suggested_key": {
-        "default": "Ctrl+T"
+        "default": "Ctrl+Shift+Y"
       },
-      "description": "Open Tasca"
+      "description": "Open Tasca sidebar"
+    },
+    "open-tab": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+U"
+      },
+      "description": "Open Tasca tab"
     },
     "add-from-tab": {
       "suggested_key": {
