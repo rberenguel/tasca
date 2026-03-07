@@ -318,6 +318,56 @@ The sidebar runs Tasca alongside any webpage — useful for capturing tasks whil
 
 `Ctrl+Shift+T` captures the current tab's title and URL, opens Tasca, and pre-fills an `add` command. Domain-specific icon and title cleanup is configured in `auto-icons.js`.
 
+## Go CLI
+
+A native Go CLI that reads and writes `tasca.json` directly — no browser required. Designed for terminal use and for coding agents via the bundled Claude skill.
+
+### Install
+
+```bash
+cd cli
+task install        # builds ~/.tasca/tasca and installs the Claude skill
+```
+
+Requires [Task](https://taskfile.dev) and Go 1.21+.
+
+### Usage
+
+```bash
+# Single-shot
+~/.tasca/tasca -f /path/to/tasca.json next
+~/.tasca/tasca -f /path/to/tasca.json --markdown next   # GFM output for LLMs
+
+# REPL (interactive)
+~/.tasca/tasca -f /path/to/tasca.json
+
+# File resolution: -f flag → $TASCA_FILE env → ./tasca.json → ~/tasca.json
+export TASCA_FILE="/path/to/tasca.json"
+~/.tasca/tasca next
+```
+
+### Supported Commands
+
+All core commands are supported: `next`, `list`, `add`, `done`, `delete`, `skip`, `mod`, `start`, `info`, `annotate`, `chain`, `projects`, `context`/`ctx`, `today`/`day`, `calendar`, `report`, `export`, `import`.
+
+The CLI has full context persistence — `ctx pro:Work` filters all subsequent `list`/`next` commands and inherits project/tags into `add`. A naked Enter in the REPL re-renders the current contextual view.
+
+### Claude Skill
+
+`task install` also installs a Claude Code skill at `~/.claude/skills/tasca`. Once installed, Claude can read and manage your tasks directly:
+
+> _"What are my most urgent tasks?"_ > _"Add a task to review the deployment, due Friday, project Work"_ > _"Mark task 3 as done"_
+
+The skill uses `--markdown` output for clean LLM consumption, respects your active context, and always asks for confirmation before writing.
+
+The tasca file path is read from your Claude memory — store it once and it's available in every session.
+
+### Tests
+
+```bash
+cd cli && task test     # runs 89 Go tests covering urgency, date parsing, recurrence, filters, and more
+```
+
 ## Installation
 
 Serve the files via any static file server or open `index.html` directly. Install as PWA for offline use.

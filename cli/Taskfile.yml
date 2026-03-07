@@ -1,0 +1,27 @@
+version: "3"
+
+vars:
+  BIN: ~/.tasca/tasca
+
+tasks:
+  build:
+    desc: Build and install the tasca binary to ~/.tasca/tasca
+    cmds:
+      - mkdir -p ~/.tasca
+      - go build -o {{.BIN}} ./cmd/tasca
+      - codesign -s - {{.BIN}} || true
+      - echo "Installed to {{.BIN}}"
+
+  test:
+    desc: Run all tests
+    cmds:
+      - go test ./... -v -count=1
+
+  install:
+    desc: Build binary and copy skill into Claude skills directory
+    cmds:
+      - task: build
+      - mkdir -p ~/.claude/skills
+      - rm -rf ~/.claude/skills/tasca
+      - cp -r ./skills ~/.claude/skills/tasca
+      - echo "Installed skill to ~/.claude/skills/tasca"
