@@ -187,7 +187,8 @@ export const projectCommands = {
 export const isProjectCommand = (args) => {
   return (
     args[0] &&
-    (args[0].startsWith("pro:") ||
+    (args[0].startsWith("p:") ||
+      args[0].startsWith("pro:") ||
       args[0].startsWith("proj:") ||
       args[0].startsWith("project:"))
   );
