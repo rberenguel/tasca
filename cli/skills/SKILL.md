@@ -61,6 +61,7 @@ Mutations (done, mod, skip, etc.) re-render using the active context automatical
 ~/.tasca/tasca --markdown list search term      # text search (includes waiting tasks)
 ~/.tasca/tasca --markdown today                 # tasks due today, with sections
 ~/.tasca/tasca --markdown info 3                # full task details
+~/.tasca/tasca --markdown info pro:Work         # project details + annotations
 ~/.tasca/tasca --markdown projects              # all projects with task counts
 ~/.tasca/tasca --markdown calendar              # next 14 days
 ~/.tasca/tasca --markdown calendar lim:30       # next 30 days
@@ -88,6 +89,11 @@ Mutations (done, mod, skip, etc.) re-render using the active context automatical
 ~/.tasca/tasca start 2                  # mark as started
 ~/.tasca/tasca annotate 3 Blocked on design review
 ~/.tasca/tasca annotate 3 -1            # remove annotation 1
+~/.tasca/tasca annotate 3 -1 updated text  # edit annotation 1
+~/.tasca/tasca annotate pro:Work Goals for Q2  # add annotation to project
+~/.tasca/tasca annotate pro:Work -1          # remove project annotation 1
+~/.tasca/tasca annotate pro:Work -1 new text # edit project annotation 1
+~/.tasca/tasca info pro:Work                 # show project details + annotations
 ```
 
 ## Task Options

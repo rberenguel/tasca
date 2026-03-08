@@ -169,12 +169,13 @@ func (t *Task) UnmarshalJSON(b []byte) error {
 }
 
 type Project struct {
-	Name        string   `json:"name"`
-	Icon        string   `json:"icon,omitempty"`
-	Tags        []string `json:"tags,omitempty"`
-	Banners     []string `json:"banners,omitempty"`
-	BannerStyle string   `json:"bannerStyle,omitempty"`
-	Modified    int64    `json:"modified,omitempty"`
+	Name        string       `json:"name"`
+	Icon        string       `json:"icon,omitempty"`
+	Tags        []string     `json:"tags,omitempty"`
+	Banners     []string     `json:"banners,omitempty"`
+	BannerStyle string       `json:"bannerStyle,omitempty"`
+	Annotations []Annotation `json:"annotations,omitempty"`
+	Modified    int64        `json:"modified,omitempty"`
 }
 
 // ── Store (top-level JSON) ────────────────────────────────────────────────────

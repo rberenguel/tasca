@@ -516,9 +516,18 @@ func cmdStart(store *Store, state *State, args []string, opts Options) error {
 
 func cmdInfo(store *Store, state *State, args []string, opts Options) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: info <ID>")
+		return fmt.Errorf("usage: info <ID|pro:Name>")
 	}
 	idStr := args[0]
+
+	// Project info
+	lo := strings.ToLower(idStr)
+	if strings.HasPrefix(lo, "pro:") || strings.HasPrefix(lo, "p:") || strings.HasPrefix(lo, "proj:") {
+		projName := idStr[strings.Index(idStr, ":")+1:]
+		p := findProject(store, projName)
+		printProjectInfo(p, projName, store, opts.Markdown)
+		return nil
+	}
 
 	var uuid string
 	var displayID int
@@ -564,9 +573,16 @@ func cmdInfo(store *Store, state *State, args []string, opts Options) error {
 
 func cmdAnnotate(store *Store, state *State, args []string, opts Options) error {
 	if len(args) < 2 {
-		return fmt.Errorf("usage: annotate <ID> <note|-N>")
+		return fmt.Errorf("usage: annotate <ID|pro:Name> <note|-N|-N text>")
 	}
 	idStr := args[0]
+
+	// Project annotation
+	lo := strings.ToLower(idStr)
+	if strings.HasPrefix(lo, "pro:") || strings.HasPrefix(lo, "p:") || strings.HasPrefix(lo, "proj:") {
+		projName := idStr[strings.Index(idStr, ":")+1:]
+		return annotateProject(store, projName, strings.Join(args[1:], " "), opts)
+	}
 
 	var uuid string
 	if strings.HasPrefix(idStr, "x:") {
@@ -594,29 +610,59 @@ func cmdAnnotate(store *Store, state *State, args []string, opts Options) error 
 	}
 
 	note := strings.Join(args[1:], " ")
+	return applyAnnotation(&t.Annotations, &t.Modified, note)
+}
 
+// annotateProject adds/removes/edits an annotation on a project.
+func annotateProject(store *Store, projName string, note string, opts Options) error {
+	p := findProject(store, projName)
+	if p == nil {
+		p = &Project{Name: projName}
+		store.Projects = append(store.Projects, p)
+	}
+	modified := p.Modified
+	err := applyAnnotation(&p.Annotations, &modified, note)
+	p.Modified = modified
+	return err
+}
+
+// applyAnnotation mutates annotations: add, remove (-N), or edit (-N text).
+func applyAnnotation(annotations *[]Annotation, modified *int64, note string) error {
 	if strings.HasPrefix(note, "-") {
-		n, err := strconv.Atoi(note[1:])
+		rest := note[1:]
+		spaceIdx := strings.Index(rest, " ")
+		numStr := rest
+		editText := ""
+		if spaceIdx >= 0 {
+			numStr = rest[:spaceIdx]
+			editText = strings.TrimSpace(rest[spaceIdx+1:])
+		}
+		n, err := strconv.Atoi(numStr)
 		if err != nil {
-			return fmt.Errorf("invalid annotation index: %s", note)
+			return fmt.Errorf("invalid annotation index: -%s", numStr)
 		}
-		if n < 1 || n > len(t.Annotations) {
-			return fmt.Errorf("annotation index out of range (has %d)", len(t.Annotations))
+		if n < 1 || n > len(*annotations) {
+			return fmt.Errorf("annotation index out of range (has %d)", len(*annotations))
 		}
-		t.Annotations = append(t.Annotations[:n-1], t.Annotations[n:]...)
-		fmt.Println(col(ansiGreen, fmt.Sprintf("Annotation %d removed.", n)))
-		t.Modified = nowMs()
+		if editText != "" {
+			(*annotations)[n-1].Description = editText
+			fmt.Println(col(ansiGreen, fmt.Sprintf("Annotation %d updated.", n)))
+		} else {
+			*annotations = append((*annotations)[:n-1], (*annotations)[n:]...)
+			fmt.Println(col(ansiGreen, fmt.Sprintf("Annotation %d removed.", n)))
+		}
+		*modified = nowMs()
 		return nil
 	}
 
-	if t.Annotations == nil {
-		t.Annotations = []Annotation{}
+	if *annotations == nil {
+		*annotations = []Annotation{}
 	}
-	t.Annotations = append(t.Annotations, Annotation{
+	*annotations = append(*annotations, Annotation{
 		Entry:       nowMs(),
 		Description: note,
 	})
-	t.Modified = nowMs()
+	*modified = nowMs()
 	fmt.Println(col(ansiGreen, "Annotation added."))
 	return nil
 }

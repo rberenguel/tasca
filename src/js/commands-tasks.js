@@ -558,38 +558,76 @@ export const handleAnnotateProject = async (ctx) => {
       '<span class="msg-error">No project name specified.</span>',
     );
 
-  let icon = null;
-  let tagsToToggle = [];
-  let banners = null;
-
-  // Check for banner: prefix - everything after it is the banner text
   const fullArgs = ctx.args.slice(1).join(" ");
+
+  // Banner handling
   const bannerMatch = fullArgs.match(/^banner:(.*)$/i);
   if (bannerMatch) {
     const bannerText = bannerMatch[1].trim();
-    if (bannerText) {
-      banners = bannerText
-        .split("|")
-        .map((b) => b.trim())
-        .filter((b) => b);
-    } else {
-      banners = []; // Clear banners
-    }
-  } else {
-    ctx.args.slice(1).forEach((arg) => {
-      if (arg.startsWith("icon:")) {
-        icon = arg.split(":")[1] || null;
-      } else if (arg.startsWith("!")) {
-        tagsToToggle.push(arg.substring(1).toLowerCase());
-      }
-    });
-  }
-
-  if (icon || tagsToToggle.length > 0 || banners !== null) {
+    const banners = bannerText
+      ? bannerText
+          .split("|")
+          .map((b) => b.trim())
+          .filter((b) => b)
+      : [];
     const projects = await ctx.dbOps.getAllProjects();
     let proj = projects.find((p) => p.name === projName);
     if (!proj) proj = { name: projName };
-    if (icon) proj.icon = icon;
+    proj.banners = banners.length > 0 ? banners : null;
+    await ctx.dbOps.updateProject(proj);
+    ctx.print(`<span class="msg-success">Project ${projName} updated.</span>`);
+    ctx.markDirty();
+    await ctx.runListRefresh();
+    return;
+  }
+
+  // Remove/edit annotation: -N or -N text
+  const removeMatch = fullArgs.match(/^-(\d+)(?:\s+(.+))?$/);
+  if (removeMatch) {
+    const n = parseInt(removeMatch[1]);
+    const editText = removeMatch[2] || null;
+    const projects = await ctx.dbOps.getAllProjects();
+    let proj = projects.find((p) => p.name === projName);
+    if (!proj?.annotations?.length) {
+      return ctx.print(
+        '<span class="msg-error">No annotations to modify.</span>',
+      );
+    }
+    if (n < 1 || n > proj.annotations.length) {
+      return ctx.print(
+        `<span class="msg-error">Invalid index. Project has ${proj.annotations.length} annotation(s).</span>`,
+      );
+    }
+    if (editText) {
+      proj.annotations[n - 1].description = editText;
+      await ctx.dbOps.updateProject(proj);
+      ctx.print(`<span class="msg-success">Annotation ${n} updated.</span>`);
+    } else {
+      proj.annotations.splice(n - 1, 1);
+      await ctx.dbOps.updateProject(proj);
+      ctx.print(`<span class="msg-success">Annotation ${n} removed.</span>`);
+    }
+    ctx.markDirty();
+    return;
+  }
+
+  // Icon/tag metadata update
+  const argRest = ctx.args.slice(1);
+  const hasMetadata = argRest.some(
+    (a) => a.startsWith("icon:") || a.startsWith("!"),
+  );
+  if (hasMetadata) {
+    let icon = null;
+    let tagsToToggle = [];
+    argRest.forEach((arg) => {
+      if (arg.startsWith("icon:")) icon = arg.split(":")[1] || null;
+      else if (arg.startsWith("!"))
+        tagsToToggle.push(arg.substring(1).toLowerCase());
+    });
+    const projects = await ctx.dbOps.getAllProjects();
+    let proj = projects.find((p) => p.name === projName);
+    if (!proj) proj = { name: projName };
+    if (icon !== null) proj.icon = icon;
     if (tagsToToggle.length > 0) {
       if (!proj.tags) proj.tags = [];
       tagsToToggle.forEach((tag) => {
@@ -598,18 +636,32 @@ export const handleAnnotateProject = async (ctx) => {
         else proj.tags.push(tag);
       });
     }
-    if (banners !== null) {
-      proj.banners = banners.length > 0 ? banners : null;
-    }
     await ctx.dbOps.updateProject(proj);
     ctx.print(`<span class="msg-success">Project ${projName} updated.</span>`);
     ctx.markDirty();
     await ctx.runListRefresh();
-  } else {
-    ctx.print(
-      '<span class="msg-info">No changes (specify icon:, !tag, or banner:).</span>',
-    );
+    return;
   }
+
+  // Free-text annotation
+  const text = fullArgs.trim();
+  if (text) {
+    const projects = await ctx.dbOps.getAllProjects();
+    let proj = projects.find((p) => p.name === projName);
+    if (!proj) proj = { name: projName };
+    if (!proj.annotations) proj.annotations = [];
+    proj.annotations.push({ entry: Date.now(), description: text });
+    await ctx.dbOps.updateProject(proj);
+    ctx.print(
+      `<span class="msg-success">Annotation added to ${projName}.</span>`,
+    );
+    ctx.markDirty();
+    return;
+  }
+
+  ctx.print(
+    '<span class="msg-info">No changes (specify text, icon:, !tag, banner:, or -N to remove).</span>',
+  );
 };
 
 export const handleAnnotate = async (ctx) => {
@@ -634,9 +686,10 @@ export const handleAnnotate = async (ctx) => {
     return ctx.print('<span class="msg-error">No annotation text.</span>');
 
   pushUndo({ type: "update", task: structuredClone(task) });
-  const removeMatch = note.match(/^-(\d+)$/);
+  const removeMatch = note.match(/^-(\d+)(?:\s+(.+))?$/);
   if (removeMatch) {
     const n = parseInt(removeMatch[1]);
+    const editText = removeMatch[2] || null;
     if (!task.annotations || task.annotations.length === 0) {
       return ctx.print(
         '<span class="msg-error">No annotations to remove.</span>',
@@ -647,9 +700,15 @@ export const handleAnnotate = async (ctx) => {
         `<span class="msg-error">Invalid index. Task has ${task.annotations.length} annotation(s).</span>`,
       );
     }
-    task.annotations.splice(n - 1, 1);
-    await ctx.dbOps.update(task);
-    ctx.print(`<span class="msg-success">Annotation ${n} removed.</span>`);
+    if (editText) {
+      task.annotations[n - 1].description = editText;
+      await ctx.dbOps.update(task);
+      ctx.print(`<span class="msg-success">Annotation ${n} updated.</span>`);
+    } else {
+      task.annotations.splice(n - 1, 1);
+      await ctx.dbOps.update(task);
+      ctx.print(`<span class="msg-success">Annotation ${n} removed.</span>`);
+    }
     ctx.markDirty();
     await ctx.runListRefresh();
     return;
@@ -659,7 +718,6 @@ export const handleAnnotate = async (ctx) => {
   task.annotations.push({ entry: Date.now(), description: note });
   await ctx.dbOps.update(task);
   ctx.markDirty();
-  await ctx.runListRefresh();
   await ctx.runListRefresh();
 };
 
@@ -736,6 +794,12 @@ export const handleInfoProject = async (ctx) => {
     html += `<div><b>Banner style:</b> ${proj.bannerStyle || "ticker"}</div>`;
   }
   html += `<div><b>Pending tasks:</b> ${taskCount}</div>`;
+  if (proj?.annotations?.length > 0) {
+    html += `<div style="margin-top:5px; border-top:1px dashed var(--base01); padding-top:5px"><b>Annotations:</b></div>`;
+    proj.annotations.forEach((a, i) => {
+      html += `<div style="margin-left:10px; font-size:0.9em; color:var(--base1)"><span style="color:var(--base01)">${i + 1}.</span> ${formatDate(a.entry)}: ${formatInlineCode(a.description)}</div>`;
+    });
+  }
   html += `</div>`;
   ctx.print(html, true);
 };

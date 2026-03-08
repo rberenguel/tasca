@@ -880,3 +880,202 @@ func TestNewUUIDUnique(t *testing.T) {
 		seen[u] = true
 	}
 }
+
+// ── applyAnnotation ───────────────────────────────────────────────────────────
+
+func TestApplyAnnotationAdd(t *testing.T) {
+	var anns []Annotation
+	var mod int64
+	if err := applyAnnotation(&anns, &mod, "hello world"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(anns) != 1 {
+		t.Fatalf("expected 1 annotation, got %d", len(anns))
+	}
+	if anns[0].Description != "hello world" {
+		t.Errorf("description: got %q", anns[0].Description)
+	}
+	if anns[0].Entry == 0 {
+		t.Error("entry timestamp should be set")
+	}
+	if mod == 0 {
+		t.Error("modified should be set")
+	}
+}
+
+func TestApplyAnnotationAddSecond(t *testing.T) {
+	anns := []Annotation{{Entry: 1000, Description: "first"}}
+	var mod int64
+	if err := applyAnnotation(&anns, &mod, "second"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(anns) != 2 {
+		t.Fatalf("expected 2 annotations, got %d", len(anns))
+	}
+	if anns[1].Description != "second" {
+		t.Errorf("second annotation: got %q", anns[1].Description)
+	}
+}
+
+func TestApplyAnnotationRemove(t *testing.T) {
+	anns := []Annotation{
+		{Entry: 1000, Description: "first"},
+		{Entry: 2000, Description: "second"},
+		{Entry: 3000, Description: "third"},
+	}
+	var mod int64
+	if err := applyAnnotation(&anns, &mod, "-2"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(anns) != 2 {
+		t.Fatalf("expected 2 annotations after remove, got %d", len(anns))
+	}
+	if anns[0].Description != "first" || anns[1].Description != "third" {
+		t.Errorf("wrong annotations after remove: %v", anns)
+	}
+}
+
+func TestApplyAnnotationRemoveFirst(t *testing.T) {
+	anns := []Annotation{
+		{Entry: 1000, Description: "first"},
+		{Entry: 2000, Description: "second"},
+	}
+	var mod int64
+	if err := applyAnnotation(&anns, &mod, "-1"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(anns) != 1 || anns[0].Description != "second" {
+		t.Errorf("wrong annotations: %v", anns)
+	}
+}
+
+func TestApplyAnnotationEdit(t *testing.T) {
+	anns := []Annotation{
+		{Entry: 1000, Description: "original"},
+		{Entry: 2000, Description: "other"},
+	}
+	var mod int64
+	if err := applyAnnotation(&anns, &mod, "-1 updated text"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(anns) != 2 {
+		t.Fatalf("edit should not change count, got %d", len(anns))
+	}
+	if anns[0].Description != "updated text" {
+		t.Errorf("edit: got %q", anns[0].Description)
+	}
+	if anns[1].Description != "other" {
+		t.Errorf("other annotation should be unchanged: %q", anns[1].Description)
+	}
+}
+
+func TestApplyAnnotationEditMultiWord(t *testing.T) {
+	anns := []Annotation{{Entry: 1000, Description: "old"}}
+	var mod int64
+	if err := applyAnnotation(&anns, &mod, "-1 some new replacement text here"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if anns[0].Description != "some new replacement text here" {
+		t.Errorf("multi-word edit: got %q", anns[0].Description)
+	}
+}
+
+func TestApplyAnnotationInvalidIndex(t *testing.T) {
+	anns := []Annotation{{Entry: 1000, Description: "only"}}
+	var mod int64
+	if err := applyAnnotation(&anns, &mod, "-0"); err == nil {
+		t.Error("index 0 should error")
+	}
+	if err := applyAnnotation(&anns, &mod, "-2"); err == nil {
+		t.Error("out-of-range index should error")
+	}
+}
+
+func TestApplyAnnotationInvalidSyntax(t *testing.T) {
+	var anns []Annotation
+	var mod int64
+	if err := applyAnnotation(&anns, &mod, "-abc"); err == nil {
+		t.Error("non-numeric index should error")
+	}
+}
+
+// ── annotateProject ───────────────────────────────────────────────────────────
+
+func TestAnnotateProjectCreatesProject(t *testing.T) {
+	store := &Store{Tasks: []*Task{}, Projects: []*Project{}}
+	opts := Options{}
+	if err := annotateProject(store, "Work", "some note", opts); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(store.Projects) != 1 {
+		t.Fatalf("expected 1 project, got %d", len(store.Projects))
+	}
+	p := store.Projects[0]
+	if p.Name != "Work" {
+		t.Errorf("name: got %q", p.Name)
+	}
+	if len(p.Annotations) != 1 || p.Annotations[0].Description != "some note" {
+		t.Errorf("annotations: %v", p.Annotations)
+	}
+}
+
+func TestAnnotateProjectExisting(t *testing.T) {
+	store := &Store{
+		Tasks:    []*Task{},
+		Projects: []*Project{{Name: "Work", Tags: []string{"ref"}}},
+	}
+	opts := Options{}
+	if err := annotateProject(store, "Work", "a note", opts); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Should update existing, not create duplicate
+	if len(store.Projects) != 1 {
+		t.Fatalf("should still be 1 project, got %d", len(store.Projects))
+	}
+	p := store.Projects[0]
+	if len(p.Tags) != 1 || p.Tags[0] != "ref" {
+		t.Error("existing tags should be preserved")
+	}
+	if len(p.Annotations) != 1 {
+		t.Errorf("annotations: %v", p.Annotations)
+	}
+}
+
+func TestAnnotateProjectRemove(t *testing.T) {
+	store := &Store{
+		Tasks: []*Task{},
+		Projects: []*Project{{
+			Name: "Work",
+			Annotations: []Annotation{
+				{Entry: 1000, Description: "first"},
+				{Entry: 2000, Description: "second"},
+			},
+		}},
+	}
+	opts := Options{}
+	if err := annotateProject(store, "Work", "-1", opts); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	p := store.Projects[0]
+	if len(p.Annotations) != 1 || p.Annotations[0].Description != "second" {
+		t.Errorf("after remove: %v", p.Annotations)
+	}
+}
+
+func TestAnnotateProjectEdit(t *testing.T) {
+	store := &Store{
+		Tasks: []*Task{},
+		Projects: []*Project{{
+			Name:        "Work",
+			Annotations: []Annotation{{Entry: 1000, Description: "original"}},
+		}},
+	}
+	opts := Options{}
+	if err := annotateProject(store, "Work", "-1 updated", opts); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	p := store.Projects[0]
+	if len(p.Annotations) != 1 || p.Annotations[0].Description != "updated" {
+		t.Errorf("after edit: %v", p.Annotations)
+	}
+}

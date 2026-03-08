@@ -18,10 +18,14 @@ tasks:
       - go test ./... -v -count=1
 
   install:
-    desc: Build binary and copy skill into Claude skills directory
+    desc: Build binary and copy skill into Claude and Gemini skills directories
     cmds:
       - task: build
       - mkdir -p ~/.claude/skills
       - rm -rf ~/.claude/skills/tasca
       - cp -r ./skills ~/.claude/skills/tasca
       - echo "Installed skill to ~/.claude/skills/tasca"
+      - mkdir -p ~/.gemini/skills
+      - rm -rf ~/.gemini/skills/tasca
+      - cp -r ./skills ~/.gemini/skills/tasca
+      - echo "Installed skill to ~/.gemini/skills/tasca"

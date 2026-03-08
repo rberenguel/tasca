@@ -634,6 +634,70 @@ func printInfo(t *Task, displayID int, all []*Task, projects []*Project, markdow
 	}
 }
 
+// ── Project info ──────────────────────────────────────────────────────────────
+
+func printProjectInfo(p *Project, name string, store *Store, markdown bool) {
+	taskCount := 0
+	for _, t := range store.Tasks {
+		if t.Status == "pending" && t.Project == name {
+			taskCount++
+		}
+	}
+
+	if markdown {
+		fmt.Printf("## Project: %s\n\n", name)
+		if p != nil && p.Icon != "" {
+			fmt.Printf("**Icon:** %s  \n", p.Icon)
+		}
+		if p != nil && len(p.Tags) > 0 {
+			fmt.Printf("**Tags:** %s  \n", strings.Join(p.Tags, " "))
+		}
+		if p != nil && len(p.Banners) > 0 {
+			fmt.Printf("**Banners:** %d  \n", len(p.Banners))
+			for i, b := range p.Banners {
+				fmt.Printf("  %d. %s  \n", i+1, b)
+			}
+			fmt.Printf("**Banner style:** %s  \n", p.BannerStyle)
+		}
+		fmt.Printf("**Pending tasks:** %d  \n", taskCount)
+		if p != nil && len(p.Annotations) > 0 {
+			fmt.Printf("\n**Annotations:**\n\n")
+			for i, a := range p.Annotations {
+				fmt.Printf("%d. `%s` %s  \n", i+1, formatDate(a.Entry), a.Description)
+			}
+		}
+		return
+	}
+
+	// ANSI
+	fmt.Printf("%s %s\n", col(ansiYellow, "Project:"), formatProject(name))
+	if p != nil && p.Icon != "" {
+		fmt.Printf("  %-12s %s\n", col(ansiBold, "Icon:"), p.Icon)
+	}
+	if p != nil && len(p.Tags) > 0 {
+		fmt.Printf("  %-12s %s\n", col(ansiBold, "Tags:"), strings.Join(p.Tags, " "))
+	}
+	if p != nil && len(p.Banners) > 0 {
+		fmt.Printf("  %-12s %d banner(s)\n", col(ansiBold, "Banners:"), len(p.Banners))
+		for i, b := range p.Banners {
+			fmt.Printf("    %s %s\n", col(ansiDim, fmt.Sprintf("%d.", i+1)), b)
+		}
+		if p.BannerStyle != "" {
+			fmt.Printf("  %-12s %s\n", col(ansiBold, "Style:"), p.BannerStyle)
+		}
+	}
+	fmt.Printf("  %-12s %d\n", col(ansiBold, "Pending:"), taskCount)
+	if p != nil && len(p.Annotations) > 0 {
+		fmt.Printf("  %s\n", col(ansiBold, "Annotations:"))
+		for i, a := range p.Annotations {
+			fmt.Printf("    %s %s: %s\n",
+				col(ansiDim, fmt.Sprintf("%d.", i+1)),
+				col(ansiDim, formatDate(a.Entry)),
+				a.Description)
+		}
+	}
+}
+
 // ── Chain / dependency tree ───────────────────────────────────────────────────
 
 func printChain(t *Task, all []*Task, displayMap []string, markdown bool) {
