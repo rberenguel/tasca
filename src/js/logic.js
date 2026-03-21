@@ -261,6 +261,7 @@ export const VALID_COMMANDS = [
   "stat",
   "start",
   "st",
+  "stop",
   "context",
   "ctx",
   "c",

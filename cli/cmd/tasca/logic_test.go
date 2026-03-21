@@ -1079,3 +1079,59 @@ func TestAnnotateProjectEdit(t *testing.T) {
 		t.Errorf("after edit: %v", p.Annotations)
 	}
 }
+
+// ── Stop / Touches ────────────────────────────────────────────────────────────
+
+func TestCmdStopClearsStart(t *testing.T) {
+	n := now()
+	task := &Task{UUID: "t1", Status: "pending", Entry: n, Start: ptrMs(n - 1000)}
+	store := &Store{Tasks: []*Task{task}}
+	state := &State{DisplayMap: []string{"t1"}}
+
+	if err := cmdStop(store, state, []string{"1"}, Options{}); err != nil {
+		t.Fatalf("cmdStop error: %v", err)
+	}
+	if task.Start != nil {
+		t.Error("Start should be nil after stop")
+	}
+}
+
+func TestCmdStopIncrementsTouches(t *testing.T) {
+	n := now()
+	task := &Task{UUID: "t1", Status: "pending", Entry: n, Start: ptrMs(n - 1000)}
+	store := &Store{Tasks: []*Task{task}}
+	state := &State{DisplayMap: []string{"t1"}}
+
+	cmdStop(store, state, []string{"1"}, Options{})
+	if task.Touches != 1 {
+		t.Errorf("touches should be 1 after first stop, got %d", task.Touches)
+	}
+
+	task.Start = ptrMs(n)
+	cmdStop(store, state, []string{"1"}, Options{})
+	if task.Touches != 2 {
+		t.Errorf("touches should be 2 after second stop, got %d", task.Touches)
+	}
+}
+
+func TestCmdStopSkipsNonActive(t *testing.T) {
+	n := now()
+	task := &Task{UUID: "t1", Status: "pending", Entry: n}
+	store := &Store{Tasks: []*Task{task}}
+	state := &State{DisplayMap: []string{"t1"}}
+
+	if err := cmdStop(store, state, []string{"1"}, Options{}); err != nil {
+		t.Errorf("unexpected error stopping non-active task: %v", err)
+	}
+	if task.Touches != 0 {
+		t.Errorf("touches should remain 0 for non-active task, got %d", task.Touches)
+	}
+}
+
+func TestTouchesPreservedInClone(t *testing.T) {
+	task := &Task{UUID: "t1", Status: "pending", Entry: now(), Touches: 5}
+	clone := cloneTask(task)
+	if clone.Touches != 5 {
+		t.Errorf("clone.Touches = %d, want 5", clone.Touches)
+	}
+}

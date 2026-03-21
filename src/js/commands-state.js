@@ -96,30 +96,42 @@ export const handleUndo = async (ctx) => {
 };
 
 export const handleStart = async (ctx) => {
-  const idArg = ctx.targetId || ctx.args[0];
+  const idArg = ctx.targetId?.toString() || ctx.args[0];
+  const uuids = await resolveRefs(idArg, ctx.displayMapRef, ctx.dbOps);
+  if (uuids.length === 0)
+    return ctx.print('<span class="msg-error">Invalid ID.</span>');
 
-  // Resolve ID - support both numeric IDs and x:name references
-  let uuid;
-  if (idArg && idArg.startsWith("x:")) {
-    const name = idArg.substring(2);
-    const all = await ctx.dbOps.getByStatus("pending");
-    const match = all.find((t) => t.target === name);
-    uuid = match?.uuid;
-  } else {
-    const id = parseInt(idArg);
-    uuid = id ? ctx.displayMapRef.value[id - 1] : null;
-  }
-
-  if (!uuid) return ctx.print('<span class="msg-error">Invalid ID.</span>');
-  const task = await ctx.dbOps.get(uuid);
-  if (task) {
+  const now = Date.now();
+  for (const uuid of uuids) {
+    const task = await ctx.dbOps.get(uuid);
+    if (!task) continue;
     pushUndo({ type: "update", task: structuredClone(task) });
-    task.start = Date.now();
+    task.start = now;
     await ctx.dbOps.update(task);
-    ctx.print(`<span class="msg-success">Started task.</span>`);
-    ctx.markDirty();
-    await ctx.runListRefresh();
   }
+  ctx.print(`<span class="msg-success">Started.</span>`);
+  ctx.markDirty();
+  await ctx.runListRefresh();
+};
+
+export const handleStop = async (ctx) => {
+  const idArg = ctx.targetId?.toString() || ctx.args[0];
+  const uuids = await resolveRefs(idArg, ctx.displayMapRef, ctx.dbOps);
+  if (uuids.length === 0)
+    return ctx.print('<span class="msg-error">Invalid ID.</span>');
+
+  const now = Date.now();
+  for (const uuid of uuids) {
+    const task = await ctx.dbOps.get(uuid);
+    if (!task || !task.start) continue;
+    pushUndo({ type: "update", task: structuredClone(task) });
+    delete task.start;
+    task.touches = (task.touches || 0) + 1;
+    await ctx.dbOps.update(task);
+  }
+  ctx.print(`<span class="msg-success">Stopped.</span>`);
+  ctx.markDirty();
+  await ctx.runListRefresh();
 };
 
 export const handleDone = async (ctx) => {

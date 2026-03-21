@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Tasca",
-  "version": "0.18.1",
+  "version": "0.19.0",
   "description": "A minimal text-based task manager.",
   "permissions": ["tabs", "sidePanel"],
   "action": {

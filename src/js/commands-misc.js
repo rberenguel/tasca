@@ -350,7 +350,7 @@ export const handleHelp = async (ctx) => {
   const sub = ctx.args[0];
   if (!sub) {
     ctx.print(
-      `<div class="msg-standalone"><span style="color:var(--yellow)">Commands:</span> add, list, done, skip, delete, modify, edit, annotate, undo, info, open, track, chain, checklist, projects, context, day, calendar, report, status, export, import, icon. Type <span class="msg-hl">help [cmd]</span> for details.</div>`,
+      `<div class="msg-standalone"><span style="color:var(--yellow)">Commands:</span> add, list, done, skip, delete, modify, edit, annotate, undo, info, open, track, start, stop, chain, checklist, projects, context, day, calendar, report, status, export, import, icon. Type <span class="msg-hl">help [cmd]</span> for details.</div>`,
       false,
     );
   } else {
@@ -403,6 +403,16 @@ export const handleHelp = async (ctx) => {
     else if (c === "info")
       ctx.print(
         `<div class="msg-help msg-standalone"><span class="msg-hl">info</span> ID<br>Shows full task details including annotations and UUID.<br><span class="msg-hl">info</span> <span class="msg-arg">pro:Name</span> — show project details (icon, tags).</div>`,
+        false,
+      );
+    else if (c === "start")
+      ctx.print(
+        `<div class="msg-help msg-standalone"><span class="msg-hl">start</span> ID (alias: <span class="msg-hl">st</span>)<br>Marks task as active. Shows in started section of today view.</div>`,
+        false,
+      );
+    else if (c === "stop")
+      ctx.print(
+        `<div class="msg-help msg-standalone"><span class="msg-hl">stop</span> ID<br>Clears active state. Increments <span class="msg-arg">touches</span> counter — tracks how many times the task has been picked up and put back down.</div>`,
         false,
       );
     else if (c === "open")

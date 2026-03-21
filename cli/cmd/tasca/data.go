@@ -95,6 +95,7 @@ type Task struct {
 	Annotations []Annotation `json:"annotations,omitempty"`
 	Track       []TrackEntry `json:"track,omitempty"`
 	Checklist   string       `json:"checklist,omitempty"`
+	Touches     int          `json:"touches,omitempty"`
 
 	// Computed, not stored
 	Urgency float64 `json:"-"`
@@ -127,6 +128,7 @@ type rawTask struct {
 	Annotations []Annotation `json:"annotations,omitempty"`
 	Track       []TrackEntry `json:"track,omitempty"`
 	Checklist   string       `json:"checklist,omitempty"`
+	Touches     int          `json:"touches,omitempty"`
 }
 
 func (t *Task) UnmarshalJSON(b []byte) error {
@@ -165,6 +167,7 @@ func (t *Task) UnmarshalJSON(b []byte) error {
 	t.Annotations = r.Annotations
 	t.Track = r.Track
 	t.Checklist = r.Checklist
+	t.Touches = r.Touches
 	return nil
 }
 
@@ -390,6 +393,7 @@ func cloneTask(t *Task) *Task {
 	c.Depends = append([]string(nil), t.Depends...)
 	c.Annotations = append([]Annotation(nil), t.Annotations...)
 	c.Track = append([]TrackEntry(nil), t.Track...)
+	c.Touches = t.Touches
 	return &c
 }
 

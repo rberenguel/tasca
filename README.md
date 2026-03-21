@@ -13,7 +13,8 @@ Tasca runs entirely in the browser using IndexedDB for storage. No server requir
 | `add` / `a <desc> [opts]`         | Add a task                               |
 | `list` / `l [filters]`            | List pending tasks                       |
 | `next [N]`                        | List top N tasks by urgency              |
-| `start` / `st <ID>`               | Mark task as started                     |
+| `start` / `st <ID>`               | Mark task as started (active)            |
+| `stop <ID>`                       | Clear active state, increment touches    |
 | `done <ID>`                       | Mark task complete                       |
 | `skip <ID> [until:DATE]`          | Skip recurring task (or until DATE)      |
 | `delete <ID>`                     | Remove task                              |

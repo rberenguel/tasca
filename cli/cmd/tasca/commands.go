@@ -512,6 +512,33 @@ func cmdStart(store *Store, state *State, args []string, opts Options) error {
 	return refreshView(store, state, opts)
 }
 
+// ── Stop ──────────────────────────────────────────────────────────────────────
+
+func cmdStop(store *Store, state *State, args []string, opts Options) error {
+	if len(args) == 0 {
+		return fmt.Errorf("usage: stop <ID>")
+	}
+	uuids := resolveIDs(args[0], state.DisplayMap, store)
+	if len(uuids) == 0 {
+		return fmt.Errorf("invalid ID: %s", args[0])
+	}
+	now := nowMs()
+	for _, uuid := range uuids {
+		t := findTask(store, uuid)
+		if t == nil {
+			continue
+		}
+		if t.Start == nil {
+			continue
+		}
+		t.Start = nil
+		t.Touches++
+		t.Modified = now
+	}
+	fmt.Println(col(ansiGreen, "Stopped."))
+	return refreshView(store, state, opts)
+}
+
 // ── Info ──────────────────────────────────────────────────────────────────────
 
 func cmdInfo(store *Store, state *State, args []string, opts Options) error {
@@ -867,7 +894,8 @@ func cmdHelp(args []string) {
   delete <IDs>          Delete tasks
   skip <IDs> [until:]   Skip/cancel task
   mod <IDs> [opts]      Modify tasks
-  start <ID>            Mark started
+  start <ID>            Mark started (active)
+  stop <ID>             Clear active state, increment touches counter
   info <ID>             Show task details
   annotate <ID> <note>  Add annotation  (-N to remove)
   chain <ID>            Show dependency tree
@@ -902,6 +930,7 @@ func printCommandHelp(cmd string) {
 		"skip":     "skip <IDs> [until:DATE]\n  Skip recurring task → creates next occurrence.\n  Non-recurring: marks as skipped (cancelled).\n  until: skips multiple occurrences at once.",
 		"mod":      "mod <IDs> [opts]\n  Modify. Tags and deps toggle. Clear: order:  pri:  url:\n  Multi-ID: mod 1,3-5 !tag",
 		"start":    "start <ID>\n  Mark task started (active).",
+		"stop":     "stop <ID>\n  Clear active state. Increments touches counter — tracks how many times\n  the task has been picked up and put back down without completing.",
 		"info":     "info <ID>\n  Full task details: annotations, tracking, checklist, urgency.",
 		"annotate": "annotate <ID> <note>\n  Add annotation.\n  annotate <ID> -N  Remove annotation by 1-based index.",
 		"chain":    "chain <ID>\n  Dependency tree: what this blocks and what blocks it.",

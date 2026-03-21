@@ -597,6 +597,9 @@ func printInfo(t *Task, displayID int, all []*Task, projects []*Project, markdow
 	if t.Start != nil {
 		fmt.Printf("  %-12s %s\n", col(ansiBold, "Started:"), formatDate(*t.Start))
 	}
+	if t.Touches > 0 {
+		fmt.Printf("  %-12s %d\n", col(ansiBold, "Touches:"), t.Touches)
+	}
 	if t.End != nil {
 		fmt.Printf("  %-12s %s\n", col(ansiBold, "Completed:"), formatDate(*t.End))
 	}

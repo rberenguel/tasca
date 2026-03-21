@@ -138,6 +138,8 @@ func execute(args []string, file string, opts Options) error {
 		cmdErr = cmdMod(store, state, cmdArgs, opts)
 	case "start", "st":
 		cmdErr = cmdStart(store, state, cmdArgs, opts)
+	case "stop":
+		cmdErr = cmdStop(store, state, cmdArgs, opts)
 	case "info", "i":
 		mutates = false
 		cmdErr = cmdInfo(store, state, cmdArgs, opts)

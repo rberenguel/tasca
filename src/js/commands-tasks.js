@@ -853,6 +853,7 @@ export const handleInfo = async (ctx) => {
   if (t.recur) html += `<div><b>Recur:</b> ${t.recur}</div>`;
   if (t.onDone) html += `<div><b>On done:</b> ${t.onDone}</div>`;
   if (t.start) html += `<div><b>Started:</b> ${formatDate(t.start)}</div>`;
+  if (t.touches) html += `<div><b>Touches:</b> ${t.touches}</div>`;
   if (t.end) html += `<div><b>Completed:</b> ${formatDate(t.end)}</div>`;
   if (t.tags && t.tags.length > 0)
     html += `<div><b>Tags:</b> ${t.tags.join(" ")}</div>`;

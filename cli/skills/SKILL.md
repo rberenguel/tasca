@@ -86,7 +86,8 @@ Mutations (done, mod, skip, etc.) re-render using the active context automatical
 ~/.tasca/tasca mod 5 pri:10 !urgent     # modify (tags toggle)
 ~/.tasca/tasca mod 5 due:2w pro:Work
 ~/.tasca/tasca mod 5 pri:               # clear priority
-~/.tasca/tasca start 2                  # mark as started
+~/.tasca/tasca start 2                  # mark as started (active)
+~/.tasca/tasca stop 2                   # clear active state, increments touches counter
 ~/.tasca/tasca annotate 3 Blocked on design review
 ~/.tasca/tasca annotate 3 -1            # remove annotation 1
 ~/.tasca/tasca annotate 3 -1 updated text  # edit annotation 1
@@ -144,4 +145,4 @@ Shorthands: `!o`=overdue, `!t`=today, `!w`=waiting, `!a`=active, `!r`=recurring,
 
 ## Confirmation Required
 
-**Always ask the user for confirmation before executing any write command** (`add`, `done`, `delete`, `skip`, `mod`, `start`, `annotate`, `import`). Show what you are about to do and wait for approval. Never mutate tasks autonomously.
+**Always ask the user for confirmation before executing any write command** (`add`, `done`, `delete`, `skip`, `mod`, `start`, `stop`, `annotate`, `import`). Show what you are about to do and wait for approval. Never mutate tasks autonomously.

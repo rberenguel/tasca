@@ -5,6 +5,7 @@ import { handleClear, handleAbout } from "./commands-misc.js";
 import {
   handleUndo,
   handleStart,
+  handleStop,
   handleDone,
   handleUndone,
   handleDelete,
@@ -65,6 +66,7 @@ export const commands = {
   rm: handleDelete,
   start: handleStart,
   st: handleStart,
+  stop: handleStop,
   skip: handleSkip,
   undo: handleUndo,
 
