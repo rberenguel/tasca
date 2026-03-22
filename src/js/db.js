@@ -93,7 +93,7 @@ export const dbOps = {
       const tx = db.transaction(STORE_NAME, "readwrite");
       const store = tx.objectStore(STORE_NAME);
       const req = store.delete(uuid);
-      req.onsuccess = () => resolve(req.result);
+      req.onsuccess = () => { resolve(req.result); window.__tascaScheduleSave?.() };
       req.onerror = () => reject(req.error);
     }),
   get: (uuid) =>
