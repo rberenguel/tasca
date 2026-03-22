@@ -137,6 +137,10 @@ export const handleImport = async (ctx) => {
 };
 
 export const handleLink = async (ctx) => {
+  if (window.__TASCA_NATIVE__) {
+    window.webkit.messageHandlers.link.postMessage(null)
+    return
+  }
   if (!window.showOpenFilePicker) {
     return ctx.print(
       '<span class="msg-error">File System Access API not supported in this browser.</span>',

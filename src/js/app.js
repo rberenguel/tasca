@@ -73,6 +73,82 @@ if (typeof chrome !== "undefined" && chrome.runtime?.onMessage) {
 }
 
 initDB().then(async () => {
+  // ── Sync helpers (used by native bridge and browser auto-sync) ───────────
+
+  // Serialize full DB to the tasca.json wire format
+  window.__tascaSerialize = async () => {
+    await dbOps.cleanupOrphanProjects()
+    return {
+      tasks: await dbOps.getAll(),
+      projects: await dbOps.getAllProjects(),
+      savedAt: Date.now(),
+    }
+  }
+
+  // Merge incoming data: newer modified timestamp wins per UUID.
+  // touch:false means db.js won't fire __tascaScheduleSave, avoiding loops.
+  window.__tascaImport = async (data) => {
+    const incoming = Array.isArray(data) ? data : (data.tasks || [])
+    const incomingProjects = Array.isArray(data) ? [] : (data.projects || [])
+    const existing = await dbOps.getAll()
+    const existingMap = new Map(existing.map((t) => [t.uuid, t]))
+    for (const t of incoming) {
+      if (!t.uuid) continue
+      const local = existingMap.get(t.uuid)
+      if (!local || (t.modified || 0) >= (local.modified || 0)) {
+        await dbOps.update(t, { touch: false })
+      }
+    }
+    for (const p of incomingProjects) {
+      if (p.name) await dbOps.updateProject(p, { touch: false })
+    }
+    if (data.savedAt) await dbOps.setSetting("lastSave", data.savedAt)
+    markClean()
+    const all = await dbOps.getAll()
+    updateCache(all)
+  }
+
+  if (window.__TASCA_NATIVE__) {
+    // Expose markClean so bridge.js can clear the unsaved dot after auto-save
+    window.__tascaMarkClean = markClean
+  } else {
+    // ── Browser auto-sync via File System Access API ─────────────────────
+    // Auto-save to linked file after any modification (debounced).
+    // Only fires if write permission is already granted — no user gesture needed
+    // if Chrome has persisted it from the previous link/save operation.
+    let saveTimer = null
+    window.__tascaScheduleSave = () => {
+      clearTimeout(saveTimer)
+      saveTimer = setTimeout(async () => {
+        const handle = await dbOps.getSetting("syncFileHandle")
+        if (!handle) return
+        if ((await handle.queryPermission({ mode: "readwrite" })) !== "granted") return
+        try {
+          const data = await window.__tascaSerialize()
+          const writable = await handle.createWritable()
+          await writable.write(JSON.stringify(data, null, 2))
+          await writable.close()
+          markClean()
+          await dbOps.setSetting("lastSave", data.savedAt)
+        } catch (_) {}
+      }, 1000)
+    }
+
+    // Auto-load when tab becomes visible (e.g. switched back after using extension)
+    document.addEventListener("visibilitychange", async () => {
+      if (document.hidden) return
+      const handle = await dbOps.getSetting("syncFileHandle")
+      if (!handle) return
+      if ((await handle.queryPermission({ mode: "read" })) !== "granted") return
+      try {
+        const text = await (await handle.getFile()).text()
+        if (!text.trim()) return
+        await window.__tascaImport(JSON.parse(text))
+        await execute("next")
+      } catch (_) {}
+    })
+  }
+
   // Import file picker handler
   document.getElementById("import-picker").addEventListener("change", (e) => {
     const file = e.target.files[0];
@@ -132,6 +208,18 @@ initDB().then(async () => {
     updateCache(tasks);
     const pendingTasks = tasks.filter((t) => t.status === "pending");
     setupPlaceholderRotation(pendingTasks.length === 0);
-    execute("next");
+    await execute("next");
   } catch (e) {}
+
+  // ── Native bridge: signal ready ────────────────────────────────────────
+  // Swift will call tascaLoad() in response. If it already called tascaLoad
+  // before we were ready, __pendingLoad is waiting for us here.
+  if (window.__TASCA_NATIVE__) {
+    if (window.__pendingLoad) {
+      await window.__tascaImport(window.__pendingLoad)
+      window.__pendingLoad = null
+      await execute("next")
+    }
+    window.webkit?.messageHandlers?.ready?.postMessage(null)
+  }
 });

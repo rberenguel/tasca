@@ -319,6 +319,28 @@ The sidebar runs Tasca alongside any webpage — useful for capturing tasks whil
 
 `Ctrl+Shift+T` captures the current tab's title and URL, opens Tasca, and pre-fills an `add` command. Domain-specific icon and title cleanup is configured in `auto-icons.js`.
 
+## iOS App
+
+A native iOS wrapper that bundles the PWA in a WKWebView with automatic iCloud Drive sync — no manual import/export needed.
+
+- Every `add`/`done`/`mod` auto-saves to a user-picked `tasca.json` in iCloud Drive
+- Opening the app or returning from the home screen auto-loads the latest version
+- The `link` command on iOS opens the native file picker instead of the browser API
+- On desktop, `link` the same iCloud Drive file to keep everything in sync
+
+### Setup
+
+See `ios/SETUP.md` for the full Xcode setup guide. The short version:
+
+1. Open `ios/Tasca/Tasca.xcodeproj` in Xcode
+2. Set your team and bundle ID under Signing & Capabilities
+3. Add the iCloud capability → iCloud Documents → add your container
+4. Regenerate `Tasca.entitlements` (Xcode does this automatically when you add the capability)
+5. Build and run on device
+6. In the app, run `link` to pick your `tasca.json` from iCloud Drive
+
+Requires a paid Apple Developer account ($99/yr) for iCloud entitlements. The app certificate is valid for one year — rebuild and reinstall annually.
+
 ## Go CLI
 
 A native Go CLI that reads and writes `tasca.json` directly — no browser required. Designed for terminal use and for coding agents via the bundled Claude skill.

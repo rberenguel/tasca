@@ -73,7 +73,7 @@ export const dbOps = {
       // If task has modified (e.g. restore/undo), keep it. Else set now.
       const taskWithMod = { ...task, modified: task.modified || Date.now() };
       const req = store.add(taskWithMod);
-      req.onsuccess = () => resolve(req.result);
+      req.onsuccess = () => { resolve(req.result); window.__tascaScheduleSave?.() };
       req.onerror = () => reject(req.error);
     }),
   update: (task, { touch = true } = {}) =>
@@ -84,7 +84,8 @@ export const dbOps = {
       if (touch) taskWithMod.modified = Date.now();
       // If !touch, we preserve whatever 'modified' is in task (or undefined)
       const req = store.put(taskWithMod);
-      req.onsuccess = () => resolve(req.result);
+      // Only auto-save on real user edits (touch:false means import/restore)
+      req.onsuccess = () => { resolve(req.result); if (touch) window.__tascaScheduleSave?.() };
       req.onerror = () => reject(req.error);
     }),
   delete: (uuid) =>
@@ -121,7 +122,7 @@ export const dbOps = {
       const projWithMod = { ...projData };
       if (touch) projWithMod.modified = Date.now();
       const req = store.put(projWithMod);
-      req.onsuccess = () => resolve(req.result);
+      req.onsuccess = () => { resolve(req.result); if (touch) window.__tascaScheduleSave?.() };
       req.onerror = () => reject(req.error);
     }),
   deleteProject: (name) =>
