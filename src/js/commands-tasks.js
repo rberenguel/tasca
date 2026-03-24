@@ -12,6 +12,7 @@ import {
 import { formatInlineCode, formatTaskDescription } from "./ui.js";
 import { getInheritedAttributes } from "./context.js";
 import { pushUndo } from "./undo.js";
+import { zippedUuids } from "./state.js";
 
 import { resolveRefs } from "./commands-state.js";
 import {
@@ -957,4 +958,49 @@ export const handleOpen = async (ctx) => {
     }
   }
   ctx.print(messages.join("<br>"));
+};
+
+export const handleZip = async (ctx) => {
+  const idArg = ctx.targetId?.toString() || ctx.args[0];
+  if (!idArg)
+    return ctx.print('<span class="msg-error">Usage: zip ID | zip *</span>', false, {
+      dismissible: true,
+    });
+
+  // z * — toggle all visible tasks that have annotations
+  if (idArg === "*") {
+    const all = await ctx.dbOps.getByStatus("pending");
+    const byUuid = new Map(all.map((t) => [t.uuid, t]));
+    const visible = ctx.displayMapRef.value
+      .map((uuid) => byUuid.get(uuid))
+      .filter((t) => t?.annotations?.length > 0);
+    if (visible.length === 0) return;
+    const allZipped = visible.every((t) => zippedUuids.has(t.uuid));
+    visible.forEach((t) =>
+      allZipped ? zippedUuids.delete(t.uuid) : zippedUuids.add(t.uuid),
+    );
+    await ctx.runListRefresh();
+    return;
+  }
+
+  const id = parseInt(idArg);
+  const uuid = ctx.displayMapRef.value[id - 1];
+  if (!uuid)
+    return ctx.print('<span class="msg-error">Invalid ID.</span>', false, {
+      dismissible: true,
+    });
+
+  if (zippedUuids.has(uuid)) {
+    zippedUuids.delete(uuid);
+  } else {
+    const task = await ctx.dbOps.get(uuid);
+    if (!task?.annotations?.length)
+      return ctx.print(
+        '<span class="msg-info">No annotations.</span>',
+        false,
+        { dismissible: true },
+      );
+    zippedUuids.add(uuid);
+  }
+  await ctx.runListRefresh();
 };

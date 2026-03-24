@@ -20,6 +20,7 @@ src/js/
 ├── commands.js           # Command parsing & handlers (largest file)
 ├── commands-checklist.js # Checklist feature (grouping tasks)
 ├── commands-ref.js       # Reference search (fuzzy trigram-based)
+├── commands-streams.js   # Stream view (`ss` command)
 ├── context.js            # GTD context feature (persistent filters)
 ├── db.js                 # IndexedDB abstraction layer
 ├── input.js              # Input handling, autocomplete, history
@@ -38,6 +39,18 @@ src/js/
 - `today.js` - Today view section collection (started, overdue, ready)
 - `db.js` - Database schema (tasks, projects, settings stores)
 - `utils.js` - Date parsing (`Nd`, `Nw`, `today`), recurrence logic
+
+## Streams
+
+Streams are parallel workstreams — open-ended threads of work that live outside the urgency/next process.
+
+- `stream <desc> [opts]` / `s <desc>` — add a task with `!stream` tag; starts as active automatically
+- `ss` — stream view: shows two sections (active = started, yielding = not started), sorted by `order:` then entry date
+- Urgency is hardcoded `-1000` (constant, no age/priority/due bumping)
+- `list` excludes stream tasks by default; `list !stream` shows them explicitly
+- `next` includes streams at the bottom (via -1000 urgency)
+- Use `start`/`stop` to move streams between sections
+- Virtual tag `!stream`, shorthand `!str`
 
 ## Commands Reference
 

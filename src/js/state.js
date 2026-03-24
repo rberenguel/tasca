@@ -22,12 +22,16 @@ export const setLastLimit = (limit) => {
   lastLimit = limit;
 };
 
+
 // Command history
 export const historyState = {
   cmdHistory: JSON.parse(localStorage.getItem("tasca_history") || "[]"),
   historyIndex: -1,
   historyTemp: "",
 };
+
+// Tasks with inline annotation expansion open (zip command)
+export const zippedUuids = new Set();
 
 // Unsaved changes tracking
 export const unsavedState = {

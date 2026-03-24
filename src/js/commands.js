@@ -93,6 +93,7 @@ export const execute = async (str) => {
       "chain",
       "dependencies",
       "dep",
+      "ss",
     ].includes(cmd);
 
     // Build context object for handlers

@@ -7,6 +7,7 @@ import {
   C,
 } from "./logic.js";
 import { renderTable, print } from "./ui.js";
+import { handleStreams } from "./commands-streams.js";
 import { parseRelativeTime, formatDateOnly } from "./utils.js";
 import {
   displayMapRef,
@@ -61,6 +62,7 @@ export const runList = async (
     showSkipped = false;
   let forceAll = false;
   let isTodayView = false;
+  let isStreamView = false;
 
   // Check effectiveArgs for virtual tags (works from both command and context)
   let showModified = false;
@@ -73,6 +75,7 @@ export const runList = async (
       if (["DONE", "COMPLETED", "ENDED"].includes(tag)) showDone = true;
       if (["SKIPPED", "ENDED"].includes(tag)) showSkipped = true;
       if (tag === "TODAY") isTodayView = true;
+      if (tag === "STREAM") isStreamView = true;
       if (tag === "MODIFIED") {
         showModified = true;
         showWaiting = true;
@@ -83,6 +86,12 @@ export const runList = async (
     } else if (token.startsWith("end:")) {
       forceAll = true; // might need completed tasks
     }
+  }
+
+  // Stream view: delegate to custom renderer (context already persisted above)
+  if (isStreamView) {
+    await handleStreams([], print);
+    return;
   }
 
   // Check original args (not context) for search terms - ad-hoc search should find waiting tasks
@@ -182,6 +191,13 @@ export const runList = async (
       );
     });
   }
+  // Exclude stream tasks from list by default; next (limit !== Infinity) keeps them (they sink to bottom)
+  if (!isStreamView && limit === Infinity) {
+    tasks = tasks.filter(
+      (t) => !t.tags?.some((tg) => tg.toLowerCase() === "stream"),
+    );
+  }
+
   if (fProj) tasks = tasks.filter((t) => matchesProject(t.project, fProj));
   if (fTarget) tasks = tasks.filter((t) => t.target === fTarget);
   if (endAfter) tasks = tasks.filter((t) => t.end && t.end >= endAfter);
@@ -285,11 +301,13 @@ export const runList = async (
 
   // In "next" view (limit !== Infinity), hide tasks with negative urgency
   // (blocked, someday, reference, etc.) - these are not actionable
-  // Exception: in !today view, keep waiting tasks that are due today
+  // Exceptions: today waiting tasks, and streams (appear at bottom via -1000 urgency)
   if (limit !== Infinity) {
     const today = formatDateOnly(Date.now());
     tasks = tasks.filter((t) => {
       if (parseFloat(t.urgency) >= 0) return true;
+      // Keep streams in next (they sink to the bottom)
+      if (t.tags?.some((tg) => tg.toLowerCase() === "stream")) return true;
       // In today view, keep waiting tasks due today even with negative urgency
       if (isTodayView && t.due && formatDateOnly(t.due) === today) return true;
       return false;

@@ -2,6 +2,7 @@ import { getDaysRemaining, C, hasVirtualTag } from "./logic.js";
 import { isChecklistParent } from "./commands-checklist.js";
 import { formatDateHtml } from "./utils.js";
 import { hasContext, formatContextDisplay, getContext } from "./context.js";
+import { zippedUuids } from "./state.js";
 
 // Convert icon name to full Phosphor class (handles legacy full class format)
 const iconClass = (name) => {
@@ -274,6 +275,29 @@ export const formatProject = (proj) => {
     if (i < parts.length - 1) html += `<span class="${depthClass}">.</span>`;
   }
   return iconHtml + html;
+};
+
+const renderZipExpansion = (t) => {
+  const tr = document.createElement("tr");
+  tr.className = "zip-expansion";
+
+  const tdId = document.createElement("td");
+  tr.appendChild(tdId);
+
+  const tdContent = document.createElement("td");
+  tdContent.colSpan = 2;
+  tdContent.style.cssText =
+    "padding: 1px 4px 6px 16px; color: var(--base01); font-size: 0.9em; line-height: 1.6;";
+
+  (t.annotations || []).forEach((ann) => {
+    const div = document.createElement("div");
+    const date = new Date(ann.entry).toISOString().slice(0, 10);
+    div.innerHTML = `<span style="opacity:0.5; margin-right:10px;">${date}</span>${formatInlineCode(ann.description)}`;
+    tdContent.appendChild(div);
+  });
+
+  tr.appendChild(tdContent);
+  return tr;
 };
 
 export const renderTable = (
@@ -702,6 +726,7 @@ export const renderTable = (
         // Full view: expand checklist
         tbody.appendChild(renderTaskRow(t, displayIndex, null));
         displayIndex++;
+        if (zippedUuids.has(t.uuid)) tbody.appendChild(renderZipExpansion(t));
         // Render members
         group.members.forEach((member) => {
           tbody.appendChild(renderChecklistMemberRow(member, displayIndex));
@@ -711,6 +736,7 @@ export const renderTable = (
     } else {
       tbody.appendChild(renderTaskRow(t, displayIndex, null));
       displayIndex++;
+      if (zippedUuids.has(t.uuid)) tbody.appendChild(renderZipExpansion(t));
     }
   });
 

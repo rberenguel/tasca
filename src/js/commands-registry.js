@@ -23,6 +23,7 @@ import {
   // handleAnnotateProject, handleInfo, handleInfoProject are already imported above
   handleTrack,
   handleOpen,
+  handleZip,
 } from "./commands-tasks.js";
 import {
   handleExport,
@@ -49,6 +50,7 @@ import {
 import { handleReport } from "./commands-reports.js";
 import { handleChecklist, handleUnchecklist } from "./commands-checklist.js";
 import { handleRef } from "./commands-ref.js";
+import { handleStreams } from "./commands-streams.js";
 import { runList } from "./list.js";
 
 // Command registry
@@ -57,6 +59,32 @@ export const commands = {
   add: handleAdd,
   a: handleAdd,
   log: handleAdd,
+  stream: async (ctx) => {
+    const before = new Set(
+      (await ctx.dbOps.getByStatus("pending")).map((t) => t.uuid),
+    );
+    ctx.args = [...ctx.args, "!stream"];
+    await handleAdd(ctx);
+    const after = await ctx.dbOps.getByStatus("pending");
+    const created = after.find((t) => !before.has(t.uuid));
+    if (created) {
+      created.start = Date.now();
+      await ctx.dbOps.update(created);
+    }
+  },
+  s: async (ctx) => {
+    const before = new Set(
+      (await ctx.dbOps.getByStatus("pending")).map((t) => t.uuid),
+    );
+    ctx.args = [...ctx.args, "!stream"];
+    await handleAdd(ctx);
+    const after = await ctx.dbOps.getByStatus("pending");
+    const created = after.find((t) => !before.has(t.uuid));
+    if (created) {
+      created.start = Date.now();
+      await ctx.dbOps.update(created);
+    }
+  },
 
   // Task state changes
   done: handleDone,
@@ -83,6 +111,7 @@ export const commands = {
   t: handleTrack,
   open: handleOpen,
   o: handleOpen,
+  zip: handleZip,
 
   // Views
   list: async (ctx) => {
@@ -117,6 +146,12 @@ export const commands = {
   },
   proj: async (ctx) => {
     await handleProjects(ctx.print);
+  },
+
+  // Stream view — uses real context (localStorage) exactly like day/today
+  ss: async (ctx) => {
+    ctx.args = ["!stream"];
+    await handleContext(ctx);
   },
 
   // Reference search

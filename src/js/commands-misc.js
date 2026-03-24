@@ -350,7 +350,7 @@ export const handleHelp = async (ctx) => {
   const sub = ctx.args[0];
   if (!sub) {
     ctx.print(
-      `<div class="msg-standalone"><span style="color:var(--yellow)">Commands:</span> add, list, done, skip, delete, modify, edit, annotate, undo, info, open, track, start, stop, chain, checklist, projects, context, day, calendar, report, status, export, import, icon. Type <span class="msg-hl">help [cmd]</span> for details.</div>`,
+      `<div class="msg-standalone"><span style="color:var(--yellow)">Commands:</span> add, list, done, skip, delete, modify, edit, annotate, zip, undo, info, open, track, start, stop, chain, checklist, projects, context, day, calendar, report, status, export, import, icon, stream, ss. Type <span class="msg-hl">help [cmd]</span> for details.</div>`,
       false,
     );
   } else {
@@ -508,6 +508,21 @@ export const handleHelp = async (ctx) => {
     else if (c === "unchecklist" || c === "ucl")
       ctx.print(
         `<div class="msg-help msg-standalone"><span class="msg-hl">unchecklist</span> MEMBER_IDS (alias: <span class="msg-hl">ucl</span>)<br>Remove tasks from their checklist. Clears checklist and order properties.<br>Usage: <span class="msg-arg">ucl 2</span> or <span class="msg-arg">ucl 2,3,4</span></div>`,
+        false,
+      );
+    else if (c === "zip")
+      ctx.print(
+        `<div class="msg-help msg-standalone"><span class="msg-hl">zip</span> ID (alias: <span class="msg-hl">z</span>)<br>Toggle inline annotation view for a task. Run once to expand, again to collapse.<br><span class="msg-hl">z *</span> — toggle all visible tasks: opens all if any are closed, closes all if all are open.</div>`,
+        false,
+      );
+    else if (c === "stream" || c === "s")
+      ctx.print(
+        `<div class="msg-help msg-standalone"><span class="msg-hl">stream</span> description <span class="msg-arg">[opts]</span> (alias: <span class="msg-hl">s</span>)<br>Add a parallel workstream. Accepts the same options as <span class="msg-hl">add</span>.<br>New streams start as <span class="msg-arg">active</span>. Use <span class="msg-arg">stop</span> to yield, <span class="msg-arg">start</span> to resume.<br>Urgency is fixed at -1000 — streams never surface in <span class="msg-hl">next</span> on their own.<br>Use <span class="msg-hl">ss</span> to view all streams. Use <span class="msg-arg">list !stream</span> to see them inline.</div>`,
+        false,
+      );
+    else if (c === "ss")
+      ctx.print(
+        `<div class="msg-help msg-standalone"><span class="msg-hl">ss</span><br>Stream view — shows all pending streams in two sections:<br><span class="msg-arg">active</span>: streams currently being worked on (started)<br><span class="msg-arg">yielding</span>: streams waiting for capacity or external factors<br>Ordered by <span class="msg-arg">order:N</span> within each section, then by entry date.<br>Use <span class="msg-arg">start</span>/<span class="msg-arg">stop</span> to move streams between sections.</div>`,
         false,
       );
     else

@@ -28,6 +28,8 @@ Tasca runs entirely in the browser using IndexedDB for storage. No server requir
 | `chain` / `tree` / `deps` <ID>    | Show dependency tree                     |
 | `checklist` / `cl <P> <M>`        | Group tasks into a checklist             |
 | `unchecklist` / `ucl <IDs>`       | Remove tasks from checklist              |
+| `stream` / `s <desc> [opts]`      | Add a stream (parallel workstream)       |
+| `ss`                              | Show stream view (active / yielding)     |
 | `projects`                        | List all projects                        |
 | `context` / `ctx` / `c [filters]` | Set/clear persistent context             |
 | `day` / `today`                   | Set context to `!today`                  |
@@ -72,7 +74,7 @@ Use with `list` or `export`:
 - `end:1w` — completed in last week (use with `!done`). Supports `d`ays, `w`eeks, `m`onths.
 - `sort:field` — sort by field: `start`, `end`, `pri`, `pro`, `due`, `urg`. Use `-` for reverse (e.g., `sort:-end`). Combine with commas: `sort:pro,pri`.
 
-Virtual tags: `!overdue`, `!today`, `!waiting`, `!scheduled`, `!recurring`, `!blocked`, `!active`, `!checklist`, `!someday`, `!done`, `!all`
+Virtual tags: `!overdue`, `!today`, `!waiting`, `!scheduled`, `!recurring`, `!blocked`, `!active`, `!checklist`, `!someday`, `!stream`, `!done`, `!all`
 
 Example: `list !done end:1w` — review tasks completed in the last week.
 
@@ -229,6 +231,27 @@ report done 2w by:tag     # combine period and grouping
 | `done [period] [by:tag]` | Completed tasks grouped by project or tag (default 1w, by project) |
 
 Activity for staleness: task added, completed, or started. Reference projects excluded.
+
+### Streams
+
+Streams are parallel workstreams — open-ended threads of work you track alongside your task list. They live entirely outside the urgency/next process.
+
+```
+stream investigate backpressure pro:Work   # add a stream
+s ping John                                # shorthand
+ss                                         # stream view
+```
+
+A stream is a regular task with the `!stream` tag. Its urgency is hardcoded to `-1000` regardless of age, priority, or due date, so it never surfaces in `next` on its own.
+
+**`ss` view** shows two sections:
+
+- **active**: streams you've started (new streams begin here automatically)
+- **yielding**: streams waiting for capacity or external factors (`stop <ID>` to yield, `start <ID>` to resume)
+
+Within each section, tasks are ordered by `order:N` (ascending), then by entry date.
+
+Streams are hidden from `list` by default. Use `list !stream` to show them explicitly. Use `start`/`stop` to move streams between sections.
 
 ### Hiding Tasks from Next
 
