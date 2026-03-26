@@ -81,6 +81,18 @@ export const handleStreams = async (args, print) => {
     descSpan.innerHTML = formatTaskDescription(t);
     tdDesc.appendChild(descSpan);
 
+    // URL link icon
+    if (t.url) {
+      const a = document.createElement("a");
+      a.href = t.url;
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.className = "task-link";
+      a.style.marginLeft = "4px";
+      a.innerHTML = '<i class="ph-light ph-link"></i>';
+      tdDesc.appendChild(a);
+    }
+
     // Project
     if (t.project) {
       tdDesc.appendChild(document.createTextNode(" "));
