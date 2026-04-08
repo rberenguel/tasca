@@ -179,7 +179,8 @@ export const handleStreams = async (args, print) => {
     const isYielding = label === "yielding";
     sectionTasks.forEach((t, i) => {
       tbody.appendChild(renderRow(t, startIdx + i, isYielding));
-      if (zippedUuids.has(t.uuid)) tbody.appendChild(renderZipRow(t, isYielding));
+      if (zippedUuids.has(t.uuid))
+        tbody.appendChild(renderZipRow(t, isYielding));
     });
     container.appendChild(wrapper);
 

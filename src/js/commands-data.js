@@ -138,8 +138,8 @@ export const handleImport = async (ctx) => {
 
 export const handleLink = async (ctx) => {
   if (window.__TASCA_NATIVE__) {
-    window.webkit.messageHandlers.link.postMessage(null)
-    return
+    window.webkit.messageHandlers.link.postMessage(null);
+    return;
   }
   if (!window.showOpenFilePicker) {
     return ctx.print(
@@ -167,6 +167,10 @@ export const handleLink = async (ctx) => {
 };
 
 export const handleLoad = async (ctx) => {
+  if (window.__TASCA_NATIVE__) {
+    window.webkit.messageHandlers.loadNow.postMessage(null);
+    return ctx.print('<span class="msg-success">Loading from iCloud…</span>');
+  }
   const handle = await ctx.dbOps.getSetting("syncFileHandle");
   if (!handle) {
     return ctx.print(
@@ -224,6 +228,10 @@ export const handleLoad = async (ctx) => {
 };
 
 export const handleSave = async (ctx) => {
+  if (window.__TASCA_NATIVE__) {
+    window.__tascaScheduleSave?.();
+    return ctx.print('<span class="msg-success">Saving to iCloud…</span>');
+  }
   const handle = await ctx.dbOps.getSetting("syncFileHandle");
   if (!handle) {
     return ctx.print(
@@ -314,4 +322,21 @@ export const handleStatus = async (ctx) => {
   await runList(["!modified"], Infinity, html, true);
   // Make the whole output area clickable to dismiss
   makeOutputDismissible();
+};
+
+export const handlePurge = async (ctx) => {
+  const days = parseInt(ctx.args[0]) || 7;
+  const cutoff = Date.now() - days * 86400000;
+  const all = await ctx.dbOps.getAll();
+  const toDelete = all.filter(
+    (t) => t.status === "deleted" && (t.deletedAt || 0) < cutoff,
+  );
+  for (const t of toDelete) {
+    await ctx.dbOps.delete(t.uuid);
+  }
+  const s = toDelete.length === 1 ? "" : "s";
+  const ds = days === 1 ? "" : "s";
+  ctx.print(
+    `<span class="msg-success">Purged ${toDelete.length} task${s} deleted more than ${days} day${ds} ago.</span>`,
+  );
 };

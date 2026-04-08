@@ -51,14 +51,14 @@ In Xcode's project navigator:
 3. Hold **Option** if needed to see hidden files
 4. Select **each of the following** (not the repo root itself):
 
-   | What to add          | Add as              |
-   |----------------------|---------------------|
-   | `index.html`         | resource (default)  |
-   | `src/`               | **Create folder references** ← critical |
-   | `fonts/`             | **Create folder references**            |
-   | `icon.png`           | resource            |
-   | `pwa-manifest.json`  | resource            |
-   | `sw.js`              | resource            |
+   | What to add         | Add as                                  |
+   | ------------------- | --------------------------------------- |
+   | `index.html`        | resource (default)                      |
+   | `src/`              | **Create folder references** ← critical |
+   | `fonts/`            | **Create folder references**            |
+   | `icon.png`          | resource                                |
+   | `pwa-manifest.json` | resource                                |
+   | `sw.js`             | resource                                |
 
    > **"Create folder references"** preserves the `src/js/`, `fonts/` directory
    > structure inside the bundle. If you accidentally choose "Create groups"
@@ -99,13 +99,16 @@ On first launch the app will start with an empty DB (no iCloud file yet).
 To bootstrap from your existing data:
 
 **Option A — from your Mac's browser:**
+
 ```
 save        ← saves to the linked file
 ```
+
 Then move `tasca.json` into **iCloud Drive → Tasca → Documents** using Finder.
 The iOS app will detect the file and load it next time it opens.
 
 **Option B — export from the browser, share to Files:**
+
 ```
 exp         ← triggers Share Sheet on iOS, save to iCloud Drive/Tasca/Documents/tasca.json
 ```
@@ -114,17 +117,18 @@ exp         ← triggers Share Sheet on iOS, save to iCloud Drive/Tasca/Document
 
 ## How sync works after setup
 
-| Event | What happens |
-|---|---|
-| You `add`/`done`/`mod` on iPhone | DB writes → 800 ms debounce → JSON pushed to iCloud |
-| You open the app | Latest iCloud file pulled and merged into IndexedDB |
-| Your phone comes back from sleep | Same as open |
-| Mac saves (`save` command) | Mac writes to the same iCloud file → iOS detects change → auto-merges |
-| Concurrent edits on both devices | Newer `modified` timestamp wins per task UUID |
+| Event                            | What happens                                                          |
+| -------------------------------- | --------------------------------------------------------------------- |
+| You `add`/`done`/`mod` on iPhone | DB writes → 800 ms debounce → JSON pushed to iCloud                   |
+| You open the app                 | Latest iCloud file pulled and merged into IndexedDB                   |
+| Your phone comes back from sleep | Same as open                                                          |
+| Mac saves (`save` command)       | Mac writes to the same iCloud file → iOS detects change → auto-merges |
+| Concurrent edits on both devices | Newer `modified` timestamp wins per task UUID                         |
 
 ### Pointing your Mac at the same file
 
 In the browser on your Mac:
+
 ```
 link        ← pick iCloud Drive → Tasca → Documents → tasca.json
 save        ← write to it

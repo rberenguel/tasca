@@ -73,7 +73,10 @@ export const dbOps = {
       // If task has modified (e.g. restore/undo), keep it. Else set now.
       const taskWithMod = { ...task, modified: task.modified || Date.now() };
       const req = store.add(taskWithMod);
-      req.onsuccess = () => { resolve(req.result); window.__tascaScheduleSave?.() };
+      req.onsuccess = () => {
+        resolve(req.result);
+        window.__tascaScheduleSave?.();
+      };
       req.onerror = () => reject(req.error);
     }),
   update: (task, { touch = true } = {}) =>
@@ -85,7 +88,10 @@ export const dbOps = {
       // If !touch, we preserve whatever 'modified' is in task (or undefined)
       const req = store.put(taskWithMod);
       // Only auto-save on real user edits (touch:false means import/restore)
-      req.onsuccess = () => { resolve(req.result); if (touch) window.__tascaScheduleSave?.() };
+      req.onsuccess = () => {
+        resolve(req.result);
+        if (touch) window.__tascaScheduleSave?.();
+      };
       req.onerror = () => reject(req.error);
     }),
   delete: (uuid) =>
@@ -93,7 +99,10 @@ export const dbOps = {
       const tx = db.transaction(STORE_NAME, "readwrite");
       const store = tx.objectStore(STORE_NAME);
       const req = store.delete(uuid);
-      req.onsuccess = () => { resolve(req.result); window.__tascaScheduleSave?.() };
+      req.onsuccess = () => {
+        resolve(req.result);
+        window.__tascaScheduleSave?.();
+      };
       req.onerror = () => reject(req.error);
     }),
   get: (uuid) =>
@@ -122,7 +131,10 @@ export const dbOps = {
       const projWithMod = { ...projData };
       if (touch) projWithMod.modified = Date.now();
       const req = store.put(projWithMod);
-      req.onsuccess = () => { resolve(req.result); if (touch) window.__tascaScheduleSave?.() };
+      req.onsuccess = () => {
+        resolve(req.result);
+        if (touch) window.__tascaScheduleSave?.();
+      };
       req.onerror = () => reject(req.error);
     }),
   deleteProject: (name) =>
@@ -137,7 +149,9 @@ export const dbOps = {
     const tasks = await dbOps.getAll();
     const projects = await dbOps.getAllProjects();
     const usedProjects = new Set(
-      tasks.filter((t) => t.project).map((t) => t.project),
+      tasks
+        .filter((t) => t.project && t.status !== "deleted")
+        .map((t) => t.project),
     );
     for (const p of projects) {
       if (!usedProjects.has(p.name)) {

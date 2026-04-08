@@ -22,7 +22,6 @@ export const setLastLimit = (limit) => {
   lastLimit = limit;
 };
 
-
 // Command history
 export const historyState = {
   cmdHistory: JSON.parse(localStorage.getItem("tasca_history") || "[]"),

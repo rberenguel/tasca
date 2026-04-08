@@ -33,6 +33,7 @@ import {
   handleSave,
   handleUnlink,
   handleStatus,
+  handlePurge,
 } from "./commands-data.js";
 import {
   handleHelp,
@@ -182,6 +183,7 @@ export const commands = {
   unlink: handleUnlink,
   status: handleStatus,
   stat: handleStatus,
+  purge: handlePurge,
 
   // Misc
   context: handleContext,

@@ -963,9 +963,13 @@ export const handleOpen = async (ctx) => {
 export const handleZip = async (ctx) => {
   const idArg = ctx.targetId?.toString() || ctx.args[0];
   if (!idArg)
-    return ctx.print('<span class="msg-error">Usage: zip ID | zip *</span>', false, {
-      dismissible: true,
-    });
+    return ctx.print(
+      '<span class="msg-error">Usage: zip ID | zip *</span>',
+      false,
+      {
+        dismissible: true,
+      },
+    );
 
   // z * — toggle all visible tasks that have annotations
   if (idArg === "*") {
@@ -995,11 +999,9 @@ export const handleZip = async (ctx) => {
   } else {
     const task = await ctx.dbOps.get(uuid);
     if (!task?.annotations?.length)
-      return ctx.print(
-        '<span class="msg-info">No annotations.</span>',
-        false,
-        { dismissible: true },
-      );
+      return ctx.print('<span class="msg-info">No annotations.</span>', false, {
+        dismissible: true,
+      });
     zippedUuids.add(uuid);
   }
   await ctx.runListRefresh();

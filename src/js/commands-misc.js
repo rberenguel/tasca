@@ -106,7 +106,10 @@ export const handleClear = async (ctx) => {
 export const handleAbout = async (ctx) => {
   let version = "unknown";
   try {
-    const res = await fetch("manifest.json");
+    const manifestFile = window.__TASCA_NATIVE__
+      ? "pwa-manifest.json"
+      : "manifest.json";
+    const res = await fetch(manifestFile);
     const manifest = await res.json();
     version = manifest.version || "unknown";
   } catch (e) {}

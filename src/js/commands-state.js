@@ -381,8 +381,12 @@ export const handleDelete = async (ctx) => {
       if (parentUuid) affectedParentUuids.add(parentUuid);
     }
 
-    allUndoRecords.push({ type: "delete", task: structuredClone(task) });
-    await ctx.dbOps.delete(uuid);
+    allUndoRecords.push({ type: "update", task: structuredClone(task) });
+    await ctx.dbOps.update({
+      ...task,
+      status: "deleted",
+      deletedAt: Date.now(),
+    });
   }
 
   // Check for checklist parent auto-completion

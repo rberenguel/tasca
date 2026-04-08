@@ -56,15 +56,15 @@ can share it too.
 ### 3. Rewrite `commands-streams.js::renderRow` to call the shared renderer
 
 ```js
-import { renderTaskRow, renderZipRow } from "./ui.js"
+import { renderTaskRow, renderZipRow } from "./ui.js";
 
 const renderRow = (t, idx, isYielding) =>
   renderTaskRow(t, idx, allTasks, projects, {
-    showUrgency:  false,
-    showOrder:    true,
-    filteredTags: (t.tags || []).filter(tg => tg.toLowerCase() !== "stream"),
-    rowFilter:    isYielding ? "saturate(0.4) brightness(0.7)" : null,
-  })
+    showUrgency: false,
+    showOrder: true,
+    filteredTags: (t.tags || []).filter((tg) => tg.toLowerCase() !== "stream"),
+    rowFilter: isYielding ? "saturate(0.4) brightness(0.7)" : null,
+  });
 ```
 
 All the duplicated icon/URL/annotation/tag/project DOM code in `commands-streams.js`
@@ -86,10 +86,10 @@ priority since it's within `ui.js` already.
 
 ## Files to change
 
-| File | Change |
-|------|--------|
-| `src/js/ui.js` | Export `renderTaskRow` and `renderZipRow`; convert `isTodayView` closure var to config field |
-| `src/js/commands-streams.js` | Delete `renderRow` / `renderZipRow`; import and call shared versions with streams config |
+| File                         | Change                                                                                       |
+| ---------------------------- | -------------------------------------------------------------------------------------------- |
+| `src/js/ui.js`               | Export `renderTaskRow` and `renderZipRow`; convert `isTodayView` closure var to config field |
+| `src/js/commands-streams.js` | Delete `renderRow` / `renderZipRow`; import and call shared versions with streams config     |
 
 ## What stays in `commands-streams.js`
 

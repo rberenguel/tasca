@@ -5,7 +5,9 @@ import { initDB, dbOps } from "../src/js/db.js";
 import { displayMapRef } from "../src/js/state.js";
 
 let lastPrint = "";
-const mockPrint = (html) => { lastPrint = html; };
+const mockPrint = (html) => {
+  lastPrint = html;
+};
 
 const mockCtx = {
   args: [],

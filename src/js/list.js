@@ -122,7 +122,7 @@ export const runList = async (
     // DB schema has status index. logic.js says WAITING regex returns t.wait > now && t.status === "pending".
     // So yes, pending includes waiting/scheduled.
   } else {
-    all = await dbOps.getAll();
+    all = (await dbOps.getAll()).filter((t) => t.status !== "deleted");
   }
 
   updateCache(all);

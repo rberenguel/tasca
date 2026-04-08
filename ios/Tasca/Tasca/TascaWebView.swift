@@ -77,6 +77,7 @@ struct TascaWebView: UIViewRepresentable {
         controller.add(coordinator, name: "ready")
         controller.add(coordinator, name: "autoSave")
         controller.add(coordinator, name: "link")
+        controller.add(coordinator, name: "loadNow")
         controller.add(coordinator, name: "log")
 
         config.userContentController = controller
@@ -191,6 +192,8 @@ struct TascaWebView: UIViewRepresentable {
                 sync.write(json)
             case "link":
                 Task { await MainActor.run { self.showFilePicker() } }
+            case "loadNow":
+                loadFromCloud()
             case "log":
                 print("[TascaJS]", message.body)
             default:
