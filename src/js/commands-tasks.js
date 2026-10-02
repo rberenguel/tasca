@@ -352,6 +352,9 @@ export const handleModify = async (ctx) => {
         type: "color",
         value: parseColor(token.split(":")[1]),
       });
+    } else if (token.startsWith("hl:") || token.startsWith("highlight:")) {
+      const val = token.split(":")[1] || null;
+      modifications.push({ type: "highlight", value: val });
     } else if (token.startsWith("x:") || token.startsWith("target:")) {
       const val = token.split(":")[1];
       newTarget = val || null;
@@ -448,6 +451,10 @@ export const handleModify = async (ctx) => {
         case "color":
           task.color = mod.value;
           break;
+        case "highlight":
+          if (mod.value) task.highlight = mod.value;
+          else delete task.highlight;
+          break;
         case "target":
           task.target = mod.value;
           break;
@@ -531,6 +538,7 @@ export const handleEdit = async (ctx) => {
     const colorStr = [t.color.icon || "", t.color.title || ""].join(".");
     cmdParts.push(`c:${colorStr.replace(/\.$/, "")}`);
   }
+  if (t.highlight) cmdParts.push(`hl:${t.highlight}`);
   if (t.depends && t.depends.length > 0) {
     // Convert UUIDs to display IDs where possible
     const depIds = t.depends

@@ -12,7 +12,6 @@ export const C = {
   someday: -100.0,
   reference: -100.0,
   routine: -10.0,
-  stream: -1000.0,
   overdueScale: 1.5, // extra urgency per day overdue
   // Thresholds
   ageThreshold: 100,
@@ -25,10 +24,6 @@ export const C = {
 
 export const calculateUrgency = (t, allTasks, projectsMeta = []) => {
   if (t.wait && t.wait > Date.now()) return -10.0;
-
-  // Stream tag - fixed low urgency, no age/due bumping
-  if (t.tags && t.tags.some((tag) => tag.toLowerCase() === "stream"))
-    return C.stream.toFixed(1);
 
   // Priority contribution (used for sorting within low-urgency categories)
   const priorityContrib =
@@ -125,7 +120,6 @@ const VIRTUAL_TAG_SHORTHANDS = {
   RECUR: "RECURRING",
   SD: "SOMEDAY",
   RT: "ROUTINE",
-  STR: "STREAM",
   MOD: "MODIFIED",
   M: "MODIFIED",
   CL: "CHECKLIST",
@@ -150,7 +144,6 @@ const VIRTUAL_TAG_NAMES = new Set([
   "RECUR",
   "SOMEDAY",
   "ROUTINE",
-  "STREAM",
   "MODIFIED",
   "REF",
   "REFS",
@@ -209,8 +202,6 @@ export const hasVirtualTag = (t, tag, allTasks, projectsMeta = []) => {
     return !!t.recur && t.status === "pending";
   if (tagClean === "SOMEDAY")
     return t.tags?.some((tg) => tg.toLowerCase() === "someday");
-  if (tagClean === "STREAM")
-    return t.tags?.some((tg) => tg.toLowerCase() === "stream");
   if (tagClean === "ROUTINE")
     return t.tags?.some((tg) => tg.toLowerCase() === "routine");
   if (["REF", "REFS", "REFERENCE", "REFERENCES"].includes(tagClean)) {
@@ -236,9 +227,6 @@ export const VALID_COMMANDS = [
   "add",
   "a",
   "log",
-  "stream",
-  "s",
-  "ss",
   "list",
   "ls",
   "l",
@@ -300,6 +288,7 @@ export const VALID_COMMANDS = [
   "unchecklist",
   "ucl",
   "zip",
+  "wide",
 ];
 
 export const resolveCommand = (str) => {

@@ -1,5 +1,5 @@
 import { initDB, dbOps } from "./db.js";
-import { print, setExecuteRef } from "./ui.js";
+import { print, setExecuteRef, setHighlightCallback } from "./ui.js";
 import { fetchIcons, updateCache, lastFilterArgs, markClean } from "./state.js";
 import { setupInput } from "./input.js";
 import { execute } from "./commands.js";
@@ -7,6 +7,15 @@ import { runList } from "./list.js";
 
 // Set execute reference for dismissible UI elements
 setExecuteRef(execute);
+
+// Highlight callback: persist color change without re-rendering
+setHighlightCallback(async (uuid, color) => {
+  const task = await dbOps.get(uuid);
+  if (!task) return;
+  if (color) task.highlight = color;
+  else delete task.highlight;
+  await dbOps.update(task);
+});
 
 const emptyDbExamples = [
   "add Buy Milk p:home !errand",

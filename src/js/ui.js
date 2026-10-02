@@ -2,7 +2,7 @@ import { getDaysRemaining, C, hasVirtualTag } from "./logic.js";
 import { isChecklistParent } from "./commands-checklist.js";
 import { formatDateHtml } from "./utils.js";
 import { hasContext, formatContextDisplay, getContext } from "./context.js";
-import { zippedUuids } from "./state.js";
+import { zippedUuids, wideColumns } from "./state.js";
 
 // Convert icon name to full Phosphor class (handles legacy full class format)
 const iconClass = (name) => {
@@ -59,6 +59,168 @@ const getTrackMarker = (task) => {
 };
 
 let projectMetadata = {};
+
+const highlightBgMap = {
+  yellow:  "rgba(181, 137,   0, 0.18)",
+  orange:  "rgba(203,  75,  22, 0.18)",
+  red:     "rgba(220,  50,  47, 0.18)",
+  magenta: "rgba(211,  54, 130, 0.18)",
+  violet:  "rgba(108, 113, 196, 0.18)",
+  blue:    "rgba( 38, 139, 210, 0.18)",
+  cyan:    "rgba( 42, 161, 152, 0.18)",
+  green:   "rgba(133, 153,   0, 0.18)",
+};
+
+const highlightFgMap = {
+  yellow:  "#b58900",
+  orange:  "#cb4b16",
+  red:     "#dc322f",
+  magenta: "#d33682",
+  violet:  "#6c71c4",
+  blue:    "#268bd2",
+  cyan:    "#2aa198",
+  green:   "#859900",
+};
+
+const HIGHLIGHT_COLORS = ["yellow", "orange", "red", "magenta", "violet", "blue", "cyan", "green"];
+const LONG_PRESS_MS = 500;
+
+let highlightCallbackRef = null;
+export const setHighlightCallback = (fn) => {
+  highlightCallbackRef = fn;
+};
+
+const applyHighlight = (uuid, color) => {
+  document.querySelectorAll(`tr[data-uuid="${uuid}"]`).forEach((tr) => {
+    tr.style.backgroundColor = color ? (highlightBgMap[color] || "") : "";
+    tr.dataset.highlight = color || "";
+  });
+  if (highlightCallbackRef) highlightCallbackRef(uuid, color);
+};
+
+const showHighlightPopup = (tr, uuid) => {
+  const existing = document.getElementById("highlight-popup");
+  if (existing) existing.remove();
+
+  const rect = tr.getBoundingClientRect();
+  const popup = document.createElement("div");
+  popup.id = "highlight-popup";
+  const popupWidth = 220;
+  const left = Math.min(rect.left, window.innerWidth - popupWidth - 8);
+  const top = Math.min(rect.top, window.innerHeight - 50);
+  popup.style.cssText = [
+    "position:fixed",
+    `top:${top}px`,
+    `left:${left}px`,
+    "z-index:1000",
+    "background:var(--base02)",
+    "border:1px solid var(--base01)",
+    "border-radius:4px",
+    "padding:5px 8px",
+    "display:flex",
+    "gap:6px",
+    "align-items:center",
+    "box-shadow:0 2px 8px rgba(0,0,0,0.4)",
+  ].join(";");
+
+  const current = tr.dataset.highlight || "";
+  HIGHLIGHT_COLORS.forEach((color) => {
+    const swatch = document.createElement("span");
+    swatch.style.cssText = [
+      "width:16px",
+      "height:16px",
+      "border-radius:50%",
+      `background:${highlightFgMap[color]}`,
+      "cursor:pointer",
+      "display:inline-block",
+      `outline:2px solid ${color === current ? "var(--base1)" : "transparent"}`,
+      "outline-offset:2px",
+      "flex-shrink:0",
+    ].join(";");
+    swatch.addEventListener("click", (e) => {
+      e.stopPropagation();
+      popup.remove();
+      applyHighlight(uuid, color);
+    });
+    popup.appendChild(swatch);
+  });
+
+  const clearBtn = document.createElement("span");
+  clearBtn.textContent = "✕";
+  clearBtn.style.cssText =
+    "cursor:pointer;color:var(--base01);font-size:0.85em;padding:0 2px;margin-left:2px;";
+  clearBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    popup.remove();
+    applyHighlight(uuid, null);
+  });
+  popup.appendChild(clearBtn);
+
+  document.body.appendChild(popup);
+
+  setTimeout(() => {
+    const dismiss = (e) => {
+      if (!popup.contains(e.target)) {
+        popup.remove();
+        document.removeEventListener("click", dismiss);
+        document.removeEventListener("touchstart", dismiss);
+      }
+    };
+    document.addEventListener("click", dismiss);
+    document.addEventListener("touchstart", dismiss);
+  }, 0);
+};
+
+const addLongPress = (el, uuid) => {
+  let timer = null;
+  let startX = 0;
+  let startY = 0;
+  let suppressNextClick = false;
+
+  el.addEventListener("click", (e) => {
+    if (suppressNextClick) {
+      suppressNextClick = false;
+      e.stopPropagation();
+    }
+  });
+
+  const start = (e) => {
+    const point = e.touches ? e.touches[0] : e;
+    startX = point.clientX;
+    startY = point.clientY;
+    timer = setTimeout(() => {
+      timer = null;
+      suppressNextClick = true;
+      showHighlightPopup(el, uuid);
+    }, LONG_PRESS_MS);
+  };
+
+  const cancel = () => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+  };
+
+  const move = (e) => {
+    const point = e.touches ? e.touches[0] : e;
+    if (
+      Math.abs(point.clientX - startX) > 5 ||
+      Math.abs(point.clientY - startY) > 5
+    )
+      cancel();
+  };
+
+  el.addEventListener("mousedown", start);
+  el.addEventListener("touchstart", start, { passive: true });
+  el.addEventListener("mouseup", cancel);
+  el.addEventListener("mouseleave", cancel);
+  el.addEventListener("touchend", cancel);
+  el.addEventListener("touchcancel", cancel);
+  el.addEventListener("mousemove", move);
+  el.addEventListener("touchmove", move, { passive: true });
+  el.addEventListener("contextmenu", (e) => e.preventDefault());
+};
 
 // Format text between backticks as inline code
 export const formatInlineCode = (text) => {
@@ -300,6 +462,218 @@ const renderZipExpansion = (t) => {
   return tr;
 };
 
+const renderCompactTaskRow = (t, index, allTasks, checklistSummary = null) => {
+  const tr = document.createElement("tr");
+  if (t.start && t.status === "pending") tr.className = "row-active";
+  if (isChecklistParent(t)) tr.classList.add("checklist-parent-row");
+  tr.dataset.uuid = t.uuid;
+  tr.dataset.highlight = t.highlight || "";
+  if (t.highlight && highlightBgMap[t.highlight])
+    tr.style.backgroundColor = highlightBgMap[t.highlight];
+  addLongPress(tr, t.uuid);
+
+  const tdId = document.createElement("td");
+  tdId.className = "row-id";
+  tdId.textContent = index + 1;
+  tr.appendChild(tdId);
+
+  const tdDesc = document.createElement("td");
+  tdDesc.className = "row-desc";
+
+  if (isChecklistParent(t)) {
+    const i = document.createElement("i");
+    i.className = "ph-light ph-list-checks";
+    i.style.marginRight = "5px";
+    i.style.color = "var(--cyan)";
+    tdDesc.appendChild(i);
+  } else if (t.icon) {
+    const i = document.createElement("i");
+    i.className = iconClass(t.icon);
+    i.style.marginRight = "5px";
+    if (t.color?.icon && colorMap[t.color.icon]) {
+      i.style.color = colorMap[t.color.icon];
+    }
+    tdDesc.appendChild(i);
+  }
+
+  const descSpan = document.createElement("span");
+  descSpan.innerHTML = formatTaskDescription(t);
+  tdDesc.appendChild(descSpan);
+
+  if (checklistSummary) {
+    tdDesc.appendChild(document.createTextNode(" "));
+    const summarySpan = document.createElement("span");
+    summarySpan.className = "checklist-summary";
+    summarySpan.style.color = "var(--cyan)";
+    summarySpan.style.fontSize = "0.9em";
+    summarySpan.textContent = `(${checklistSummary.done}/${checklistSummary.total})`;
+    tdDesc.appendChild(summarySpan);
+  }
+
+  if (t.url) {
+    const a = document.createElement("a");
+    a.href = t.url;
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.className = "task-link";
+    a.style.marginLeft = "4px";
+    a.innerHTML = '<i class="ph-light ph-link"></i>';
+    tdDesc.appendChild(a);
+  }
+
+  if (t.project) {
+    tdDesc.appendChild(document.createTextNode(" "));
+    const projSpan = document.createElement("span");
+    projSpan.innerHTML = formatProject(t.project);
+    tdDesc.appendChild(projSpan);
+  }
+
+  if (t.due) {
+    const daysCheck = getDaysRemaining(t.due, t.end || Date.now());
+    tdDesc.appendChild(document.createTextNode(" "));
+    const dateSpan = document.createElement("span");
+    let cls = "date-far";
+    if (t.end) {
+      if (daysCheck < 0) cls = "date-urgent";
+    } else {
+      if (daysCheck < C.daysWarning) cls = "date-urgent";
+      else if (daysCheck < C.daysSoon) cls = "date-soon";
+    }
+    dateSpan.className = `date-pill ${cls}`;
+    dateSpan.textContent = `(${daysCheck}d)`;
+    tdDesc.appendChild(dateSpan);
+  }
+
+  if (t.tags && t.tags.length > 0) {
+    t.tags.forEach((tag) => {
+      tdDesc.appendChild(document.createTextNode(" "));
+      const tagSpan = document.createElement("span");
+      tagSpan.className = "tag-pill";
+      tagSpan.textContent = tag;
+      tdDesc.appendChild(tagSpan);
+    });
+  }
+
+  if (t.annotations && t.annotations.length > 0) {
+    tdDesc.appendChild(document.createTextNode(" "));
+    const annoSpan = document.createElement("span");
+    annoSpan.className = "anno-count";
+    annoSpan.textContent = `msg:${t.annotations.length}`;
+    tdDesc.appendChild(annoSpan);
+  }
+
+  if (zippedUuids.has(t.uuid) && t.annotations && t.annotations.length > 0) {
+    const zipDiv = document.createElement("div");
+    zipDiv.style.cssText =
+      "padding: 1px 4px 6px 0; color: var(--base01); font-size: 0.9em; line-height: 1.6;";
+    t.annotations.forEach((ann) => {
+      const div = document.createElement("div");
+      const date = new Date(ann.entry).toISOString().slice(0, 10);
+      div.innerHTML = `<span style="opacity:0.5; margin-right:10px;">${date}</span>${formatInlineCode(ann.description)}`;
+      zipDiv.appendChild(div);
+    });
+    tdDesc.appendChild(zipDiv);
+  }
+
+  tr.appendChild(tdDesc);
+  return tr;
+};
+
+const renderWideColumns = (
+  container,
+  tasks,
+  allTasks,
+  displayMapRef,
+  checklistGroups,
+  n,
+) => {
+  if (tasks.length === 0) {
+    displayMapRef.value = [];
+    const footer = document.createElement("div");
+    footer.style.fontSize = "0.8em";
+    footer.style.color = "var(--base01)";
+    footer.textContent = "0 tasks shown.";
+    container.appendChild(footer);
+    return;
+  }
+
+  displayMapRef.value = tasks.map((t) => t.uuid);
+
+  // Build all rows first so we can measure their rendered heights
+  const rows = tasks.map((t, globalIndex) => {
+    const group = checklistGroups.get(t.uuid);
+    if (isChecklistParent(t) && group) {
+      const done = group.doneMembers || 0;
+      const total = (group.totalPending || 0) + done;
+      return renderCompactTaskRow(t, globalIndex, allTasks, { done, total });
+    }
+    return renderCompactTaskRow(t, globalIndex, allTasks, null);
+  });
+
+  // Measure row heights inside #terminal-output at actual column width
+  // so font inheritance and text wrapping match the real render
+  const termEl = document.getElementById("terminal-output");
+  const termWidth = termEl ? termEl.clientWidth : 800;
+  const colWidth = Math.floor((termWidth - (n - 1) * 16) / n);
+
+  const probeTable = document.createElement("table");
+  probeTable.style.cssText = `position:absolute; visibility:hidden; width:${colWidth}px;`;
+  const probeTbody = document.createElement("tbody");
+  probeTable.appendChild(probeTbody);
+  rows.forEach((tr) => probeTbody.appendChild(tr));
+  const probeTarget = termEl || document.body;
+  probeTarget.appendChild(probeTable);
+
+  const rowHeights = rows.map((tr) => tr.offsetHeight || 24);
+
+  probeTarget.removeChild(probeTable);
+
+  // Available column height: viewport minus the terminal top offset (input bar etc.)
+  const termTop = termEl ? termEl.getBoundingClientRect().top : 80;
+  const emPx = termEl ? parseFloat(getComputedStyle(termEl).fontSize) : 16;
+  const availableHeight = window.innerHeight - termTop - emPx;
+
+  // Greedily assign rows to columns based on cumulative height
+  const colAssignments = Array.from({ length: n }, () => []);
+  let col = 0;
+  let colHeight = 0;
+  rows.forEach((tr, i) => {
+    if (col < n - 1 && colHeight + rowHeights[i] > availableHeight) {
+      col++;
+      colHeight = 0;
+    }
+    colAssignments[col].push(tr);
+    colHeight += rowHeights[i];
+  });
+
+  const flexWrapper = document.createElement("div");
+  flexWrapper.style.cssText = "display:flex; gap:16px; align-items:flex-start;";
+
+  for (let c = 0; c < n; c++) {
+    const colDiv = document.createElement("div");
+    colDiv.style.cssText = "flex:1; min-width:0;";
+    if (c < n - 1) {
+      colDiv.style.borderRight = "1px solid var(--base02)";
+      colDiv.style.paddingRight = "12px";
+    }
+
+    const table = document.createElement("table");
+    const tbody = document.createElement("tbody");
+    colAssignments[c].forEach((tr) => tbody.appendChild(tr));
+    table.appendChild(tbody);
+    colDiv.appendChild(table);
+    flexWrapper.appendChild(colDiv);
+  }
+
+  container.appendChild(flexWrapper);
+
+  const footer = document.createElement("div");
+  footer.style.fontSize = "0.8em";
+  footer.style.color = "var(--base01)";
+  footer.textContent = `${tasks.length} tasks shown.`;
+  container.appendChild(footer);
+};
+
 export const renderTable = (
   tasks,
   allTasks,
@@ -385,6 +759,22 @@ export const renderTable = (
 
       container.appendChild(bannerDiv);
     }
+  }
+
+  if (wideColumns > 0 && !isTodayView) {
+    const wideBanner = document.createElement("div");
+    wideBanner.className = "wide-banner";
+    wideBanner.textContent = `⊞ ${wideColumns} col`;
+    container.appendChild(wideBanner);
+    renderWideColumns(
+      container,
+      tasks,
+      allTasks,
+      displayMapRef,
+      checklistGroups,
+      wideColumns,
+    );
+    return print(container, false);
   }
 
   const { started = [], overdue = [], ready = [] } = sections;
@@ -495,6 +885,11 @@ export const renderTable = (
     const tr = document.createElement("tr");
     if (t.start && t.status === "pending") tr.className = "row-active";
     if (isChecklistParent(t)) tr.classList.add("checklist-parent-row");
+    tr.dataset.uuid = t.uuid;
+    tr.dataset.highlight = t.highlight || "";
+    if (t.highlight && highlightBgMap[t.highlight])
+      tr.style.backgroundColor = highlightBgMap[t.highlight];
+    addLongPress(tr, t.uuid);
 
     // Cell 1: ID
     const tdId = document.createElement("td");

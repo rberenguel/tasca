@@ -32,6 +32,18 @@ export const historyState = {
 // Tasks with inline annotation expansion open (zip command)
 export const zippedUuids = new Set();
 
+// Wide view column count (0 = off)
+export let wideColumns = parseInt(localStorage.getItem("tasca_wide") || "0", 10);
+
+export const setWideColumns = (n) => {
+  wideColumns = n;
+  if (n > 0) {
+    localStorage.setItem("tasca_wide", String(n));
+  } else {
+    localStorage.removeItem("tasca_wide");
+  }
+};
+
 // Unsaved changes tracking
 export const unsavedState = {
   dirty: false,

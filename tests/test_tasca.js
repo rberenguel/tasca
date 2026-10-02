@@ -1182,7 +1182,7 @@ describe("Undo E2E Tests", function () {
 
       await execute("delete 1");
 
-      tasks = await dbOps.getAll();
+      tasks = (await dbOps.getAll()).filter((t) => t.status !== "deleted");
       expect(tasks).to.have.length(0);
 
       await execute("undo");
@@ -1422,7 +1422,7 @@ describe("Command Syntax E2E Tests", function () {
       await execute("add test task");
       await execute("delete 1");
 
-      const tasks = await dbOps.getAll();
+      const tasks = (await dbOps.getAll()).filter((t) => t.status !== "deleted");
       expect(tasks).to.have.length(0);
     });
 
@@ -1475,7 +1475,7 @@ describe("Command Syntax E2E Tests", function () {
       await execute("add test task");
       await execute("1 delete");
 
-      const tasks = await dbOps.getAll();
+      const tasks = (await dbOps.getAll()).filter((t) => t.status !== "deleted");
       expect(tasks).to.have.length(0);
     });
 
@@ -1483,7 +1483,7 @@ describe("Command Syntax E2E Tests", function () {
       await execute("add test task");
       await execute("1 rm");
 
-      const tasks = await dbOps.getAll();
+      const tasks = (await dbOps.getAll()).filter((t) => t.status !== "deleted");
       expect(tasks).to.have.length(0);
     });
 
@@ -1939,7 +1939,7 @@ describe("Multi-ID Command E2E Tests", function () {
       await execute("add task three");
       await execute("delete 1,3");
 
-      const tasks = await dbOps.getAll();
+      const tasks = (await dbOps.getAll()).filter((t) => t.status !== "deleted");
       expect(tasks).to.have.length(1);
       expect(tasks[0].description).to.equal("task two");
     });
@@ -1950,7 +1950,7 @@ describe("Multi-ID Command E2E Tests", function () {
       await execute("add task three");
       await execute("delete 1-3");
 
-      const tasks = await dbOps.getAll();
+      const tasks = (await dbOps.getAll()).filter((t) => t.status !== "deleted");
       expect(tasks).to.have.length(0);
     });
 
@@ -1961,7 +1961,7 @@ describe("Multi-ID Command E2E Tests", function () {
       await execute("add task 4");
       await execute("rm 2,4");
 
-      const tasks = await dbOps.getAll();
+      const tasks = (await dbOps.getAll()).filter((t) => t.status !== "deleted");
       expect(tasks).to.have.length(2);
       expect(tasks.map((t) => t.description)).to.include("task 1");
       expect(tasks.map((t) => t.description)).to.include("task 3");
@@ -1973,7 +1973,7 @@ describe("Multi-ID Command E2E Tests", function () {
       await execute("add task three");
       await execute("delete 1-3");
 
-      let tasks = await dbOps.getAll();
+      let tasks = (await dbOps.getAll()).filter((t) => t.status !== "deleted");
       expect(tasks).to.have.length(0);
 
       await execute("undo");
@@ -2304,7 +2304,7 @@ describe("Multi-ID Command E2E Tests", function () {
       await execute("add task 4");
       await execute("1,3-4 delete");
 
-      const tasks = await dbOps.getAll();
+      const tasks = (await dbOps.getAll()).filter((t) => t.status !== "deleted");
       expect(tasks).to.have.length(1);
       expect(tasks[0].description).to.equal("task 2");
     });
@@ -2316,7 +2316,7 @@ describe("Multi-ID Command E2E Tests", function () {
       await execute("add task 4");
       await execute("2,4 rm");
 
-      const tasks = await dbOps.getAll();
+      const tasks = (await dbOps.getAll()).filter((t) => t.status !== "deleted");
       expect(tasks).to.have.length(2);
       expect(tasks.map((t) => t.description)).to.include("task 1");
       expect(tasks.map((t) => t.description)).to.include("task 3");
@@ -3318,7 +3318,7 @@ describe("Target Identifier (x:) E2E Tests", function () {
       expect(tasks).to.have.length(1);
     });
 
-    it("should reject duplicate target on modify [FLAKY]", async function () {
+    it("should reject duplicate target on modify", async function () {
       await execute("add first task x:bike");
       await execute("add second task x:yoga");
       await execute("list");
@@ -3328,7 +3328,8 @@ describe("Target Identifier (x:) E2E Tests", function () {
       expect(output).to.include("already exists");
 
       const tasks = await dbOps.getAll();
-      expect(tasks[1].target).to.equal("yoga"); // unchanged
+      const yoga = tasks.find((t) => t.description === "second task");
+      expect(yoga.target).to.equal("yoga"); // unchanged
     });
 
     it("should allow same target after original task completed", async function () {
@@ -3357,7 +3358,7 @@ describe("Target Identifier (x:) E2E Tests", function () {
       await execute("add test task x:bike");
       await execute("delete x:bike");
 
-      const tasks = await dbOps.getAll();
+      const tasks = (await dbOps.getAll()).filter((t) => t.status !== "deleted");
       expect(tasks).to.have.length(0);
     });
 

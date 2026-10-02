@@ -51,8 +51,8 @@ import {
 import { handleReport } from "./commands-reports.js";
 import { handleChecklist, handleUnchecklist } from "./commands-checklist.js";
 import { handleRef } from "./commands-ref.js";
-import { handleStreams } from "./commands-streams.js";
 import { runList } from "./list.js";
+import { wideColumns, setWideColumns } from "./state.js";
 
 // Command registry
 export const commands = {
@@ -60,32 +60,6 @@ export const commands = {
   add: handleAdd,
   a: handleAdd,
   log: handleAdd,
-  stream: async (ctx) => {
-    const before = new Set(
-      (await ctx.dbOps.getByStatus("pending")).map((t) => t.uuid),
-    );
-    ctx.args = [...ctx.args, "!stream"];
-    await handleAdd(ctx);
-    const after = await ctx.dbOps.getByStatus("pending");
-    const created = after.find((t) => !before.has(t.uuid));
-    if (created) {
-      created.start = Date.now();
-      await ctx.dbOps.update(created);
-    }
-  },
-  s: async (ctx) => {
-    const before = new Set(
-      (await ctx.dbOps.getByStatus("pending")).map((t) => t.uuid),
-    );
-    ctx.args = [...ctx.args, "!stream"];
-    await handleAdd(ctx);
-    const after = await ctx.dbOps.getByStatus("pending");
-    const created = after.find((t) => !before.has(t.uuid));
-    if (created) {
-      created.start = Date.now();
-      await ctx.dbOps.update(created);
-    }
-  },
 
   // Task state changes
   done: handleDone,
@@ -149,12 +123,6 @@ export const commands = {
     await handleProjects(ctx.print);
   },
 
-  // Stream view — uses real context (localStorage) exactly like day/today
-  ss: async (ctx) => {
-    ctx.args = ["!stream"];
-    await handleContext(ctx);
-  },
-
   // Reference search
   ref: handleRef,
 
@@ -205,6 +173,23 @@ export const commands = {
   help: handleHelp,
   about: handleAbout,
   clear: handleClear,
+
+  // Wide view
+  wide: async (ctx) => {
+    const arg = ctx.args[0]?.toLowerCase();
+    let n;
+    if (!arg || arg === "toggle") {
+      n = wideColumns > 0 ? 0 : 3;
+    } else if (arg === "off" || arg === "0") {
+      n = 0;
+    } else {
+      const parsed = parseInt(arg, 10);
+      n = isNaN(parsed) ? 3 : Math.min(6, Math.max(1, parsed));
+    }
+    setWideColumns(n);
+    ctx.print(n > 0 ? `Wide view: ${n} columns.` : "Wide view: off.", false);
+    await ctx.runListRefresh();
+  },
 
   // Checklists
   checklist: handleChecklist,
