@@ -631,7 +631,7 @@ const renderWideColumns = (
   // Available column height: viewport minus the terminal top offset (input bar etc.)
   const termTop = termEl ? termEl.getBoundingClientRect().top : 80;
   const emPx = termEl ? parseFloat(getComputedStyle(termEl).fontSize) : 16;
-  const availableHeight = window.innerHeight - termTop - emPx;
+  const availableHeight = window.innerHeight - termTop - emPx * 3.7;
 
   // Greedily assign rows to columns based on cumulative height
   const colAssignments = Array.from({ length: n }, () => []);
