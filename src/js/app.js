@@ -1,6 +1,6 @@
 import { initDB, dbOps } from "./db.js";
 import { print, setExecuteRef, setHighlightCallback } from "./ui.js";
-import { fetchIcons, updateCache, lastFilterArgs, markClean } from "./state.js";
+import { fetchIcons, updateCache, lastFilterArgs, lastLimit, markClean } from "./state.js";
 import { setupInput } from "./input.js";
 import { execute } from "./commands.js";
 import { runList } from "./list.js";
@@ -159,7 +159,7 @@ initDB().then(async () => {
         const text = await (await handle.getFile()).text();
         if (!text.trim()) return;
         await window.__tascaImport(JSON.parse(text));
-        await execute("next");
+        await runList(lastFilterArgs, lastLimit);
       } catch (_) {}
     });
   }

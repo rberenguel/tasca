@@ -34,6 +34,12 @@ export const calculateUrgency = (t, allTasks, projectsMeta = []) => {
   // Someday tag - very low urgency (excluded from next), but priority still affects sort
   if (t.tags && t.tags.some((tag) => tag.toLowerCase() === "someday"))
     return (C.someday + priorityContrib).toFixed(1);
+  // Reference tag on task - very low urgency (excluded from next)
+  if (
+    t.tags &&
+    t.tags.some((tag) => ["reference", "ref"].includes(tag.toLowerCase()))
+  )
+    return (C.reference + priorityContrib).toFixed(1);
   // Reference project - very low urgency (excluded from next), but priority still affects sort
   if (t.project && projectsMeta.length > 0) {
     const projMeta = projectsMeta.find((p) => p.name === t.project);
@@ -205,6 +211,8 @@ export const hasVirtualTag = (t, tag, allTasks, projectsMeta = []) => {
   if (tagClean === "ROUTINE")
     return t.tags?.some((tg) => tg.toLowerCase() === "routine");
   if (["REF", "REFS", "REFERENCE", "REFERENCES"].includes(tagClean)) {
+    if (t.tags?.some((tag) => ["reference", "ref"].includes(tag.toLowerCase())))
+      return true;
     if (!t.project || projectsMeta.length === 0) return false;
     const projMeta = projectsMeta.find((p) => p.name === t.project);
     return (

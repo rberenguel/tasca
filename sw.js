@@ -1,4 +1,4 @@
-const CACHE_NAME = "tasca-cache-v0.21.3";
+const CACHE_NAME = "tasca-cache-v0.21.5";
 const CACHE_FILES = [
   "./fonts/monoid-bold.woff2",
   "./fonts/monoid-italic.woff2",

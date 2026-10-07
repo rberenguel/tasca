@@ -836,6 +836,7 @@ export const handleInfo = async (ctx) => {
   const descHtml = formatTaskDescription(t);
   html += `<div><b>Desc:</b> ${descHtml}</div>`;
   html += `<div><b>Status:</b> ${t.status}</div>`;
+  if (t.entry) html += `<div><b>Created:</b> ${formatDate(t.entry)}</div>`;
   if (t.project) {
     const projects = await ctx.dbOps.getAllProjects();
     const pMeta = projects.find((p) => p.name === t.project);
